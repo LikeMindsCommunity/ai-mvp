@@ -1,0 +1,1676 @@
+{
+    "repository_structure": {
+        "root_files": {
+            "package.json": {
+                "type": "file",
+                "size": "1.4KB",
+                "lines": 52,
+                "description": "Main package configuration file"
+            },
+            "package-lock.json": {
+                "type": "file",
+                "size": "624KB",
+                "lines": 16201,
+                "description": "Locked dependencies file"
+            },
+            "docusaurus.config.js": {
+                "type": "file",
+                "size": "5.7KB",
+                "lines": 214,
+                "description": "Docusaurus configuration file"
+            },
+            "sidebars.js": {
+                "type": "file",
+                "size": "727B",
+                "lines": 32,
+                "description": "Documentation sidebar configuration"
+            },
+            "sidebarsFeed.js": {
+                "type": "file",
+                "size": "740B",
+                "lines": 31,
+                "description": "Feed documentation sidebar configuration"
+            },
+            "tailwind.config.js": {
+                "type": "file",
+                "size": "199B",
+                "lines": 12,
+                "description": "Tailwind CSS configuration"
+            },
+            "babel.config.js": {
+                "type": "file",
+                "size": "89B",
+                "lines": 4,
+                "description": "Babel configuration"
+            },
+            "firebase.json": {
+                "type": "file",
+                "size": "157B",
+                "lines": 12,
+                "description": "Firebase configuration"
+            },
+            ".firebaserc": {
+                "type": "file",
+                "size": "59B",
+                "lines": 6,
+                "description": "Firebase project configuration"
+            },
+            "README.md": {
+                "type": "file",
+                "size": "782B",
+                "lines": 42,
+                "description": "Main repository README"
+            }
+        },
+        "directories": {
+            "docs": {
+                "type": "directory",
+                "description": "Chat SDK documentation",
+                "files": {
+                    "intro.md": {
+                        "type": "file",
+                        "size": "6.9KB",
+                        "lines": 111,
+                        "description": "Chat SDK overview"
+                    },
+                    "analytics_events.md": {
+                        "type": "file",
+                        "size": "11KB",
+                        "lines": 41,
+                        "description": "Analytics events documentation"
+                    },
+                    "notification-list.md": {
+                        "type": "file",
+                        "size": "6.3KB",
+                        "lines": 43,
+                        "description": "Notification list documentation"
+                    },
+                    "notification-using-http-v1.md": {
+                        "type": "file",
+                        "size": "5.1KB",
+                        "lines": 92,
+                        "description": "HTTP v1 notification guide"
+                    },
+                    "notification.md": {
+                        "type": "file",
+                        "size": "1.5KB",
+                        "lines": 48,
+                        "description": "General notification documentation"
+                    }
+                },
+                "subdirectories": {
+                    "Android": {
+                        "type": "directory",
+                        "description": "Android platform documentation",
+                        "files": {
+                            "push-notification.md": {
+                                "type": "file",
+                                "size": "6.1KB",
+                                "lines": 220,
+                                "description": "Push notification guide"
+                            },
+                            "analytics.md": {
+                                "type": "file",
+                                "size": "2.3KB",
+                                "lines": 86,
+                                "description": "Analytics documentation"
+                            },
+                            "introduction.md": {
+                                "type": "file",
+                                "size": "21KB",
+                                "lines": 656,
+                                "description": "Android SDK introduction"
+                            },
+                            "theming.md": {
+                                "type": "file",
+                                "size": "3.3KB",
+                                "lines": 68,
+                                "description": "Theming guide"
+                            },
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "151B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Guides": {
+                                "type": "directory",
+                                "description": "Android implementation guides",
+                                "files": {
+                                    "how-to-filter-state-messages.md": {
+                                        "type": "file",
+                                        "size": "4.6KB",
+                                        "lines": 102,
+                                        "description": "State message filtering guide"
+                                    },
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "150B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "iOS": {
+                        "type": "directory",
+                        "description": "iOS platform documentation",
+                        "files": {
+                            "getting-started.md": {
+                                "type": "file",
+                                "size": "7.6KB",
+                                "lines": 182,
+                                "description": "iOS SDK getting started guide"
+                            },
+                            "Theming.md": {
+                                "type": "file",
+                                "size": "2.6KB",
+                                "lines": 58,
+                                "description": "iOS theming guide"
+                            },
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "159B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Data": {
+                                "type": "directory",
+                                "description": "iOS data layer documentation",
+                                "files": {
+                                    "getting-started.md": {
+                                        "type": "file",
+                                        "size": "1.2KB",
+                                        "lines": 46,
+                                        "description": "Data layer getting started guide"
+                                    },
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "144B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Group Chatroom Feed": {
+                                        "type": "directory",
+                                        "description": "Group chatroom feed functionality"
+                                    },
+                                    "Member": {
+                                        "type": "directory",
+                                        "description": "Member management functionality"
+                                    },
+                                    "Search": {
+                                        "type": "directory",
+                                        "description": "Search functionality"
+                                    },
+                                    "Models": {
+                                        "type": "directory",
+                                        "description": "Data models"
+                                    },
+                                    "Report": {
+                                        "type": "directory",
+                                        "description": "Reporting functionality"
+                                    },
+                                    "Helpers": {
+                                        "type": "directory",
+                                        "description": "Helper utilities"
+                                    },
+                                    "Direct Message Feed": {
+                                        "type": "directory",
+                                        "description": "Direct message feed functionality"
+                                    },
+                                    "Conversation": {
+                                        "type": "directory",
+                                        "description": "Conversation management"
+                                    },
+                                    "Community": {
+                                        "type": "directory",
+                                        "description": "Community management"
+                                    },
+                                    "Chatroom": {
+                                        "type": "directory",
+                                        "description": "Chatroom management"
+                                    }
+                                }
+                            },
+                            "Core": {
+                                "type": "directory",
+                                "description": "iOS core functionality documentation",
+                                "files": {
+                                    "analytics.md": {
+                                        "type": "file",
+                                        "size": "3.0KB",
+                                        "lines": 95,
+                                        "description": "Analytics documentation"
+                                    },
+                                    "push-notifications.md": {
+                                        "type": "file",
+                                        "size": "5.6KB",
+                                        "lines": 194,
+                                        "description": "Push notifications guide"
+                                    },
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "146B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "iOS screen components",
+                                        "files": {
+                                            "LMChatSearchConversationListViewController.md": {
+                                                "type": "file",
+                                                "size": "4.3KB",
+                                                "lines": 103,
+                                                "description": "Search conversation list view controller"
+                                            },
+                                            "LMChatAttachmentViewController.md": {
+                                                "type": "file",
+                                                "size": "2.4KB",
+                                                "lines": 63,
+                                                "description": "Attachment view controller"
+                                            },
+                                            "LMChatCreatePollViewController.md": {
+                                                "type": "file",
+                                                "size": "2.4KB",
+                                                "lines": 72,
+                                                "description": "Create poll view controller"
+                                            },
+                                            "LMChatMemberListViewController.md": {
+                                                "type": "file",
+                                                "size": "1.8KB",
+                                                "lines": 52,
+                                                "description": "Member list view controller"
+                                            },
+                                            "LMChatMessageListViewController.md": {
+                                                "type": "file",
+                                                "size": "2.2KB",
+                                                "lines": 63,
+                                                "description": "Message list view controller"
+                                            },
+                                            "LMChatParticipantListViewController.md": {
+                                                "type": "file",
+                                                "size": "1.8KB",
+                                                "lines": 56,
+                                                "description": "Participant list view controller"
+                                            },
+                                            "LMChatReactionViewController.md": {
+                                                "type": "file",
+                                                "size": "2.1KB",
+                                                "lines": 58,
+                                                "description": "Reaction view controller"
+                                            },
+                                            "LMChatReportViewController.md": {
+                                                "type": "file",
+                                                "size": "1.8KB",
+                                                "lines": 56,
+                                                "description": "Report view controller"
+                                            },
+                                            "LMChatSearchListViewController.md": {
+                                                "type": "file",
+                                                "size": "1.1KB",
+                                                "lines": 41,
+                                                "description": "Search list view controller"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Poll": {
+                                                "type": "directory",
+                                                "description": "Poll-related screens"
+                                            },
+                                            "LMExploreChatroomViewController": {
+                                                "type": "directory",
+                                                "description": "Explore chatroom view controller"
+                                            },
+                                            "Group List": {
+                                                "type": "directory",
+                                                "description": "Group list screens"
+                                            }
+                                        }
+                                    },
+                                    "Components": {
+                                        "type": "directory",
+                                        "description": "iOS UI components",
+                                        "files": {
+                                            "LMChatMessageBubbleView.md": {
+                                                "type": "file",
+                                                "size": "2.2KB",
+                                                "lines": 63,
+                                                "description": "Message bubble view"
+                                            },
+                                            "LMChatReactionViewCell.md": {
+                                                "type": "file",
+                                                "size": "1.3KB",
+                                                "lines": 41,
+                                                "description": "Reaction view cell"
+                                            },
+                                            "LMChatSearchChatroomCell.md": {
+                                                "type": "file",
+                                                "size": "999B",
+                                                "lines": 38,
+                                                "description": "Search chatroom cell"
+                                            },
+                                            "LMChatSearchConversationMessageCell.md": {
+                                                "type": "file",
+                                                "size": "4.6KB",
+                                                "lines": 117,
+                                                "description": "Search conversation message cell"
+                                            },
+                                            "LMChatApproveRejectView.md": {
+                                                "type": "file",
+                                                "size": "1.7KB",
+                                                "lines": 54,
+                                                "description": "Approve reject view"
+                                            },
+                                            "LMChatNotificationCell.md": {
+                                                "type": "file",
+                                                "size": "2.0KB",
+                                                "lines": 62,
+                                                "description": "Notification cell"
+                                            },
+                                            "LMChatReactionTitleCell.md": {
+                                                "type": "file",
+                                                "size": "1.3KB",
+                                                "lines": 45,
+                                                "description": "Reaction title cell"
+                                            },
+                                            "LMChatSearchMessageCell.md": {
+                                                "type": "file",
+                                                "size": "1.2KB",
+                                                "lines": 41,
+                                                "description": "Search message cell"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "LMChatHomeFeedChatroomCell": {
+                                                "type": "directory",
+                                                "description": "Home feed chatroom cell"
+                                            },
+                                            "Participants": {
+                                                "type": "directory",
+                                                "description": "Participant-related components"
+                                            },
+                                            "LMChatMessageCell": {
+                                                "type": "directory",
+                                                "description": "Message cell components"
+                                            },
+                                            "CreatePollWidgets": {
+                                                "type": "directory",
+                                                "description": "Poll creation widgets"
+                                            },
+                                            "LMChatExploreChatroomCell": {
+                                                "type": "directory",
+                                                "description": "Explore chatroom cell"
+                                            },
+                                            "Chatroom": {
+                                                "type": "directory",
+                                                "description": "Chatroom-related components"
+                                            }
+                                        }
+                                    },
+                                    "Guides": {
+                                        "type": "directory",
+                                        "description": "iOS implementation guides",
+                                        "files": {
+                                            "how-to-send-custom-json-data-in-message.md": {
+                                                "type": "file",
+                                                "size": "6.9KB",
+                                                "lines": 142,
+                                                "description": "Guide for sending custom JSON data in messages"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "React": {
+                        "type": "directory",
+                        "description": "React platform documentation",
+                        "files": {
+                            "getting-started-chatbot.md": {
+                                "type": "file",
+                                "size": "2.7KB",
+                                "lines": 89,
+                                "description": "Chatbot implementation guide"
+                            },
+                            "getting-started.md": {
+                                "type": "file",
+                                "size": "9.0KB",
+                                "lines": 318,
+                                "description": "React SDK getting started guide"
+                            },
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "154B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Data": {
+                                "type": "directory",
+                                "description": "React data layer documentation",
+                                "files": {
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "142B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    },
+                                    "direct_message_home_feed.md": {
+                                        "type": "file",
+                                        "size": "3.5KB",
+                                        "lines": 95,
+                                        "description": "Direct message home feed guide"
+                                    },
+                                    "group_chat_home_feed.md": {
+                                        "type": "file",
+                                        "size": "3.7KB",
+                                        "lines": 99,
+                                        "description": "Group chat home feed guide"
+                                    },
+                                    "initiate_user.md": {
+                                        "type": "file",
+                                        "size": "3.5KB",
+                                        "lines": 96,
+                                        "description": "User initialization guide"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Conversation": {
+                                        "type": "directory",
+                                        "description": "Conversation management"
+                                    },
+                                    "Chatroom": {
+                                        "type": "directory",
+                                        "description": "Chatroom management"
+                                    }
+                                }
+                            },
+                            "Core": {
+                                "type": "directory",
+                                "description": "React core functionality documentation",
+                                "files": {
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "158B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Guides": {
+                                        "type": "directory",
+                                        "description": "Implementation guides"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "Flutter": {
+                        "type": "directory",
+                        "description": "Flutter platform documentation",
+                        "files": {
+                            "Theming.md": {
+                                "type": "file",
+                                "size": "5.7KB",
+                                "lines": 150,
+                                "description": "Flutter theming guide"
+                            },
+                            "getting-started-chatbot.md": {
+                                "type": "file",
+                                "size": "2.7KB",
+                                "lines": 68,
+                                "description": "Chatbot implementation guide"
+                            },
+                            "getting-started.md": {
+                                "type": "file",
+                                "size": "5.4KB",
+                                "lines": 149,
+                                "description": "Flutter SDK getting started guide"
+                            },
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "156B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Data": {
+                                "type": "directory",
+                                "description": "Flutter data layer documentation",
+                                "files": {
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "153B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    },
+                                    "introduction.md": {
+                                        "type": "file",
+                                        "size": "1.7KB",
+                                        "lines": 63,
+                                        "description": "Data layer introduction"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Member": {
+                                        "type": "directory",
+                                        "description": "Member management"
+                                    },
+                                    "Models": {
+                                        "type": "directory",
+                                        "description": "Data models"
+                                    },
+                                    "Conversation": {
+                                        "type": "directory",
+                                        "description": "Conversation management"
+                                    },
+                                    "Community": {
+                                        "type": "directory",
+                                        "description": "Community management"
+                                    },
+                                    "Moderation": {
+                                        "type": "directory",
+                                        "description": "Content moderation"
+                                    },
+                                    "Helper": {
+                                        "type": "directory",
+                                        "description": "Helper utilities"
+                                    },
+                                    "Chatroom": {
+                                        "type": "directory",
+                                        "description": "Chatroom management"
+                                    },
+                                    "Direct Message Feed": {
+                                        "type": "directory",
+                                        "description": "Direct message feed"
+                                    },
+                                    "Group Chatroom Feed": {
+                                        "type": "directory",
+                                        "description": "Group chatroom feed"
+                                    },
+                                    "Chatbot": {
+                                        "type": "directory",
+                                        "description": "Chatbot functionality"
+                                    }
+                                }
+                            },
+                            "Core": {
+                                "type": "directory",
+                                "description": "Flutter core functionality documentation",
+                                "files": {
+                                    "_category_.json": {
+                                        "type": "file",
+                                        "size": "153B",
+                                        "lines": 9,
+                                        "description": "Category configuration"
+                                    },
+                                    "notifications.md": {
+                                        "type": "file",
+                                        "size": "4.3KB",
+                                        "lines": 128,
+                                        "description": "Notifications guide"
+                                    },
+                                    "analytics.md": {
+                                        "type": "file",
+                                        "size": "1.9KB",
+                                        "lines": 50,
+                                        "description": "Analytics documentation"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "Flutter screen components",
+                                        "files": {
+                                            "LMChatroomParticipantsPage.md": {
+                                                "type": "file",
+                                                "size": "5.9KB",
+                                                "lines": 198,
+                                                "description": "Chatroom participants page"
+                                            },
+                                            "LMChatroomScreen.md": {
+                                                "type": "file",
+                                                "size": "5.6KB",
+                                                "lines": 217,
+                                                "description": "Chatroom screen"
+                                            },
+                                            "LMChatReportScreen.md": {
+                                                "type": "file",
+                                                "size": "5.8KB",
+                                                "lines": 205,
+                                                "description": "Chat report screen"
+                                            },
+                                            "LMChatCreatePollScreen.md": {
+                                                "type": "file",
+                                                "size": "5.3KB",
+                                                "lines": 182,
+                                                "description": "Create poll screen"
+                                            },
+                                            "LMChatPollResultScreen.md": {
+                                                "type": "file",
+                                                "size": "5.8KB",
+                                                "lines": 202,
+                                                "description": "Poll result screen"
+                                            },
+                                            "Media.md": {
+                                                "type": "file",
+                                                "size": "6.7KB",
+                                                "lines": 227,
+                                                "description": "Media handling screen"
+                                            },
+                                            "LMChatHomeScreen.md": {
+                                                "type": "file",
+                                                "size": "5.6KB",
+                                                "lines": 207,
+                                                "description": "Home screen"
+                                            },
+                                            "Screens.md": {
+                                                "type": "file",
+                                                "size": "7.0KB",
+                                                "lines": 219,
+                                                "description": "Screens overview"
+                                            },
+                                            "Chatbot.md": {
+                                                "type": "file",
+                                                "size": "2.7KB",
+                                                "lines": 86,
+                                                "description": "Chatbot screen"
+                                            },
+                                            "LMChatExplorePage.md": {
+                                                "type": "file",
+                                                "size": "5.5KB",
+                                                "lines": 200,
+                                                "description": "Explore page"
+                                            }
+                                        }
+                                    },
+                                    "Widgets": {
+                                        "type": "directory",
+                                        "description": "Flutter UI widgets",
+                                        "files": {
+                                            "Widgets.md": {
+                                                "type": "file",
+                                                "size": "4.5KB",
+                                                "lines": 109,
+                                                "description": "Widgets overview"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Chatbot": {
+                                                "type": "directory",
+                                                "description": "Chatbot widgets"
+                                            },
+                                            "Shimmer": {
+                                                "type": "directory",
+                                                "description": "Loading shimmer widgets"
+                                            },
+                                            "Reaction": {
+                                                "type": "directory",
+                                                "description": "Reaction widgets"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media handling widgets"
+                                            },
+                                            "Poll": {
+                                                "type": "directory",
+                                                "description": "Poll-related widgets"
+                                            },
+                                            "Profile": {
+                                                "type": "directory",
+                                                "description": "Profile widgets"
+                                            },
+                                            "Fundamentals": {
+                                                "type": "directory",
+                                                "description": "Fundamental widgets"
+                                            },
+                                            "Chatroom": {
+                                                "type": "directory",
+                                                "description": "Chatroom widgets"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "React_Native": {
+                        "type": "directory",
+                        "description": "React Native platform documentation",
+                        "files": {
+                            "getting-started.md": {
+                                "type": "file",
+                                "size": "22KB",
+                                "lines": 733,
+                                "description": "React Native SDK getting started guide"
+                            },
+                            "Theming.md": {
+                                "type": "file",
+                                "size": "4.8KB",
+                                "lines": 184,
+                                "description": "React Native theming guide"
+                            },
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "143B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Data": {
+                                "type": "directory",
+                                "description": "React Native data layer documentation",
+                                "files": {
+                                    "dm_feed.md": {
+                                        "type": "file",
+                                        "size": "2.6KB",
+                                        "lines": 67,
+                                        "description": "Direct message feed guide"
+                                    },
+                                    "home_feed.md": {
+                                        "type": "file",
+                                        "size": "1.7KB",
+                                        "lines": 47,
+                                        "description": "Home feed guide"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "User": {
+                                        "type": "directory",
+                                        "description": "User management"
+                                    },
+                                    "Models": {
+                                        "type": "directory",
+                                        "description": "Data models"
+                                    },
+                                    "Conversation": {
+                                        "type": "directory",
+                                        "description": "Conversation management"
+                                    },
+                                    "Helper": {
+                                        "type": "directory",
+                                        "description": "Helper utilities"
+                                    },
+                                    "Chatroom": {
+                                        "type": "directory",
+                                        "description": "Chatroom management"
+                                    }
+                                }
+                            },
+                            "Core": {
+                                "type": "directory",
+                                "description": "React Native core functionality documentation",
+                                "files": {
+                                    "analytics.md": {
+                                        "type": "file",
+                                        "size": "1.4KB",
+                                        "lines": 50,
+                                        "description": "Analytics documentation"
+                                    },
+                                    "push_notifications.md": {
+                                        "type": "file",
+                                        "size": "3.8KB",
+                                        "lines": 102,
+                                        "description": "Push notifications guide"
+                                    }
+                                },
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "React Native screen components",
+                                        "files": {
+                                            "LMChatroomScreen.md": {
+                                                "type": "file",
+                                                "size": "8.5KB",
+                                                "lines": 233,
+                                                "description": "Chatroom screen"
+                                            },
+                                            "LMChatroomVideoPlayerScreen.md": {
+                                                "type": "file",
+                                                "size": "2.3KB",
+                                                "lines": 60,
+                                                "description": "Video player screen"
+                                            },
+                                            "LMChatroomViewParticipants.md": {
+                                                "type": "file",
+                                                "size": "3.3KB",
+                                                "lines": 91,
+                                                "description": "View participants screen"
+                                            },
+                                            "LMSearchInChatroom.md": {
+                                                "type": "file",
+                                                "size": "4.8KB",
+                                                "lines": 148,
+                                                "description": "Search in chatroom screen"
+                                            },
+                                            "LMChatroomCreatePollScreen.md": {
+                                                "type": "file",
+                                                "size": "5.7KB",
+                                                "lines": 179,
+                                                "description": "Create poll screen"
+                                            },
+                                            "LMChatroomExploreFeed.md": {
+                                                "type": "file",
+                                                "size": "4.0KB",
+                                                "lines": 104,
+                                                "description": "Explore feed screen"
+                                            },
+                                            "LMChatroomFileUploadScreen.md": {
+                                                "type": "file",
+                                                "size": "5.7KB",
+                                                "lines": 152,
+                                                "description": "File upload screen"
+                                            },
+                                            "LMChatroomImageCropScreen.md": {
+                                                "type": "file",
+                                                "size": "2.5KB",
+                                                "lines": 73,
+                                                "description": "Image crop screen"
+                                            },
+                                            "LMChatroomPollResult.md": {
+                                                "type": "file",
+                                                "size": "2.4KB",
+                                                "lines": 80,
+                                                "description": "Poll result screen"
+                                            },
+                                            "LMChatroomReportScreen.md": {
+                                                "type": "file",
+                                                "size": "2.9KB",
+                                                "lines": 68,
+                                                "description": "Report screen"
+                                            },
+                                            "LMChatCarouselScreen.md": {
+                                                "type": "file",
+                                                "size": "4.3KB",
+                                                "lines": 107,
+                                                "description": "Carousel screen"
+                                            },
+                                            "LMChatCommunityChatroomsScreen.md": {
+                                                "type": "file",
+                                                "size": "2.0KB",
+                                                "lines": 55,
+                                                "description": "Community chatrooms screen"
+                                            },
+                                            "LMChatHybridChatroomsScreen.md": {
+                                                "type": "file",
+                                                "size": "2.3KB",
+                                                "lines": 56,
+                                                "description": "Hybrid chatrooms screen"
+                                            },
+                                            "LMChatNetworkChatroomsScreen.md": {
+                                                "type": "file",
+                                                "size": "2.0KB",
+                                                "lines": 55,
+                                                "description": "Network chatrooms screen"
+                                            },
+                                            "LMChatbotInitializationScreen.md": {
+                                                "type": "file",
+                                                "size": "4.2KB",
+                                                "lines": 119,
+                                                "description": "Chatbot initialization screen"
+                                            }
+                                        }
+                                    },
+                                    "Components": {
+                                        "type": "directory",
+                                        "description": "React Native UI components",
+                                        "files": {
+                                            "LMChatroomHomeFeedItem.md": {
+                                                "type": "file",
+                                                "size": "5.5KB",
+                                                "lines": 85,
+                                                "description": "Home feed item component"
+                                            },
+                                            "LMChatAIButton.md": {
+                                                "type": "file",
+                                                "size": "3.0KB",
+                                                "lines": 46,
+                                                "description": "AI button component"
+                                            },
+                                            "LMChatroomMemberList.md": {
+                                                "type": "file",
+                                                "size": "2.4KB",
+                                                "lines": 50,
+                                                "description": "Member list component"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Message": {
+                                                "type": "directory",
+                                                "description": "Message components"
+                                            },
+                                            "MessageInput": {
+                                                "type": "directory",
+                                                "description": "Message input components"
+                                            },
+                                            "Chatroom": {
+                                                "type": "directory",
+                                                "description": "Chatroom components"
+                                            },
+                                            "FileUpload": {
+                                                "type": "directory",
+                                                "description": "File upload components"
+                                            },
+                                            "Search": {
+                                                "type": "directory",
+                                                "description": "Search components"
+                                            },
+                                            "Poll": {
+                                                "type": "directory",
+                                                "description": "Poll components"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media components"
+                                            },
+                                            "Fundamentals": {
+                                                "type": "directory",
+                                                "description": "Fundamental components"
+                                            },
+                                            "Explore Feed": {
+                                                "type": "directory",
+                                                "description": "Explore feed components"
+                                            }
+                                        }
+                                    },
+                                    "Guides": {
+                                        "type": "directory",
+                                        "description": "React Native implementation guides",
+                                        "files": {
+                                            "initiate_dm_how_to.md": {
+                                                "type": "file",
+                                                "size": "4.8KB",
+                                                "lines": 160,
+                                                "description": "Direct message initiation guide"
+                                            },
+                                            "single_channel_as_community_how_to.md": {
+                                                "type": "file",
+                                                "size": "7.4KB",
+                                                "lines": 259,
+                                                "description": "Single channel as community guide"
+                                            },
+                                            "customize_hint_messages.md": {
+                                                "type": "file",
+                                                "size": "5.4KB",
+                                                "lines": 184,
+                                                "description": "Hint messages customization guide"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "how-to-send-metadata-in-a-message-to-render-custom-ui": {
+                                                "type": "directory",
+                                                "description": "Custom UI metadata guide"
+                                            },
+                                            "how-to-use-filter-state-message-in-chatroom": {
+                                                "type": "directory",
+                                                "description": "State message filtering guide"
+                                            },
+                                            "how-to-render-custom-message-ui": {
+                                                "type": "directory",
+                                                "description": "Custom message UI guide"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "REST-API": {
+                        "type": "directory",
+                        "description": "REST API documentation",
+                        "files": {
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "136B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            },
+                            "getting-started.md": {
+                                "type": "file",
+                                "size": "66B",
+                                "lines": 7,
+                                "description": "REST API getting started guide"
+                            }
+                        }
+                    }
+                }
+            },
+            "feed": {
+                "type": "directory",
+                "description": "Feed SDK documentation",
+                "files": {
+                    "analytics_events.md": {
+                        "type": "file",
+                        "size": "14KB",
+                        "lines": 57,
+                        "description": "Feed analytics events documentation"
+                    },
+                    "intro.md": {
+                        "type": "file",
+                        "size": "3.4KB",
+                        "lines": 56,
+                        "description": "Feed SDK overview"
+                    },
+                    "notification-using-http-v1.md": {
+                        "type": "file",
+                        "size": "5.1KB",
+                        "lines": 92,
+                        "description": "Feed HTTP v1 notification guide"
+                    },
+                    "notification.md": {
+                        "type": "file",
+                        "size": "1.4KB",
+                        "lines": 45,
+                        "description": "General feed notification documentation"
+                    },
+                    "notification-list.md": {
+                        "type": "file",
+                        "size": "5.2KB",
+                        "lines": 24,
+                        "description": "Feed notification list documentation"
+                    }
+                },
+                "subdirectories": {
+                    "React_Native": {
+                        "type": "directory",
+                        "description": "React Native Feed documentation",
+                        "files": {
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "143B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Core": {
+                                "type": "directory",
+                                "description": "React Native Feed core functionality",
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "React Native Feed screens",
+                                        "files": {
+                                            "LMFeedCreatePostScreen.md": {
+                                                "type": "file",
+                                                "size": "4.2KB",
+                                                "lines": 98,
+                                                "description": "Create post screen"
+                                            },
+                                            "LMFeedPostDetailScreen.md": {
+                                                "type": "file",
+                                                "size": "3.8KB",
+                                                "lines": 89,
+                                                "description": "Post detail screen"
+                                            },
+                                            "LMFeedHomeScreen.md": {
+                                                "type": "file",
+                                                "size": "4.5KB",
+                                                "lines": 105,
+                                                "description": "Home feed screen"
+                                            }
+                                        }
+                                    },
+                                    "Components": {
+                                        "type": "directory",
+                                        "description": "React Native Feed components",
+                                        "files": {
+                                            "LMFeedPostCard.md": {
+                                                "type": "file",
+                                                "size": "3.2KB",
+                                                "lines": 75,
+                                                "description": "Post card component"
+                                            },
+                                            "LMFeedCommentItem.md": {
+                                                "type": "file",
+                                                "size": "2.8KB",
+                                                "lines": 65,
+                                                "description": "Comment item component"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Post": {
+                                                "type": "directory",
+                                                "description": "Post-related components"
+                                            },
+                                            "Comment": {
+                                                "type": "directory",
+                                                "description": "Comment-related components"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media components"
+                                            },
+                                            "Profile": {
+                                                "type": "directory",
+                                                "description": "Profile components"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "Flutter": {
+                        "type": "directory",
+                        "description": "Flutter Feed documentation",
+                        "files": {
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "156B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Core": {
+                                "type": "directory",
+                                "description": "Flutter Feed core functionality",
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "Flutter Feed screens",
+                                        "files": {
+                                            "LMFeedCreatePostScreen.md": {
+                                                "type": "file",
+                                                "size": "4.0KB",
+                                                "lines": 92,
+                                                "description": "Create post screen"
+                                            },
+                                            "LMFeedPostDetailScreen.md": {
+                                                "type": "file",
+                                                "size": "3.6KB",
+                                                "lines": 85,
+                                                "description": "Post detail screen"
+                                            },
+                                            "LMFeedHomeScreen.md": {
+                                                "type": "file",
+                                                "size": "4.2KB",
+                                                "lines": 98,
+                                                "description": "Home feed screen"
+                                            }
+                                        }
+                                    },
+                                    "Widgets": {
+                                        "type": "directory",
+                                        "description": "Flutter Feed widgets",
+                                        "files": {
+                                            "LMFeedPostCard.md": {
+                                                "type": "file",
+                                                "size": "3.0KB",
+                                                "lines": 70,
+                                                "description": "Post card widget"
+                                            },
+                                            "LMFeedCommentItem.md": {
+                                                "type": "file",
+                                                "size": "2.6KB",
+                                                "lines": 60,
+                                                "description": "Comment item widget"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Post": {
+                                                "type": "directory",
+                                                "description": "Post-related widgets"
+                                            },
+                                            "Comment": {
+                                                "type": "directory",
+                                                "description": "Comment-related widgets"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media widgets"
+                                            },
+                                            "Profile": {
+                                                "type": "directory",
+                                                "description": "Profile widgets"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "Android": {
+                        "type": "directory",
+                        "description": "Android Feed documentation",
+                        "files": {
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "151B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Core": {
+                                "type": "directory",
+                                "description": "Android Feed core functionality",
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "Android Feed screens",
+                                        "files": {
+                                            "LMFeedCreatePostActivity.md": {
+                                                "type": "file",
+                                                "size": "4.1KB",
+                                                "lines": 95,
+                                                "description": "Create post activity"
+                                            },
+                                            "LMFeedPostDetailActivity.md": {
+                                                "type": "file",
+                                                "size": "3.7KB",
+                                                "lines": 87,
+                                                "description": "Post detail activity"
+                                            },
+                                            "LMFeedHomeActivity.md": {
+                                                "type": "file",
+                                                "size": "4.3KB",
+                                                "lines": 100,
+                                                "description": "Home feed activity"
+                                            }
+                                        }
+                                    },
+                                    "Components": {
+                                        "type": "directory",
+                                        "description": "Android Feed components",
+                                        "files": {
+                                            "LMFeedPostCardView.md": {
+                                                "type": "file",
+                                                "size": "3.1KB",
+                                                "lines": 72,
+                                                "description": "Post card view"
+                                            },
+                                            "LMFeedCommentItemView.md": {
+                                                "type": "file",
+                                                "size": "2.7KB",
+                                                "lines": 62,
+                                                "description": "Comment item view"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Post": {
+                                                "type": "directory",
+                                                "description": "Post-related components"
+                                            },
+                                            "Comment": {
+                                                "type": "directory",
+                                                "description": "Comment-related components"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media components"
+                                            },
+                                            "Profile": {
+                                                "type": "directory",
+                                                "description": "Profile components"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "iOS": {
+                        "type": "directory",
+                        "description": "iOS Feed documentation",
+                        "files": {
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "159B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Core": {
+                                "type": "directory",
+                                "description": "iOS Feed core functionality",
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "iOS Feed screens",
+                                        "files": {
+                                            "LMFeedCreatePostViewController.md": {
+                                                "type": "file",
+                                                "size": "4.0KB",
+                                                "lines": 90,
+                                                "description": "Create post view controller"
+                                            },
+                                            "LMFeedPostDetailViewController.md": {
+                                                "type": "file",
+                                                "size": "3.6KB",
+                                                "lines": 84,
+                                                "description": "Post detail view controller"
+                                            },
+                                            "LMFeedHomeViewController.md": {
+                                                "type": "file",
+                                                "size": "4.2KB",
+                                                "lines": 96,
+                                                "description": "Home feed view controller"
+                                            }
+                                        }
+                                    },
+                                    "Components": {
+                                        "type": "directory",
+                                        "description": "iOS Feed components",
+                                        "files": {
+                                            "LMFeedPostCardView.md": {
+                                                "type": "file",
+                                                "size": "3.0KB",
+                                                "lines": 70,
+                                                "description": "Post card view"
+                                            },
+                                            "LMFeedCommentItemView.md": {
+                                                "type": "file",
+                                                "size": "2.6KB",
+                                                "lines": 60,
+                                                "description": "Comment item view"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Post": {
+                                                "type": "directory",
+                                                "description": "Post-related components"
+                                            },
+                                            "Comment": {
+                                                "type": "directory",
+                                                "description": "Comment-related components"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media components"
+                                            },
+                                            "Profile": {
+                                                "type": "directory",
+                                                "description": "Profile components"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "React": {
+                        "type": "directory",
+                        "description": "React Feed documentation",
+                        "files": {
+                            "_category_.json": {
+                                "type": "file",
+                                "size": "154B",
+                                "lines": 9,
+                                "description": "Category configuration"
+                            }
+                        },
+                        "subdirectories": {
+                            "Core": {
+                                "type": "directory",
+                                "description": "React Feed core functionality",
+                                "subdirectories": {
+                                    "Screens": {
+                                        "type": "directory",
+                                        "description": "React Feed screens",
+                                        "files": {
+                                            "LMFeedCreatePostScreen.md": {
+                                                "type": "file",
+                                                "size": "4.1KB",
+                                                "lines": 96,
+                                                "description": "Create post screen"
+                                            },
+                                            "LMFeedPostDetailScreen.md": {
+                                                "type": "file",
+                                                "size": "3.7KB",
+                                                "lines": 86,
+                                                "description": "Post detail screen"
+                                            },
+                                            "LMFeedHomeScreen.md": {
+                                                "type": "file",
+                                                "size": "4.3KB",
+                                                "lines": 100,
+                                                "description": "Home feed screen"
+                                            }
+                                        }
+                                    },
+                                    "Components": {
+                                        "type": "directory",
+                                        "description": "React Feed components",
+                                        "files": {
+                                            "LMFeedPostCard.md": {
+                                                "type": "file",
+                                                "size": "3.1KB",
+                                                "lines": 73,
+                                                "description": "Post card component"
+                                            },
+                                            "LMFeedCommentItem.md": {
+                                                "type": "file",
+                                                "size": "2.7KB",
+                                                "lines": 63,
+                                                "description": "Comment item component"
+                                            }
+                                        },
+                                        "subdirectories": {
+                                            "Post": {
+                                                "type": "directory",
+                                                "description": "Post-related components"
+                                            },
+                                            "Comment": {
+                                                "type": "directory",
+                                                "description": "Comment-related components"
+                                            },
+                                            "Media": {
+                                                "type": "directory",
+                                                "description": "Media components"
+                                            },
+                                            "Profile": {
+                                                "type": "directory",
+                                                "description": "Profile components"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rest-api": {
+                "type": "directory",
+                "description": "REST API documentation"
+            },
+            "quickstart-guide": {
+                "type": "directory",
+                "description": "Quickstart guides",
+                "subdirectories": {
+                    "chat": {
+                        "type": "directory",
+                        "description": "Chat quickstart guides"
+                    },
+                    "feed": {
+                        "type": "directory",
+                        "description": "Feed quickstart guides"
+                    }
+                }
+            },
+            "static": {
+                "type": "directory",
+                "description": "Static assets"
+            },
+            "src": {
+                "type": "directory",
+                "description": "Source code"
+            },
+            "plugins": {
+                "type": "directory",
+                "description": "Docusaurus plugins"
+            },
+            ".github": {
+                "type": "directory",
+                "description": "GitHub configuration"
+            },
+            ".docusaurus": {
+                "type": "directory",
+                "description": "Docusaurus build files"
+            },
+            ".venv": {
+                "type": "directory",
+                "description": "Python virtual environment"
+            }
+        }
+    },
+    "metadata": {
+        "total_files": 50,
+        "total_directories": 20,
+        "total_size": "~1.2MB",
+        "last_updated": "2024-03-18",
+        "platforms": [
+            "Android",
+            "iOS",
+            "React",
+            "Flutter",
+            "React Native"
+        ],
+        "documentation_types": [
+            "Chat SDK",
+            "Feed SDK",
+            "REST API",
+            "Quickstart Guides"
+        ],
+        "feature_categories": {
+            "core_features": [
+                "Authentication",
+                "Analytics",
+                "Push Notifications",
+                "Theming",
+                "State Management"
+            ],
+            "chat_features": [
+                "Direct Messaging",
+                "Group Chat",
+                "Chatrooms",
+                "Conversations",
+                "Media Handling"
+            ],
+            "feed_features": [
+                "Content Display",
+                "User Interactions",
+                "Moderation",
+                "Search",
+                "Community Management"
+            ],
+            "platform_specific": {
+                "common_components": [
+                    "Screens",
+                    "Components",
+                    "Widgets",
+                    "Guides",
+                    "Data Models"
+                ],
+                "data_layer": [
+                    "Models",
+                    "Services",
+                    "Repositories",
+                    "Helpers",
+                    "Utilities"
+                ]
+            }
+        },
+        "ui_components": {
+            "common_screens": [
+                "Chatroom",
+                "Create Poll",
+                "Poll Result",
+                "Report",
+                "Participants",
+                "Search",
+                "Media",
+                "Explore"
+            ],
+            "common_components": [
+                "Message",
+                "Message Input",
+                "Reaction",
+                "Media",
+                "Poll",
+                "Profile",
+                "Search",
+                "Chatroom"
+            ],
+            "platform_specific": {
+                "iOS": {
+                    "screens": 12,
+                    "components": 14,
+                    "guides": 1
+                },
+                "Flutter": {
+                    "screens": 10,
+                    "widgets": 9,
+                    "guides": 0
+                },
+                "React_Native": {
+                    "screens": 15,
+                    "components": 12,
+                    "guides": 6
+                }
+            }
+        },
+        "feed_components": {
+            "common_screens": [
+                "Home Feed",
+                "Create Post",
+                "Post Detail",
+                "Profile",
+                "Comments",
+                "Media Viewer"
+            ],
+            "common_components": [
+                "Post Card",
+                "Comment Item",
+                "Media Viewer",
+                "Profile Header",
+                "Action Buttons",
+                "Feed List"
+            ],
+            "platform_specific": {
+                "iOS": {
+                    "screens": 3,
+                    "components": 4,
+                    "guides": 0
+                },
+                "Flutter": {
+                    "screens": 3,
+                    "widgets": 4,
+                    "guides": 0
+                },
+                "React_Native": {
+                    "screens": 3,
+                    "components": 4,
+                    "guides": 0
+                },
+                "React": {
+                    "screens": 3,
+                    "components": 4,
+                    "guides": 0
+                },
+                "Android": {
+                    "screens": 3,
+                    "components": 4,
+                    "guides": 0
+                }
+            }
+        }
+    }
+}

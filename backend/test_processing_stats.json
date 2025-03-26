@@ -1,0 +1,20 @@
+{
+  "total_documents": 372,
+  "total_chunks": 2343,
+  "product_areas": {
+    "chat": 372,
+    "feed": 0
+  },
+  "platforms": {
+    "iOS": 119,
+    "React_Native": 109,
+    "Flutter": 103,
+    "Android": 5,
+    "React": 30,
+    "REST-API": 1
+  },
+  "average_chunk_size": 122.6423388817755,
+  "processing_warnings": [
+    "Empty content in /Users/divyanshgandhi/Documents/Work/GitHub/likeminds-docs/docs/Flutter/Core/Widgets/Fundamentals/Menu/LMChatMenu.md"
+  ]
+}

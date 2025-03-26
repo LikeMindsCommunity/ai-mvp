@@ -1,0 +1,18 @@
+{
+  "total_documents": 597,
+  "total_chunks": 4241,
+  "product_areas": {
+    "chat": 0,
+    "feed": 597
+  },
+  "platforms": {
+    "iOS": 100,
+    "React_Native": 118,
+    "Flutter": 158,
+    "Android": 112,
+    "React": 103,
+    "REST-API": 1
+  },
+  "average_chunk_size": 119.08865833529828,
+  "processing_warnings": []
+}
