@@ -1,0 +1,8 @@
+# Ignore all repos and docs
+repos/
+docs/
+
+.env
+
+backend/.env
+frontend/.env
