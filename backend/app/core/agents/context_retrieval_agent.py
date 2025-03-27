@@ -5,17 +5,24 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import PromptTemplate
 from ..config.env import CONTEXT_MODEL, API_KEYS
+from .base_agent import BaseAgent
 
-class ContextRetrievalAgent:
+class ContextRetrievalAgent(BaseAgent):
     """
     Agent responsible for reranking and filtering retrieved document chunks
     to ensure relevance to the query. Uses GPT-4o for advanced relevance scoring.
     """
     
-    def __init__(self):
+    def __init__(self, name="context_retrieval_agent", **kwargs):
         """
         Initialize the Context Retrieval Agent with GPT-4o.
+        
+        Args:
+            name: Name of the agent instance
+            **kwargs: Additional arguments passed to the BaseAgent constructor
         """
+        super().__init__(name=name, **kwargs)
+        
         self.llm = ChatOpenAI(
             model=CONTEXT_MODEL,
             openai_api_key=API_KEYS["OPENAI_API_KEY"]
@@ -140,3 +147,18 @@ Example response format:
         ranked_docs.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
         
         return ranked_docs
+
+    async def _execute(self, task_input: Dict[str, Any]) -> Any:
+        """
+        Implement the BaseAgent execute method.
+        
+        Args:
+            task_input: Dictionary containing task parameters
+            
+        Returns:
+            Reranked document list
+        """
+        enhanced_query = task_input.get("enhanced_query", "")
+        documents = task_input.get("documents", [])
+        
+        return await self.rerank_documents(enhanced_query, documents)

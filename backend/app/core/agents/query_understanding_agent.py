@@ -5,17 +5,24 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import PromptTemplate
 from ..config.env import QUERY_MODEL, API_KEYS
+from .base_agent import BaseAgent
 
-class QueryUnderstandingAgent:
+class QueryUnderstandingAgent(BaseAgent):
     """
     Agent responsible for understanding and enhancing user queries.
     Uses Claude 3.7 Sonnet for advanced query understanding and expansion.
     """
     
-    def __init__(self):
+    def __init__(self, name="query_understanding_agent", **kwargs):
         """
         Initialize the Query Understanding Agent with Claude 3.7 Sonnet.
+        
+        Args:
+            name: Name of the agent instance
+            **kwargs: Additional arguments passed to the BaseAgent constructor
         """
+        super().__init__(name=name, **kwargs)
+        
         self.llm = ChatAnthropic(
             model=QUERY_MODEL,
             anthropic_api_key=API_KEYS["ANTHROPIC_API_KEY"]
@@ -78,4 +85,19 @@ FORMAT YOUR RESPONSE AS THE ENHANCED QUERY ONLY. Do not include explanations, me
         response = await self.llm.ainvoke([message])
         enhanced_query = response.content.strip()
         
-        return enhanced_query 
+        return enhanced_query
+        
+    async def _execute(self, task_input: Dict[str, Any]) -> Any:
+        """
+        Implement the BaseAgent execute method.
+        
+        Args:
+            task_input: Dictionary containing task parameters
+            
+        Returns:
+            Enhanced query string
+        """
+        query = task_input.get("query", "")
+        conversation_history = task_input.get("conversation_history", [])
+        
+        return await self.enhance_query(query, conversation_history) 

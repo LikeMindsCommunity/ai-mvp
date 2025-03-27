@@ -1,0 +1,16 @@
+{
+  "total_repositories": 2,
+  "total_files": 755,
+  "total_processed_files": 755,
+  "total_chunks": 0,
+  "languages": {
+    "javascript": 48,
+    "typescript": 683,
+    "unknown": 24
+  },
+  "skipped_files": 0,
+  "processing_warnings": [
+    "Error processing repository /Users/divyanshgandhi/Documents/Work/ai-ml/ai-mvp/repos/chat: 'metadata'",
+    "Error processing repository /Users/divyanshgandhi/Documents/Work/ai-ml/ai-mvp/repos/feed: 'metadata'"
+  ]
+}

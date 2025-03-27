@@ -9,8 +9,8 @@ import uvicorn
 import json
 import time
 
-from app.core.orchestrator import AgentOrchestrator
-from app.core.config.env import HOST, PORT
+from backend.app.core.orchestrator import AgentOrchestrator
+from backend.app.core.config.env import HOST, PORT
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -33,6 +33,11 @@ class QueryRequest(BaseModel):
     conversation_history: Optional[List[Dict[str, str]]] = None
     stream: Optional[bool] = False
 
+class CodeGenerationRequest(BaseModel):
+    requirements: str
+    platform: str
+    additional_context: Optional[Dict[str, Any]] = None
+    stream: Optional[bool] = False
 
 # Initialize orchestrator
 @app.on_event("startup")
@@ -71,6 +76,92 @@ async def process_query(request: QueryRequest):
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+
+
+# Code Generation endpoint
+@app.post("/api/generate-code", tags=["Code Generation"])
+async def generate_code(request: CodeGenerationRequest):
+    """
+    Process a code generation request and return generated code with validation results.
+    """
+    # If streaming is requested, use streaming response
+    if request.stream:
+        return await stream_code_generation(request)
+        
+    try:
+        # Get orchestrator from app state
+        orchestrator = app.state.orchestrator
+        
+        # Process the code generation request
+        result = await orchestrator.process_code_generation(
+            requirements=request.requirements,
+            platform=request.platform,
+            additional_context=request.additional_context
+        )
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error generating code: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating code: {str(e)}")
+
+
+# Requirements analysis endpoint
+@app.post("/api/analyze-requirements", tags=["Code Generation"])
+async def analyze_requirements(request: CodeGenerationRequest):
+    """
+    Analyze requirements for code generation.
+    """
+    try:
+        # Get orchestrator from app state
+        orchestrator = app.state.orchestrator
+        
+        # Process requirements analysis only
+        requirements_analysis = await orchestrator.requirements_agent.execute({
+            "action": "analyze_requirements",
+            "requirements": request.requirements,
+            "platform": request.platform,
+            "additional_context": request.additional_context or {}
+        })
+        
+        return {
+            "requirements": request.requirements,
+            "platform": request.platform,
+            "requirements_analysis": requirements_analysis
+        }
+    except Exception as e:
+        logger.error(f"Error analyzing requirements: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error analyzing requirements: {str(e)}")
+
+
+# Code validation endpoint
+@app.post("/api/validate-code", tags=["Code Generation"])
+async def validate_code(request: dict):
+    """
+    Validate existing code against requirements and best practices.
+    """
+    try:
+        if not request.get("code"):
+            raise HTTPException(status_code=400, detail="Code is required for validation")
+            
+        # Get orchestrator from app state
+        orchestrator = app.state.orchestrator
+        
+        # Process code validation only
+        validation_results = await orchestrator.validation_agent.execute({
+            "action": "validate_code",
+            "generated_code": request.get("code"),
+            "requirements_analysis": request.get("requirements_analysis", {}),
+            "code_plan": request.get("code_plan", {}),
+            "platform": request.get("platform", "unknown")
+        })
+        
+        return {
+            "code": request.get("code"),
+            "validation_results": validation_results
+        }
+    except Exception as e:
+        logger.error(f"Error validating code: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error validating code: {str(e)}")
 
 
 # Streaming query endpoint
@@ -201,6 +292,115 @@ async def stream_query(request: QueryRequest):
             
         except Exception as e:
             logger.error(f"Error in streaming query: {str(e)}", exc_info=True)
+            # Send error message
+            yield f"data: {json.dumps({'event': 'error', 'data': {'error': str(e)}})} \n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
+
+
+async def stream_code_generation(request: CodeGenerationRequest):
+    """
+    Stream the code generation process using Server-Sent Events (SSE).
+    """
+    async def event_generator():
+        start_time = time.time()
+        metrics = {
+            "start_time": start_time,
+            "steps": {}
+        }
+        
+        try:
+            # Get orchestrator from app state
+            orchestrator = app.state.orchestrator
+            
+            # Step 1: Requirements Analysis
+            yield f"data: {json.dumps({'event': 'status', 'data': {'status': 'analyzing_requirements', 'message': 'Analyzing your requirements...'}})} \n\n"
+            
+            step_start = time.time()
+            requirements_analysis = await orchestrator.requirements_agent.execute({
+                "action": "analyze_requirements",
+                "requirements": request.requirements,
+                "platform": request.platform,
+                "additional_context": request.additional_context or {}
+            })
+            
+            metrics["steps"]["requirements_analysis"] = {
+                "duration": time.time() - step_start
+            }
+            
+            yield f"data: {json.dumps({'event': 'requirements_analysis', 'data': {'requirements_analysis': requirements_analysis}})} \n\n"
+            
+            # Step 2: Code Planning
+            yield f"data: {json.dumps({'event': 'status', 'data': {'status': 'planning_code', 'message': 'Creating architecture and implementation plan...'}})} \n\n"
+            
+            step_start = time.time()
+            code_plan = await orchestrator.planning_agent.execute({
+                "action": "create_plan",
+                "requirements_analysis": requirements_analysis,
+                "platform": request.platform,
+                "additional_context": request.additional_context or {}
+            })
+            
+            metrics["steps"]["code_planning"] = {
+                "duration": time.time() - step_start
+            }
+            
+            yield f"data: {json.dumps({'event': 'code_plan', 'data': {'code_plan': code_plan}})} \n\n"
+            
+            # Step 3: Code Generation
+            yield f"data: {json.dumps({'event': 'status', 'data': {'status': 'generating_code', 'message': 'Generating code based on requirements and plan...'}})} \n\n"
+            
+            step_start = time.time()
+            generated_code = await orchestrator.generation_agent.execute({
+                "action": "generate_code",
+                "requirements_analysis": requirements_analysis,
+                "code_plan": code_plan,
+                "platform": request.platform,
+                "additional_context": request.additional_context or {}
+            })
+            
+            metrics["steps"]["code_generation"] = {
+                "duration": time.time() - step_start
+            }
+            
+            yield f"data: {json.dumps({'event': 'generated_code', 'data': {'generated_code': generated_code}})} \n\n"
+            
+            # Step 4: Code Validation
+            yield f"data: {json.dumps({'event': 'status', 'data': {'status': 'validating_code', 'message': 'Validating generated code...'}})} \n\n"
+            
+            step_start = time.time()
+            validation_results = await orchestrator.validation_agent.execute({
+                "action": "validate_code",
+                "generated_code": generated_code,
+                "requirements_analysis": requirements_analysis,
+                "code_plan": code_plan,
+                "platform": request.platform
+            })
+            
+            metrics["steps"]["code_validation"] = {
+                "duration": time.time() - step_start
+            }
+            
+            # Calculate total processing time
+            metrics["total_time"] = time.time() - start_time
+            
+            # Return final results
+            yield f"data: {json.dumps({'event': 'validation_results', 'data': {'validation_results': validation_results}})} \n\n"
+            
+            # End of stream
+            yield f"data: {json.dumps({'event': 'done', 'data': {
+                'status': 'completed', 
+                'message': 'Code generation completed',
+                'requirements': request.requirements,
+                'platform': request.platform,
+                'metrics': metrics
+            }})} \n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in streaming code generation: {str(e)}", exc_info=True)
             # Send error message
             yield f"data: {json.dumps({'event': 'error', 'data': {'error': str(e)}})} \n\n"
     

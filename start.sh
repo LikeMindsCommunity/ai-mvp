@@ -45,8 +45,7 @@ fi
 
 # Start backend server
 echo -e "${GREEN}Starting backend server...${NC}"
-cd backend
-python -m app.main &
+python run_api.py &
 BACKEND_PID=$!
 echo -e "${GREEN}Backend server started with PID ${BACKEND_PID}${NC}"
 
@@ -56,7 +55,7 @@ sleep 5
 
 # Start frontend development server
 echo -e "${GREEN}Starting frontend development server...${NC}"
-cd ../frontend
+cd frontend
 
 # Check if index.html exists
 if [ ! -f "index.html" ]; then
@@ -71,10 +70,14 @@ if [ ! -f "index.html" ]; then
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LikeMinds Documentation Assistant</title>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 EOL
@@ -88,8 +91,106 @@ EOL
 </svg>
 EOL
     
+    # Create basic CSS file if it doesn't exist
+    mkdir -p src
+    if [ ! -f "src/index.css" ]; then
+        cat > src/index.css << EOL
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+EOL
+    fi
+    
+    # Create lib directory and utils
+    mkdir -p src/lib
+    cat > src/lib/utils.ts << EOL
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+EOL
+    
     echo -e "${GREEN}Frontend files created successfully.${NC}"
 fi
+
+# Install necessary dependencies
+echo -e "${YELLOW}Installing necessary dependencies...${NC}"
+npm install -s tailwind-merge clsx class-variance-authority 2>/dev/null
 
 npm run dev &
 FRONTEND_PID=$!

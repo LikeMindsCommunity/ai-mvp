@@ -37,7 +37,7 @@ API_KEYS = validate_env_vars([
 ])
 
 # Vector DB configuration
-CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./backend/chroma_db")
+CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./chroma_db")
 
 # Model configurations
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")

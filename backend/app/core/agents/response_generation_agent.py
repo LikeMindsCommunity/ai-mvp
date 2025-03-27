@@ -5,17 +5,24 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import PromptTemplate
 from ..config.env import RESPONSE_MODEL, API_KEYS
+from .base_agent import BaseAgent
 
-class ResponseGenerationAgent:
+class ResponseGenerationAgent(BaseAgent):
     """
     Agent responsible for generating comprehensive responses to user queries
     based on retrieved context. Uses Claude 3.7 Sonnet for advanced reasoning.
     """
     
-    def __init__(self):
+    def __init__(self, name="response_generation_agent", **kwargs):
         """
         Initialize the Response Generation Agent with Claude 3.7 Sonnet.
+        
+        Args:
+            name: Name of the agent instance
+            **kwargs: Additional arguments passed to the BaseAgent constructor
         """
+        super().__init__(name=name, **kwargs)
+        
         self.llm = ChatAnthropic(
             model=RESPONSE_MODEL,
             anthropic_api_key=API_KEYS["ANTHROPIC_API_KEY"],
@@ -192,3 +199,20 @@ DO NOT make up information that isn't supported by the provided context. If you'
         response_text = response.content
         
         return response_text, references 
+
+    async def _execute(self, task_input: Dict[str, Any]) -> Any:
+        """
+        Implement the BaseAgent execute method.
+        
+        Args:
+            task_input: Dictionary containing task parameters
+            
+        Returns:
+            Tuple containing (response_text, sources)
+        """
+        query = task_input.get("query", "")
+        enhanced_query = task_input.get("enhanced_query", "")
+        context = task_input.get("context", [])
+        conversation_history = task_input.get("conversation_history", [])
+        
+        return await self.generate_response(query, enhanced_query, context, conversation_history) 

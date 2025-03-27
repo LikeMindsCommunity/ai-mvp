@@ -1,0 +1,8 @@
+{
+    "label": "Universal Feed",
+    "position": 1,
+    "link": {
+      "type": "generated-index",
+      "description": "Components used in Universal Feed Screen"
+    }
+  }
