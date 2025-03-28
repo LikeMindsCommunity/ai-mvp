@@ -28,7 +28,7 @@ The code directory contains services for processing code:
 ### Week 1: Document Processing Base
 - Implement document analyzer
 - Create document chunking strategies
-- Set up embedding generation with OpenAI
+- Set up embedding generation with OpenAI text-embedding-3-large
 - Build document processor orchestrator
 
 ### Week 2: Code Processing Base

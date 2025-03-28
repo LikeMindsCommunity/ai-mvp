@@ -43,8 +43,8 @@ app.add_middleware(
 
 # Import routers
 # These will be implemented as services are developed
-# from agents.documentation.router import router as documentation_router
-# from agents.coding.router import router as coding_router
+from agents.documentation.router import router as documentation_router
+from agents.coding.router import router as coding_router
 # from project.demo.router import router as demo_router
 # from project.environment.router import router as environment_router
 
@@ -67,8 +67,8 @@ async def health():
 
 # Add routers
 # These will be enabled as services are developed
-# app.include_router(documentation_router, prefix="/api/agents/documentation", tags=["Documentation Agent"])
-# app.include_router(coding_router, prefix="/api/agents/coding", tags=["Coding Agent"])
+app.include_router(documentation_router, prefix="/api/agents/documentation", tags=["Documentation Agent"])
+app.include_router(coding_router, prefix="/api/agents/coding", tags=["Coding Agent"])
 # app.include_router(demo_router, prefix="/api/project/demo", tags=["Demo Repository"])
 # app.include_router(environment_router, prefix="/api/project/environment", tags=["Environment"])
 
