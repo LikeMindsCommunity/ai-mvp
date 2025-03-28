@@ -15,7 +15,14 @@ from ...infrastructure import (
     monitor,
 )
 
+# Import core agent functionality
+from .base_agent import BaseAgent
+from .agent_communication import AgentMessage, AgentCommunicationManager, communication_manager
+from .agent_registry import AgentRegistry, agent_registry
+from .langchain_integration import create_llm, create_chat_prompt_template, LangGraphBuilder
+
 __all__ = [
+    # Infrastructure exports
     "User", 
     "get_current_user", 
     "get_optional_user", 
@@ -23,4 +30,15 @@ __all__ = [
     "settings",
     "trace",
     "monitor",
+    
+    # Core agent exports
+    "BaseAgent",
+    "AgentMessage",
+    "AgentCommunicationManager",
+    "communication_manager",
+    "AgentRegistry",
+    "agent_registry",
+    "create_llm",
+    "create_chat_prompt_template",
+    "LangGraphBuilder",
 ] 
