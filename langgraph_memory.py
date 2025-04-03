@@ -159,14 +159,14 @@ def build_rag_workflow():
     def generate_response(state: GraphState) -> Dict:
         """Generate a response using retrieved context and chat history"""
         # Create the prompt with chat history
-        system_template = f"""You are a helpful integration assistant from LikeMinds, which is a company that makes Chat and Feed SDKs in multiple tech stacks (React, React Native, Flutter, Android, and iOS). You are an expert at preparing solutions and integration guides and runnable code in all our supported SDKs. You have access to our documentation and source code which details how everything is supposed to be done. Do not hallucinate any information, provide clear and concise steps.
+        system_template = """You are a helpful integration assistant from LikeMinds, which is a company that makes Chat and Feed SDKs in multiple tech stacks (React, React Native, Flutter, Android, and iOS). You are an expert at preparing solutions and integration guides and runnable code in all our supported SDKs. You have access to our documentation and source code which details how everything is supposed to be done. Do not hallucinate any information, provide clear and concise steps.
 
 {prompt_content}
 
 Use the following pieces of context to answer the user's question. The context includes both documentation and source code snippets from the SDK. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
 Context:
-{{context}}
+{context}
 """
         
         # Create the prompt
@@ -182,6 +182,7 @@ Context:
         chain = prompt | llm
         response = chain.invoke({
             "context": context_str,
+            "prompt_content": prompt_content,
             "messages": state["messages"]
         })
         
@@ -229,7 +230,6 @@ def generate():
     
     # Questions to process
     questions = [
-        "How do I integrate LikeMinds Chat SDK in Flutter?",
         "How do I customise the user tile on participant screen?"
     ]
     
