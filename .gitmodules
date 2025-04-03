@@ -1,3 +1,6 @@
 [submodule "docs"]
 	path = docs
 	url = https://www.github.com/likemindscommunity/likeminds-docs
+[submodule "code"]
+	path = code
+	url = https://github.com/LikeMindsCommunity/likeminds-chat-flutter.git

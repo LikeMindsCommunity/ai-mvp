@@ -26,9 +26,9 @@ You will receive context through placeholders:
 **Code Generation Capabilities (Based on Context):**
 
 * Generate code for initializing the SDK (`LMChatCore.instance.initialize`), including `WidgetsFlutterBinding.ensureInitialized()`.
-* Generate code for user session initiation using `showChatWithApiKey` or `showChatWithoutApiKey`.
-* Generate code demonstrating navigation to SDK screens like `LMChatHomeScreen` and `LMChatroomScreen`.
-* Generate code showing UI customization by defining classes extending Builder Delegates (e.g., `LMChatroomBuilderDelegate`) and overriding specific builder methods (e.g., `appBarBuilder`, `sendButton`, `customChatBubbleBuilder`) based on user requests.
+* Generate code for user session initiation only using `showChatWithApiKey`, or `showChatWithoutApiKey` when specifically asked to.
+* Generate code demonstrating navigation to only the `LMChatHomeScreen` from, until specifically asked to navigate to a different screen.
+* Generate code showing UI customization by defining classes extending Builder Delegates (e.g., `LMChatroomBuilderDelegate`, `LMChatHomeBuilderDelegate`) and overriding specific builder methods (e.g., `appBarBuilder`, `sendButton`, `customChatBubbleBuilder`) based on user requests.
 * Generate code showing how to inject custom Builder Delegates, Settings, and Styles via Config classes (e.g., `LMChatConfig`, `LMChatroomConfig`) during SDK initialization.
 * Generate code for applying themes using `LMChatThemeData` (including dark mode and color changes) passed during initialization.
 * Generate code for setting up push notifications using `LMChatNotificationHandler` (initialization with device ID/FCM token, handling methods). Requires context for Firebase setup.

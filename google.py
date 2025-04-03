@@ -79,7 +79,7 @@ def generate():
             role="user",
             parts=[
                 types.Part.from_text(text="""How do I integrate LikeMinds Chat SDK in Flutter?"""),
-                types.Part.from_text(text="How do I customise the appbar of the chatroom screen?"),
+                types.Part.from_text(text="How do I customise the appbar on the chatroom screen?"),
             ],
         ),
     ]
