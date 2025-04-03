@@ -51,6 +51,26 @@ class DocumentParser:
         
         return False
 
+    def extract_headings(self, content: str) -> List[str]:
+        """Extract all headings from markdown content and convert them to subheadings."""
+        headings = []
+        for line in content.split('\n'):
+            if line.startswith('#'):
+                # Count the number of # to determine heading level
+                level = len(line) - len(line.lstrip('#'))
+                heading_text = line.lstrip('#').strip()
+                # Convert to subheading by adding one more level
+                headings.append(f"{'#' * (level + 1)} {heading_text}")
+        return headings
+
+    def extract_slug(self, content: str) -> str:
+        """Extract the slug from the frontmatter of a markdown file."""
+        lines = content.split('\n')
+        for line in lines:
+            if line.startswith('slug:'):
+                return line.split('slug:')[1].strip()
+        return None
+
     def process_file(self, file_path: str):
         """Process a single markdown file and extract its content."""
         if file_path in self.processed_files:
@@ -62,9 +82,34 @@ class DocumentParser:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            rel_path = os.path.relpath(file_path, self.repo_path)
-            self.combined_content.append(f"# {rel_path}\n\n")
-            self.combined_content.append(content)
+            # Extract slug from frontmatter
+            slug = self.extract_slug(content)
+            if not slug:
+                slug = os.path.relpath(file_path, self.repo_path)
+            
+            # Add slug as main heading
+            self.combined_content.append(f"# {slug}\n\n")
+            
+            # Extract and add subheadings
+            headings = self.extract_headings(content)
+            if headings:
+                self.combined_content.append("## Subheadings in this file:\n\n")
+                for heading in headings:
+                    # Extract the heading text without the # symbols
+                    heading_text = heading.lstrip('#').strip()
+                    self.combined_content.append(f"- {heading_text}\n")
+                self.combined_content.append("\n")
+            
+            # Add the actual content with converted headings
+            for line in content.split('\n'):
+                if line.startswith('#'):
+                    # Convert to subheading by adding one more level
+                    level = len(line) - len(line.lstrip('#'))
+                    heading_text = line.lstrip('#').strip()
+                    self.combined_content.append(f"{'#' * (level + 1)} {heading_text}\n")
+                else:
+                    self.combined_content.append(f"{line}\n")
+            
             self.combined_content.append("\n---\n\n")
             
         except Exception as e:
