@@ -2,6 +2,9 @@ import os
 import shutil
 import subprocess
 from typing import List, Set
+import requests
+from urllib.parse import urlparse, urlunparse
+import re
 
 class DocumentParser:
     def __init__(
@@ -17,6 +20,7 @@ class DocumentParser:
         self.excluded_dirs = excluded_dirs or []
         self.processed_files: Set[str] = set()
         self.combined_content = []
+        self.github_files = {}  # Store GitHub file content and their IDs
 
     def clone_repository(self):
         """Clone the repository if it doesn't exist."""
@@ -51,6 +55,14 @@ class DocumentParser:
         
         return False
 
+    def extract_headings(self, content: str) -> List[str]:
+        """Extract headings from markdown content."""
+        headings = []
+        for line in content.split('\n'):
+            if line.startswith('#'):
+                headings.append(line)
+        return headings
+
     def process_file(self, file_path: str):
         """Process a single markdown file and extract its content."""
         if file_path in self.processed_files:
@@ -62,9 +74,37 @@ class DocumentParser:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
+            # Extract and convert headings to subheadings
+            headings = self.extract_headings(content)
+            
+            # Add file path as a heading
             rel_path = os.path.relpath(file_path, self.repo_path)
             self.combined_content.append(f"# {rel_path}\n\n")
-            self.combined_content.append(content)
+            
+            # Add subheadings summary
+            if headings:
+                self.combined_content.append("## Subheadings in this file:\n")
+                for heading in headings:
+                    # Extract the text part of the heading for the summary
+                    heading_text = heading.lstrip('#').strip()
+                    self.combined_content.append(f"- {heading_text}\n")
+                self.combined_content.append("\n")
+            
+            # Process content to convert headings to subheadings and links
+            processed_content = []
+            for line in content.split('\n'):
+                if line.startswith('#'):
+                    # Convert to subheading by adding one more #
+                    level = len(line) - len(line.lstrip('#'))
+                    heading_text = line.lstrip('#').strip()
+                    processed_content.append(f"{'#' * (level + 1)} {heading_text}")
+                else:
+                    # Convert relative links to IDs and handle GitHub links
+                    processed_line = self.convert_relative_links_to_ids(line)
+                    processed_content.append(processed_line)
+            
+            # Add the processed content
+            self.combined_content.append('\n'.join(processed_content))
             self.combined_content.append("\n---\n\n")
             
         except Exception as e:
@@ -84,14 +124,85 @@ class DocumentParser:
         try:
             self.clone_repository()
             self.process_directory(self.repo_path)
-            
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.writelines(self.combined_content)
-            
+            self.save_combined_documentation()
             print(f"Successfully generated combined documentation at {output_file}")
-            
         finally:
             self.cleanup()
+
+    def fetch_github_raw_content(self, github_url: str) -> str:
+        """Fetch raw content from a GitHub URL."""
+        # Convert GitHub URL to raw content URL
+        parsed_url = urlparse(github_url)
+        if 'github.com' not in parsed_url.netloc:
+            return ""
+            
+        # Convert to raw content URL
+        path_parts = parsed_url.path.split('/')
+        if len(path_parts) < 5:  # Need at least owner/repo/blob/branch/path
+            return ""
+            
+        # Remove 'blob' from path
+        if 'blob' in path_parts:
+            path_parts.remove('blob')
+            
+        # Reconstruct raw URL
+        raw_url = f"https://raw.githubusercontent.com/{'/'.join(path_parts[1:])}"
+        
+        try:
+            response = requests.get(raw_url)
+            response.raise_for_status()
+            return response.text
+        except Exception as e:
+            print(f"Error fetching GitHub content from {raw_url}: {str(e)}")
+            return ""
+
+    def convert_relative_links_to_ids(self, content: str) -> str:
+        """Convert relative path links to absolute IDs in markdown content."""
+        # Pattern to match markdown links with relative paths
+        pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        
+        def replace_link(match):
+            link_text = match.group(1)
+            link_path = match.group(2)
+            
+            # Handle GitHub links
+            if 'github.com' in link_path and '/blob/' in link_path:
+                # Generate a unique ID for this GitHub file
+                file_id = f"github-{len(self.github_files)}"
+                # Fetch and store the content
+                raw_content = self.fetch_github_raw_content(link_path)
+                if raw_content:
+                    self.github_files[file_id] = {
+                        'content': raw_content,
+                        'title': link_text,
+                        'url': link_path
+                    }
+                # Keep the original link
+                return match.group(0)
+            
+            # Keep all other links unchanged
+            return match.group(0)
+        
+        # Replace all relative links in the content
+        return re.sub(pattern, replace_link, content)
+
+    def save_combined_documentation(self):
+        """Save the combined documentation to a file."""
+        # Add GitHub files content at the end if any exist
+        if self.github_files:
+            self.combined_content.append("\n# GitHub Files\n\n")
+            for file_id, file_data in self.github_files.items():
+                self.combined_content.append(f"## {file_data['title']}\n\n")
+                self.combined_content.append(f"Source: [{file_data['url']}]({file_data['url']})\n\n")
+                self.combined_content.append("```kotlin\n")
+                self.combined_content.append(file_data['content'])
+                self.combined_content.append("\n```\n\n")
+                self.combined_content.append("---\n\n")
+        
+        # Write the combined content to the file
+        with open("combined_documentation.md", "w", encoding="utf-8") as f:
+            f.write("".join(self.combined_content))
+        print("Successfully generated combined documentation at combined_documentation.md")
 
 def main():
     parser = DocumentParser(
