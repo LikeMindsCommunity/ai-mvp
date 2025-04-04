@@ -4,6 +4,9 @@ Code Generator for LikeMinds Android Feed SDK
 This script provides an interactive interface to generate code for the LikeMinds Android Feed SDK
 using the Gemini 2.5 Pro model. It uses the combined documentation as context to generate
 accurate and relevant code snippets based on user requests.
+
+The Gemini 2.5 Pro model has a context window of 1 million tokens, which includes both
+input tokens (prompt + documentation) and output tokens (generated code).
 """
 
 import os
@@ -17,6 +20,9 @@ class CodeGenerator:
     This class uses the Gemini 2.5 Pro model to generate code based on user requests
     and the SDK documentation. It provides an interactive interface for users to
     request specific code implementations.
+    
+    The model has a context window of 1 million tokens, which is shared between
+    input and output tokens.
     """
     
     def __init__(self, documentation_path: str = "combined_documentation.md"):
@@ -60,7 +66,7 @@ class CodeGenerator:
         with open(path, 'r', encoding='utf-8') as f:
             return f.read()
     
-    def generate_code(self, user_input: str) -> str:
+    def generate_code(self, user_input: str, stream: bool = False) -> str:
         """
         Generate code based on user input and documentation context.
         
@@ -69,6 +75,7 @@ class CodeGenerator:
         
         Args:
             user_input (str): The user's request for code generation
+            stream (bool): Whether to stream the response in real-time
             
         Returns:
             str: The generated code with all necessary imports and setup
@@ -89,14 +96,27 @@ class CodeGenerator:
         
         Please generate the code that best matches the user's request.
         Include all necessary imports and follow the SDK's patterns and conventions.
+        Keep the response concise and focused on the requested functionality.
         """
         
-        # Generate code using the Gemini 2.5 Pro model
-        response = self.client.models.generate_content(
-            model="gemini-2.5-pro-exp-03-25",
-            contents=prompt
-        )
-        return response.text
+        if stream:
+            # Generate code using streaming
+            print("\nGenerating code (streaming):")
+            print("-" * 50)
+            for chunk in self.client.models.generate_content_stream(
+                model="gemini-2.5-pro-exp-03-25",
+                contents=prompt
+            ):
+                print(chunk.text, end="", flush=True)
+            print("\n" + "-" * 50)
+            return ""  # Return empty string since we're printing directly
+        else:
+            # Generate code using the Gemini 2.5 Pro model
+            response = self.client.models.generate_content(
+                model="gemini-2.5-pro-exp-03-25",
+                contents=prompt
+            )
+            return response.text
     
     def interactive_mode(self):
         """
@@ -121,11 +141,17 @@ class CodeGenerator:
                 break
                 
             try:
-                generated_code = self.generate_code(user_input)
-                print("\nGenerated Code:")
-                print("-" * 50)
-                print(generated_code)
-                print("-" * 50)
+                # Ask user if they want to stream the response
+                stream_input = input("Would you like to stream the response? (y/n): ").lower()
+                stream = stream_input == 'y'
+                
+                generated_code = self.generate_code(user_input, stream=stream)
+                
+                if not stream:
+                    print("\nGenerated Code:")
+                    print("-" * 50)
+                    print(generated_code)
+                    print("-" * 50)
             except Exception as e:
                 print(f"Error generating code: {str(e)}")
 
