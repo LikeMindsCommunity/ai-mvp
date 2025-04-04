@@ -46,6 +46,10 @@ class CodeGenerator:
         
         # Load and store the SDK documentation for context
         self.documentation = self._load_documentation(documentation_path)
+        
+        # Store default values for code generation
+        self.default_api_key = "701a4436-6bab-45b7-92e5-a1c61763e229"
+        self.default_username = "test"
     
     def _load_documentation(self, path: str) -> str:
         """
@@ -97,6 +101,9 @@ class CodeGenerator:
         Please generate the code that best matches the user's request.
         Include all necessary imports and follow the SDK's patterns and conventions.
         Keep the response concise and focused on the requested functionality.
+        
+        IMPORTANT: When generating code that requires an API key, use "{self.default_api_key}".
+        When generating code that requires a username, use "{self.default_username}".
         """
         
         if stream:
