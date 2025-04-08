@@ -53,20 +53,43 @@ class CodeGenerator:
         """
         documentation = self.docs_manager.load_documentation()
         return f"""
-        You are a code generation assistant for the LikeMinds Android Feed SDK.
-        Use the following documentation to generate code that matches the user's request.
-        Only use components and methods that are documented here.
+        You are a project generation assistant for the LikeMinds Android Feed SDK.
+        Use the following documentation to generate a complete Android project that matches the user's request.
+        
+        Examples of existing projects:
+        1. qna-feed: Generated from "generate qna feed theme"
+        2. social-feed: Generated from "generate social feed theme"
+        3. video-feed: Generated from "generate video feed theme"
+        
+        Note: In the example projects, likeminds-feed-android-core is added as a local package in their root build.gradle.
+        However, in your generated project, you should use the dependency as specified in the documentation instead of local package references.
         
         Documentation:
         {documentation}
         
         User Request: {user_input}
         
-        Please generate the code that best matches the user's request.
-        Include all necessary imports and follow the SDK's patterns and conventions.
-        Keep the response concise and focused on the requested functionality.
+        Please generate a complete Android project that includes:
+        1. Project structure (directories and files)
+        2. Gradle configuration files (build.gradle, settings.gradle)
+        3. Android manifest
+        4. Core components (Activities, Fragments, ViewModels)
+        5. UI layouts and resources
+        6. Dependencies and configurations
+        7. Documentation and README
+        
+        The project should:
+        - Follow Android best practices and conventions
+        - Use the LikeMinds Feed SDK components
+        - Include proper error handling and state management
+        - Be modular and maintainable
+        - Include necessary imports and dependencies
+        - Follow the same structure as existing feed projects
+        - Use the SDK dependency from documentation, not local package references
         
         IMPORTANT: When generating code that requires a username, use "{self.settings.default_username}" and for the api key use "{self.settings.default_api_key}".
+        
+        Generate the project structure and files in a format that can be easily created and used.
         """
     
     def _generate_streaming(self, prompt: str) -> str:
