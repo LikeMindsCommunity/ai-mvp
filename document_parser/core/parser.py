@@ -1,23 +1,27 @@
+"""
+Core document parsing functionality.
+"""
+
 import os
 import shutil
 import subprocess
 from typing import List, Set
 import requests
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 import re
+from code_generator.config import Settings
 
 class DocumentParser:
-    def __init__(
-        self,
-        repo_url: str,
-        included_dirs: List[str],
-        excluded_dirs: List[str] = None
-    ):
-        self.repo_url = repo_url
-        self.repo_name = repo_url.split('/')[-1].replace('.git', '')
+    def __init__(self, settings: Settings = None):
+        """
+        Initialize the document parser with settings.
+        
+        Args:
+            settings (Settings, optional): Settings object for configuration
+        """
+        self.settings = settings or Settings()
+        self.repo_name = self.settings.repo_url.split('/')[-1].replace('.git', '')
         self.repo_path = os.path.abspath(self.repo_name)
-        self.included_dirs = included_dirs
-        self.excluded_dirs = excluded_dirs or []
         self.processed_files: Set[str] = set()
         self.combined_content = []
         self.github_files = {}  # Store GitHub file content and their IDs
@@ -26,8 +30,8 @@ class DocumentParser:
         """Clone the repository if it doesn't exist."""
         if not os.path.exists(self.repo_path):
             try:
-                subprocess.run(['git', 'clone', self.repo_url], check=True)
-                print(f"Successfully cloned repository from {self.repo_url}")
+                subprocess.run(['git', 'clone', self.settings.repo_url], check=True)
+                print(f"Successfully cloned repository from {self.settings.repo_url}")
             except subprocess.CalledProcessError as e:
                 print(f"Error cloning repository: {str(e)}")
                 raise
@@ -45,12 +49,12 @@ class DocumentParser:
         """Check if a file should be processed based on included/excluded directories."""
         rel_path = os.path.relpath(file_path, self.repo_path)
         
-        for excluded_dir in self.excluded_dirs:
-            if rel_path.startswith(excluded_dir):
+        for excluded_dir in self.settings.excluded_dirs:
+            if excluded_dir and rel_path.startswith(excluded_dir):
                 return False
         
-        for included_dir in self.included_dirs:
-            if rel_path.startswith(included_dir):
+        for included_dir in self.settings.included_dirs:
+            if included_dir and rel_path.startswith(included_dir):
                 return True
         
         return False
@@ -119,13 +123,13 @@ class DocumentParser:
                     if self.should_process_file(file_path):
                         self.process_file(file_path)
 
-    def generate_combined_document(self, output_file: str):
+    def generate_combined_document(self):
         """Generate the combined documentation file."""
         try:
             self.clone_repository()
             self.process_directory(self.repo_path)
             self.save_combined_documentation()
-            print(f"Successfully generated combined documentation at {output_file}")
+            print(f"Successfully generated combined documentation at {self.settings.output_file}")
         finally:
             self.cleanup()
 
@@ -188,30 +192,17 @@ class DocumentParser:
 
     def save_combined_documentation(self):
         """Save the combined documentation to a file."""
-        # Add GitHub files content at the end if any exist
-        if self.github_files:
-            self.combined_content.append("\n# GitHub Files\n\n")
-            for file_id, file_data in self.github_files.items():
-                self.combined_content.append(f"## {file_data['title']}\n\n")
-                self.combined_content.append(f"Source: [{file_data['url']}]({file_data['url']})\n\n")
-                self.combined_content.append("```kotlin\n")
-                self.combined_content.append(file_data['content'])
-                self.combined_content.append("\n```\n\n")
-                self.combined_content.append("---\n\n")
-        
-        # Write the combined content to the file
-        with open("combined_documentation.md", "w", encoding="utf-8") as f:
-            f.write("".join(self.combined_content))
-        print("Successfully generated combined documentation at combined_documentation.md")
-
-def main():
-    parser = DocumentParser(
-        repo_url="https://github.com/LikeMindsCommunity/likeminds-docs.git",
-        included_dirs=["feed/Android"],
-        excluded_dirs=["feed/Android/Data"]
-    )
-    
-    parser.generate_combined_document("combined_documentation.md")
-
-if __name__ == "__main__":
-    main() 
+        with open(self.settings.output_file, 'w', encoding='utf-8') as f:
+            # Write main content
+            f.write(''.join(self.combined_content))
+            
+            # Add GitHub files content at the end if any exist
+            if self.github_files:
+                f.write("\n# GitHub Files\n\n")
+                for file_id, file_data in self.github_files.items():
+                    f.write(f"## {file_data['title']}\n\n")
+                    f.write(f"Source: [{file_data['url']}]({file_data['url']})\n\n")
+                    f.write("```kotlin\n")
+                    f.write(file_data['content'])
+                    f.write("\n```\n\n")
+                    f.write("---\n\n") 
