@@ -66,7 +66,7 @@ class CodeGenerator:
         Include all necessary imports and follow the SDK's patterns and conventions.
         Keep the response concise and focused on the requested functionality.
         
-        IMPORTANT: When generating code that requires a username, use "{self.settings.default_username}".
+        IMPORTANT: When generating code that requires a username, use "{self.settings.default_username}" and for the api key use "{self.settings.default_api_key}".
         """
     
     def _generate_streaming(self, prompt: str) -> str:
