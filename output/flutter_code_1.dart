@@ -1,100 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:likeminds_chat_flutter_core/likeminds_chat_flutter_core.dart';
-import 'package:likeminds_chat_flutter_ui/likeminds_chat_flutter_ui.dart'; // Import UI package for LMChatUserTile if needed
 
-// Custom Builder Delegate for Participants Screen
-class CustomParticipantBuilder extends LMChatParticipantBuilderDelegate {
-  @override
-  Widget userTileBuilder(BuildContext context, LMChatUserViewData user) {
-    // Example: Return a customized ListTile for each participant
-    // You can use the provided 'user' data (LMChatUserViewData)
-    // to build your custom tile.
-    // You can also instantiate and customize the default LMChatUserTile if needed:
-    // return LMChatUserTile(
-    //   userViewData: user,
-    //   style: LMChatTileStyle(
-    //     backgroundColor: Colors.lightBlue[50],
-    //     // Add other style customizations
-    //   ),
-    //   onTap: () {
-    //     // Handle tap if needed
-    //     debugPrint("Tapped on user: ${user.name}");
-    //   },
-    // );
-
-    // Or return a completely custom widget:
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-      child: ListTile(
-        leading: CircleAvatar(
-          // Use user.imageUrl or a placeholder
-          backgroundImage: user.imageUrl != null && user.imageUrl!.isNotEmpty
-              ? NetworkImage(user.imageUrl!)
-              : null,
-          child: user.imageUrl == null || user.imageUrl!.isEmpty
-              ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '?')
-              : null,
-        ),
-        title: Text(
-          'Custom: ${user.name}', // Example: Add "Custom: " prefix
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.purple),
-        ),
-        subtitle: Text(user.customTitle ?? 'Community Member'),
-        trailing: const Icon(Icons.star, color: Colors.amber),
-        onTap: () {
-          debugPrint("Custom tap on user: ${user.name}");
-          // Default tap action (like opening profile) might be overridden
-          // unless you specifically call the default behavior if accessible.
-        },
-      ),
-    );
-  }
-
-  // You can override other builders as well, like appBarBuilder
+// Define a custom builder delegate for the Chatroom screen
+class CustomChatroomBuilder extends LMChatroomBuilderDelegate {
   @override
   PreferredSizeWidget appBarBuilder(
     BuildContext context,
-    TextEditingController searchController,
-    VoidCallback onSearch,
+    LMChatRoomViewData chatroom,
     LMChatAppBar appBar,
+    int participantCount, // Corrected signature
   ) {
-    // Example: Customize the AppBar title
+    // Use copyWith to customize the default app bar
     return appBar.copyWith(
-      title: const Text('Our Awesome Participants'),
+      // Customize the style of the app bar
+      style: appBar.style?.copyWith(
+            backgroundColor: Colors.blue, // Set background color to blue
+          ) ??
+          const LMChatAppBarStyle(backgroundColor: Colors.blue),
+      // Customize the title widget
+      title: LMChatText(
+        'Custom Chatroom', // Set the title text
+        style: LMChatTextStyle(
+          textStyle: TextStyle(
+            color: Colors.white, // Set text color to white
+            fontSize: 18, // Optional: Set font size
+            fontWeight: FontWeight.bold, // Optional: Set font weight
+          ),
+        ),
+      ),
     );
   }
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // --- Configuration Steps ---
-  // 1. Create an instance of your custom builder delegate
-  final customParticipantBuilder = CustomParticipantBuilder();
-
-  // 2. Create the config object for the participants screen
-  final participantConfig = LMChatParticipantConfig(
-    builder: customParticipantBuilder,
-    // You can also provide custom Style and Setting objects here if needed
-    // style: LMChatParticipantStyle(),
-    // setting: LMChatParticipantSetting(),
-  );
-
-  // 3. Create the main config and inject the participant config
-  final lmChatConfig = LMChatConfig(
-    participantConfig: participantConfig,
-  );
-
-  // 4. Initialize the SDK with the custom configuration
+  // Call setup function before the runApp() function
+  // Initialize LMChatCore with the custom configuration
   await LMChatCore.instance.initialize(
-    config: lmChatConfig,
-    // Add lmChatCallback if needed for token handling
+    config: LMChatConfig(
+      chatRoomConfig: LMChatroomConfig(
+        builder: CustomChatroomBuilder(), // Pass the custom builder delegate
+      ),
+    ),
   );
-  // --- End Configuration Steps ---
-
+  // run the app
   runApp(const MaterialApp(home: LMSampleChat()));
 }
 
+// A blank scaffold with a button that opens
+// the LM Social Chat when clicked
 class LMSampleChat extends StatelessWidget {
   const LMSampleChat({super.key});
 
@@ -108,42 +62,37 @@ class LMSampleChat extends StatelessWidget {
         child: ElevatedButton(
           onPressed: () async {
             // initiate user session with apiKey, uuid and userName
+            // this is required to show the chat
             LMResponse<void> response =
                 await LMChatCore.instance.showChatWithApiKey(
-              apiKey: "YOUR_API_KEY", // TODO: Replace with YOUR_API_KEY
-              uuid: "YOUR_USER_UNIQUE_ID", // TODO: Replace with YOUR_USER_ID
-              userName: "YOUR_USER_DISPLAY_NAME", // TODO: Replace with user's name
+              // TODO: Replace with YOUR_API_KEY
+              apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8",
+              // TODO: Replace with YOUR_UUID
+              uuid: "abc",
+              // TODO: Replace with YOUR_USERNAME
+              userName: "abc",
             );
             if (response.success) {
-              // Navigate to LMChatHomeScreen upon successful session initiation
-              // From LMChatHomeScreen, the user can navigate to a specific chatroom
-              // and then access the Participants Screen via the chatroom menu.
+              if (!context.mounted) return; // Check context validity
+              // create route with LMChatHomeScreen
               MaterialPageRoute route = MaterialPageRoute(
                 builder: (context) => const LMChatHomeScreen(),
               );
+              // navigate to LMChatHomeScreen
               Navigator.pushReplacement(context, route);
             } else {
               debugPrint("Error opening chat: ${response.errorMessage}");
-              // Handle error, e.g., show a SnackBar
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Error initiating chat: ${response.errorMessage ?? 'Unknown error'}'),
-                ),
-              );
+              // Optionally, show a snackbar or dialog for the error
+              // if (context.mounted) { // Check context validity
+              //   ScaffoldMessenger.of(context).showSnackBar(
+              //     SnackBar(content: Text("Error opening chat: ${response.errorMessage}")),
+              //   );
+              // }
             }
           },
-          child: const Text('Open Chat Home'),
+          child: const Text('Open Chat'),
         ),
       ),
     );
   }
 }
-
-// Note: To see the customized Participants Screen, you need to:
-// 1. Run this app.
-// 2. Click 'Open Chat Home'.
-// 3. Navigate into a chatroom from the home screen.
-// 4. Open the chatroom details/menu (usually via an AppBar icon).
-// 5. Select the option to view participants.
-// You should then see the participants list rendered using your custom `userTileBuilder`.
