@@ -20,11 +20,12 @@ class Settings:
     def __init__(self):
         """Initialize settings with default values and load environment variables."""
         # API Configuration
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY", "701a4436-6bab-45b7-92e5-a1c61763e229")
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY", "AIzaSyAwt6GCUzyXo0TBDSJZ53_KDUH4H3tOfxc")
         self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro-exp-03-25")
         
         # Default values for code generation
         self.default_username = "test"
+        self.default_api_key = "701a4436-6bab-45b7-92e5-a1c61763e229"
         
         # Documentation path
         self.documentation_path = DEFAULT_DOCUMENTATION_PATH
