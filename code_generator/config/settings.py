@@ -24,6 +24,8 @@ class Settings:
         self.template_repo_url = os.getenv("TEMPLATE_REPO_URL")  
         # Documentation path
         self.documentation_path = os.getenv("OUTPUT_FILE")
+        # Output directory for generated projects
+        self.output_dir = os.getenv("OUTPUT_DIR")
 
         # Default values for code generation
         self.default_username = "test"
@@ -60,4 +62,8 @@ class Settings:
             raise ValueError(f"Documentation file not found at: {self.documentation_path}")
         if not os.path.isfile(self.documentation_path):
             raise ValueError(f"Documentation path must be a file: {self.documentation_path}")
+
+        # Validate Output Directory
+        if not self.output_dir:
+            raise ValueError("OUTPUT_DIR not found in environment variables or .env file")
             

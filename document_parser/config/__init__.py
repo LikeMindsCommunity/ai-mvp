@@ -1,7 +1,7 @@
 """
-Configuration settings for the document parser.
+Document parser configuration package.
 """
 
-from document_parser.config.settings import Settings, DEFAULT_OUTPUT_FILE
+from document_parser.config.settings import Settings
 
-__all__ = ["Settings", "DEFAULT_OUTPUT_FILE"]
+__all__ = ['Settings']

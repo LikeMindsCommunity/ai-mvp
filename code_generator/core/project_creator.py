@@ -6,22 +6,22 @@ import os
 import subprocess
 import shutil
 from typing import Dict, List
-import json
+from code_generator.config import Settings
 
 class ProjectCreator:
     """
     Agent responsible for creating actual Android projects from generated code.
     """
     
-    def __init__(self, template_repo_url: str = None):
+    def __init__(self, settings: Settings):
         """
         Initialize the project creator.
         
         Args:
-            template_repo_url (str, optional): URL of the template repository to use as base
+            settings (Settings): Settings object containing configuration
         """
-        self.output_dir = os.path.join(os.getcwd(), "generated_projects")
-        self.template_repo_url = template_repo_url
+        self.settings = settings
+        self.output_dir = os.path.join(os.getcwd(), self.settings.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
     
     def create_project(self, project_data: Dict) -> bool:
@@ -52,10 +52,10 @@ class ProjectCreator:
             project_path = os.path.join(self.output_dir, project_name)
             print(f"\nCreating project directory: {project_path}")
             
-            if self.template_repo_url:
+            if self.settings.template_repo_url:
                 # Clone template repository
-                print(f"Cloning template repository: {self.template_repo_url}")
-                subprocess.run(['git', 'clone', self.template_repo_url, project_path], check=True)
+                print(f"Cloning template repository: {self.settings.template_repo_url}")
+                subprocess.run(['git', 'clone', self.settings.template_repo_url, project_path], check=True)
                 
                 # Remove .git directory to start fresh
                 shutil.rmtree(os.path.join(project_path, '.git'))

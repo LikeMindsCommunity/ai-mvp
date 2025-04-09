@@ -20,10 +20,11 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-venv/
 
-# Environment variables
-.env
+# Virtual Environment
+venv/
+env/
+ENV/
 
 # IDE
 .idea/
@@ -31,6 +32,15 @@ venv/
 *.swp
 *.swo
 
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+
+# Generated project
+generated_projects/
+
 # Generated files
-combined_documentation.md
 document_parser/single_file/

@@ -8,9 +8,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Default values
-DEFAULT_OUTPUT_FILE = "combined_documentation.md"
-
 class Settings:
     """
     Configuration settings for the document parser.
@@ -25,7 +22,7 @@ class Settings:
         self.excluded_dirs = os.getenv("EXCLUDED_DIRS", "").split(",")
         
         # Output configuration
-        self.output_file = os.getenv("OUTPUT_FILE", DEFAULT_OUTPUT_FILE)
+        self.output_file = os.getenv("OUTPUT_FILE")
         
         # Validate required settings
         self._validate_settings()
@@ -35,4 +32,6 @@ class Settings:
         if not self.repo_url:
             raise ValueError("REPO_URL not found in environment variables or .env file")
         if not self.included_dirs or self.included_dirs == [""]:
-            raise ValueError("INCLUDED_DIRS not found in environment variables or .env file") 
+            raise ValueError("INCLUDED_DIRS not found in environment variables or .env file")
+        if not self.output_file:
+            raise ValueError("OUTPUT_FILE not found in environment variables or .env file") 
