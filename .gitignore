@@ -1,26 +1,36 @@
-# Python virtual environment
-venv/
-.env/
-.venv/
-ENV/
-
-# Generated documentation
-combined_documentation.md
-
-# Python cache files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
 
-# IDE specific files
+# Environment variables
+.env
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS specific files
-.DS_Store
-Thumbs.db
-
-# Environment variables
-.env 
+# Generated files
+combined_documentation.md
+document_parser/single_file/
