@@ -15,73 +15,61 @@ class CodeGenerator:
     Uses Gemini to generate code based on documentation.
     """
     
-    def __init__(self, api_key: str, model_name: str, template_repo_url: str = None):
-        """
-        Initialize the code generator.
-        
-        Args:
-            api_key (str): Gemini API key
-            model_name (str): Name of the Gemini model to use
-            template_repo_url (str, optional): URL of the template repository to use as base
-        """
-        self.model = genai.GenerativeModel(model_name)
-        genai.configure(api_key=api_key)
-        self.template_repo_url = template_repo_url
-        self.docs_manager = DocumentationManager("combined_documentation.md")
+    def __init__(self, settings: Settings):
+        """Initialize the code generator with settings."""
+        self.settings = settings
+        self.model = genai.GenerativeModel(settings.model_name)
+        genai.configure(api_key=settings.gemini_api_key)
     
     def _create_prompt(self, user_input: str) -> str:
-        """
-        Create a prompt for the Gemini model.
+        """Create a prompt for the Gemini model."""
+        # Load documentation
+        docs_manager = DocumentationManager(self.settings.documentation_path)
+        documentation = docs_manager.load_documentation()
         
-        Args:
-            user_input (str): User's input describing the project to generate
-            
-        Returns:
-            str: Formatted prompt for the model
-        """
-        documentation = self.docs_manager.load_documentation()
-        example_json = r'''{
-    "project_name": "SocialFeedApp",
-    "files": {
-        "app/src/main/java/com/example/app/MainActivity.kt": "package com.example.app\\n\\nimport androidx.appcompat.app.AppCompatActivity\\nimport android.os.Bundle\\n\\nclass MainActivity : AppCompatActivity() {\\n    override fun onCreate(savedInstanceState: Bundle?) {\\n        super.onCreate(savedInstanceState)\\n        setContentView(R.layout.activity_main)\\n    }\\n}",
-        "app/src/main/res/layout/activity_main.xml": "<?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\n<androidx.constraintlayout.widget.ConstraintLayout xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:layout_width=\\"match_parent\\"\\n    android:layout_height=\\"match_parent\\">\\n</androidx.constraintlayout.widget.ConstraintLayout>"
-    }
-}'''
-        return f"""You are an Android project generation assistant for the LikeMinds Android Feed SDK.
-Your task is to generate only the app-specific code for an Android project that will use the SDK.
+        prompt = f"""You are an expert Android developer specializing in the LikeMinds Feed SDK. 
+        Your task is to generate Android project code based on the following request: {user_input}
 
-Documentation:
-{documentation}
+        Follow these guidelines:
+        1. Use the LikeMinds Feed SDK documentation provided below for implementation details
+        2. Generate only the necessary files in the app/src directory
+        3. Use the correct SDK classes and methods as specified in the documentation
+        4. Follow Android best practices and Kotlin coding conventions
+        5. Include proper error handling and logging
+        6. Use the default username and API key provided in the settings
 
-User Request: {user_input}
+        Documentation:
+        {documentation}
 
-IMPORTANT: Your response must be a valid JSON object with the following structure:
-{{
-    "project_name": "string (name of the project)",
-    "files": {{
-        "app/src/main/java/com/example/app/MainActivity.kt": "string (Kotlin code)",
-        "app/src/main/java/com/example/app/...": "string (additional Kotlin files)",
-        "app/src/main/res/layout/activity_main.xml": "string (XML layout)",
-        "app/src/main/res/...": "string (additional resource files)"
-    }}
-}}
+        Default Settings:
+        - Username: {self.settings.default_username}
+        - API Key: {self.settings.default_api_key}
 
-CRITICAL INSTRUCTIONS:
-1. Your response must be a valid JSON object and nothing else
-2. Do not include any markdown formatting, code blocks, or additional text
-3. All strings must be properly escaped:
-   - Use double quotes for JSON property names and string values
-   - Escape double quotes within strings with backslash: \\"
-   - Escape backslashes with another backslash: \\\\
-   - Escape newlines with \\n
-4. The JSON must be properly formatted with correct indentation
-5. Only include files that should go in the app/src directory
-6. Use the template repository's package name and structure
-7. Follow the SDK documentation for implementation details
-8. Use the correct SDK classes and methods as described in the documentation
+        Return a JSON object with the following structure:
+        {{
+            "project_name": "string",
+            "files": [
+                {{
+                    "path": "string",
+                    "content": "string"
+                }}
+            ]
+        }}
 
-Example of a valid response:
-{example_json}"""
+        Example response:
+        {{
+            "project_name": "SocialFeedApp",
+            "files": [
+                {{
+                    "path": "app/src/main/java/com/example/socialfeed/MainActivity.kt",
+                    "content": "package com.example.socialfeed\\n\\nimport ..."
+                }}
+            ]
+        }}
+
+        CRITICAL: Your response must be a valid JSON object. Do not include any markdown formatting, additional text, or explanations."""
+        
+        return prompt
 
     def generate_code(self, user_input: str) -> Dict:
         """
@@ -138,7 +126,7 @@ Example of a valid response:
             project_data = self.generate_code(user_input)
             
             # Create project using template
-            creator = ProjectCreator(template_repo_url=self.template_repo_url)
+            creator = ProjectCreator(template_repo_url=self.settings.template_repo_url)
             return creator.create_project(project_data)
             
         except Exception as e:
