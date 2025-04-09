@@ -190,20 +190,28 @@ class CodeGenerator:
             bool: True if project was created successfully, False otherwise
         """
         try:
-            # Generate the project structure and code
-            generated_project = self.generate_code(user_input)
-            if not generated_project:
+            # Generate the project structure
+            project_data = self.generate_code(user_input)
+            if not project_data:
+                print("Failed to generate project data.")
                 return False
+            
+            # Print the generated project data for debugging
+            print("\nGenerated project data:")
+            print("----------------------")
+            print(json.dumps(project_data, indent=2))
+            print("----------------------\n")
             
             # Create the project using ProjectCreator
-            project_name = generated_project.get('project_name', 'android-project')
-            project_creator = ProjectCreator(project_name, generated_project.get('files', {}))
+            creator = ProjectCreator()
+            success = creator.create_project(project_data)
             
-            # Create and build the project
-            if not project_creator.create_project():
-                return False
+            if success:
+                print(f"Project created successfully in {creator.output_dir}")
+            else:
+                print("Failed to create project.")
             
-            return project_creator.build_project()
+            return success
             
         except Exception as e:
             print(f"Error creating project: {str(e)}")
