@@ -5,8 +5,10 @@ Project creator agent for generating actual Android projects from generated code
 import os
 import subprocess
 import shutil
-from typing import Dict, List
-from code_generator.config import Settings
+import urllib.request
+from pathlib import Path
+from typing import Dict, List, Optional
+from code_generator import Settings
 
 class ProjectCreator:
     """
