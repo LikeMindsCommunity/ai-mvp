@@ -40,7 +40,7 @@ logs/
 .env
 
 # Generated project
-generated_projects/
+code_generator/generated_projects/
 
 # Generated files
 document_parser/single_file/

@@ -7,7 +7,7 @@ accurate and relevant code snippets based on user requests.
 """
 
 from code_generator.core import CodeGenerator
-from code_generator.config.settings import Settings
+from code_generator.config import Settings
 from code_generator.utils import DocumentationManager
 
 __version__ = "0.1.0"
