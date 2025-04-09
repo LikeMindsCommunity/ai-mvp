@@ -2,13 +2,11 @@
 Core code generation functionality.
 """
 
-import os
 import json
-from typing import Dict, Optional
+import os
+from typing import Dict, List, Optional
 import google.generativeai as genai
-from code_generator.config import Settings
-from code_generator.utils.documentation import DocumentationManager
-from code_generator.core.project_creator import ProjectCreator
+from code_generator import Settings, DocumentationManager, ProjectCreator
 
 class CodeGenerator:
     """
