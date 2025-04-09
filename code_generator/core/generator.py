@@ -1,45 +1,33 @@
 """
-Core code generation functionality using Gemini 2.5 Pro model.
+Core code generation functionality.
 """
 
-from typing import Optional
-from google import genai
+import os
+import json
+from typing import Dict, Optional
+import google.generativeai as genai
 from code_generator.config import Settings
-from code_generator.utils import DocumentationManager
+from code_generator.utils.documentation import DocumentationManager
+from code_generator.core.project_creator import ProjectCreator
 
 class CodeGenerator:
     """
-    Core code generation class that handles the interaction with Gemini model
-    and manages the code generation process.
+    Main code generator class that uses Gemini to generate code based on documentation.
     """
     
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings = None):
         """
         Initialize the code generator with settings.
         
         Args:
-            settings (Optional[Settings]): Settings object for configuration
+            settings (Settings, optional): Settings object for configuration
         """
         self.settings = settings or Settings()
-        self.client = genai.Client(api_key=self.settings.gemini_api_key)
         self.docs_manager = DocumentationManager(self.settings.documentation_path)
         
-    def generate_code(self, user_input: str, stream: bool = False) -> str:
-        """
-        Generate code based on user input and documentation context.
-        
-        Args:
-            user_input (str): The user's request for code generation
-            stream (bool): Whether to stream the response in real-time
-            
-        Returns:
-            str: The generated code with all necessary imports and setup
-        """
-        prompt = self._create_prompt(user_input)
-        
-        if stream:
-            return self._generate_streaming(prompt)
-        return self._generate_complete(prompt)
+        # Configure Gemini
+        genai.configure(api_key=self.settings.gemini_api_key)
+        self.model = genai.GenerativeModel(self.settings.model_name)
     
     def _create_prompt(self, user_input: str) -> str:
         """
@@ -108,42 +96,115 @@ class CodeGenerator:
         
         IMPORTANT: When generating code that requires a username, use "{self.settings.default_username}" and for the api key use "{self.settings.default_api_key}".
         
-        Generate the project in a format that can be easily created using Android Studio or command line tools.
-        Include all necessary files and configurations to make the project immediately buildable and runnable.
+        CRITICAL INSTRUCTION: Your response must be a valid JSON object and nothing else. Do not include any markdown formatting, code blocks, or additional text.
+        
+        Your response must follow this exact JSON structure:
+        {{
+            "project_name": "name-of-project",
+            "files": {{
+                "build.gradle": "plugins {{\n    id 'com.android.application'\n    id 'org.jetbrains.kotlin.android'\n}}\n...",
+                "app/build.gradle": "android {{\n    namespace 'com.example.app'\n    ...",
+                "settings.gradle": "rootProject.name = 'name-of-project'\n...",
+                "app/src/main/AndroidManifest.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<manifest ...",
+                "app/src/main/java/com/example/app/MainActivity.kt": "package com.example.app\n\nimport ...",
+                "app/src/main/res/layout/activity_main.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<androidx.constraintlayout...",
+                "README.md": "# Project Name\n\n## Setup Instructions\n..."
+            }}
+        }}
+        
+        Example of a valid response:
+        {{
+            "project_name": "social-feed",
+            "files": {{
+                "build.gradle": "plugins {{\n    id 'com.android.application'\n    id 'org.jetbrains.kotlin.android'\n}}\n\ndependencies {{\n    implementation 'com.likeminds:feed-sdk:1.0.0'\n}}",
+                "app/build.gradle": "android {{\n    namespace 'com.example.socialfeed'\n    compileSdk 34\n\n    defaultConfig {{\n        applicationId \"com.example.socialfeed\"\n        minSdk 24\n        targetSdk 34\n    }}\n}}",
+                "app/src/main/AndroidManifest.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <application\n        android:name=\".SocialFeedApplication\"\n        ...>\n    </application>\n</manifest>",
+                "app/src/main/java/com/example/socialfeed/SocialFeedActivity.kt": "package com.example.socialfeed\n\nimport androidx.appcompat.app.AppCompatActivity\nimport com.likeminds.feed.LikeMindsFeed\n\nclass SocialFeedActivity : AppCompatActivity() {{\n    override fun onCreate(savedInstanceState: Bundle?) {{\n        super.onCreate(savedInstanceState)\n        setContentView(R.layout.activity_social_feed)\n        \n        // Initialize SDK\n        LikeMindsFeed.init(this, \"{self.settings.default_api_key}\", \"{self.settings.default_username}\")\n    }}\n}}"
+            }}
+        }}
+        
+        Remember: Your response must be a valid JSON object and nothing else. Do not include any markdown formatting, code blocks, or additional text.
         """
     
-    def _generate_streaming(self, prompt: str) -> str:
+    def generate_code(self, user_input: str) -> Optional[Dict]:
         """
-        Generate code with streaming output.
+        Generate code based on user input and documentation.
         
         Args:
-            prompt (str): The formatted prompt
+            user_input (str): The user's request
             
         Returns:
-            str: Empty string (output is printed directly)
+            Optional[Dict]: Generated code and project structure, or None if generation failed
         """
-        print("\nGenerating code (streaming):")
-        print("-" * 50)
-        for chunk in self.client.models.generate_content_stream(
-            model=self.settings.model_name,
-            contents=prompt
-        ):
-            print(chunk.text, end="", flush=True)
-        print("\n" + "-" * 50)
-        return ""
+        try:
+            # Create prompt and get response from Gemini
+            prompt = self._create_prompt(user_input)
+            response = self.model.generate_content(prompt)
+            
+            # Print raw response for debugging
+            print("\nRaw response from model:")
+            print("----------------------")
+            print(response.text)
+            print("----------------------\n")
+            
+            # Clean the response by removing markdown formatting and invalid characters
+            cleaned_response = response.text.strip()
+            
+            # Remove markdown code block markers
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+            
+            # Remove any non-printable characters and extra whitespace
+            cleaned_response = ''.join(char for char in cleaned_response if char.isprintable())
+            cleaned_response = ' '.join(cleaned_response.split())
+            
+            # Print cleaned response for debugging
+            print("\nCleaned response:")
+            print("----------------------")
+            print(cleaned_response)
+            print("----------------------\n")
+            
+            # Parse the response as JSON
+            try:
+                generated_project = json.loads(cleaned_response)
+                return generated_project
+            except json.JSONDecodeError as e:
+                print(f"Error parsing generated code: {str(e)}")
+                print("Response was not valid JSON. Please check the raw and cleaned responses above.")
+                return None
+                
+        except Exception as e:
+            print(f"Error generating code: {str(e)}")
+            return None
     
-    def _generate_complete(self, prompt: str) -> str:
+    def create_project(self, user_input: str) -> bool:
         """
-        Generate code with complete output.
+        Generate and create a complete Android project.
         
         Args:
-            prompt (str): The formatted prompt
+            user_input (str): The user's request
             
         Returns:
-            str: The generated code
+            bool: True if project was created successfully, False otherwise
         """
-        response = self.client.models.generate_content(
-            model=self.settings.model_name,
-            contents=prompt
-        )
-        return response.text 
+        try:
+            # Generate the project structure and code
+            generated_project = self.generate_code(user_input)
+            if not generated_project:
+                return False
+            
+            # Create the project using ProjectCreator
+            project_name = generated_project.get('project_name', 'android-project')
+            project_creator = ProjectCreator(project_name, generated_project.get('files', {}))
+            
+            # Create and build the project
+            if not project_creator.create_project():
+                return False
+            
+            return project_creator.build_project()
+            
+        except Exception as e:
+            print(f"Error creating project: {str(e)}")
+            return False 
