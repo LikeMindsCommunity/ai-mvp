@@ -53,43 +53,63 @@ class CodeGenerator:
         """
         documentation = self.docs_manager.load_documentation()
         return f"""
-        You are a project generation assistant for the LikeMinds Android Feed SDK.
-        Use the following documentation to generate a complete Android project that matches the user's request.
-        
-        Examples of existing projects:
-        1. qna-feed: Generated from "generate qna feed theme"
-        2. social-feed: Generated from "generate social feed theme"
-        3. video-feed: Generated from "generate video feed theme"
-        
-        Note: In the example projects, likeminds-feed-android-core is added as a local package in their root build.gradle.
-        However, in your generated project, you should use the dependency as specified in the documentation instead of local package references.
+        You are an Android project generation assistant for the LikeMinds Android Feed SDK.
+        Your task is to create a complete Android project that integrates the SDK based on the user's request.
         
         Documentation:
         {documentation}
         
         User Request: {user_input}
         
-        Please generate a complete Android project that includes:
-        1. Project structure (directories and files)
-        2. Gradle configuration files (build.gradle, settings.gradle)
-        3. Android manifest
-        4. Core components (Activities, Fragments, ViewModels)
-        5. UI layouts and resources
-        6. Dependencies and configurations
-        7. Documentation and README
+        Generate a complete Android project that includes:
+        
+        1. Project Structure:
+           - Create a new Android project with proper package structure
+           - Include all necessary directories (app/, build/, gradle/, etc.)
+           - Follow Android project conventions
+        
+        2. Gradle Configuration:
+           - Create root build.gradle with necessary plugins and repositories
+           - Create app/build.gradle with SDK dependencies and configurations
+           - Include settings.gradle for project settings
+           - Add gradle wrapper files (gradlew, gradlew.bat)
+           - Configure proper Android SDK versions and build tools
+        
+        3. Core Components:
+           - Generate Activities and Fragments
+           - Create ViewModels for state management
+           - Implement necessary interfaces and classes
+           - Add proper dependency injection setup
+        
+        4. UI Implementation:
+           - Create layout files (XML)
+           - Add necessary resources (drawables, strings, colors)
+           - Implement proper navigation
+           - Follow Material Design guidelines
+        
+        5. SDK Integration:
+           - Add SDK dependencies in build.gradle
+           - Implement SDK initialization
+           - Create necessary configurations
+           - Add proper error handling
+        
+        6. Documentation:
+           - Create a README.md with setup instructions
+           - Add code comments explaining implementation
+           - Include usage examples
         
         The project should:
         - Follow Android best practices and conventions
-        - Use the LikeMinds Feed SDK components
-        - Include proper error handling and state management
+        - Use the latest stable versions of dependencies
+        - Include proper error handling and logging
         - Be modular and maintainable
-        - Include necessary imports and dependencies
-        - Follow the same structure as existing feed projects
-        - Use the SDK dependency from documentation, not local package references
+        - Support both debug and release builds
+        - Include proper ProGuard rules if needed
         
         IMPORTANT: When generating code that requires a username, use "{self.settings.default_username}" and for the api key use "{self.settings.default_api_key}".
         
-        Generate the project structure and files in a format that can be easily created and used.
+        Generate the project in a format that can be easily created using Android Studio or command line tools.
+        Include all necessary files and configurations to make the project immediately buildable and runnable.
         """
     
     def _generate_streaming(self, prompt: str) -> str:
