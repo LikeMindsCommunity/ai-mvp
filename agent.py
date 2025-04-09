@@ -71,13 +71,13 @@ class FlutterCodeGenerator:
     def _load_system_instructions(self) -> List[types.Part]:
         """Load system instructions from files"""
         try:
-            with open('prompt.txt', 'r', encoding='utf-8') as prompt_file:
+            with open('api/prompt.txt', 'r', encoding='utf-8') as prompt_file:
                 prompt_content = prompt_file.read()
             
-            with open('docs.txt', 'r', encoding='utf-8') as docs_file:
+            with open('api/docs.txt', 'r', encoding='utf-8') as docs_file:
                 docs_content = docs_file.read()
             
-            with open('code.txt', 'r', encoding='utf-8') as code_file:
+            with open('api/code.txt', 'r', encoding='utf-8') as code_file:
                 code_content = code_file.read()
             
             return [
