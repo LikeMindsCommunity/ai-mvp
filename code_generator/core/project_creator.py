@@ -68,7 +68,10 @@ class ProjectCreator:
             
             # Create app-specific files
             print("Creating app-specific files...")
-            for file_path, content in project_data["files"].items():
+            for file_data in project_data["files"]:
+                file_path = file_data["path"]
+                content = file_data["content"]
+                
                 # Only process files in app/src directory
                 if not file_path.startswith('app/src/'):
                     continue
