@@ -22,12 +22,16 @@ OUTPUT_FILE=document_parser/single_file/feed_android_documentation.md
 
 ## Package Usage
 
-1. Install the package:
+1. Create and activate a virtual environment:
 ```bash
-pip install document_parser
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
-2. Set up your environment variables in a `.env` file as described above.
+2. Install the required dependencies:
+```bash
+pip install -r requirements.txt
+```
 
 3. Use the package in your Python code:
 ```python
@@ -107,12 +111,16 @@ OUTPUT_DIR=code_generator/generated_projects
 
 ## Package Usage
 
-1. Install the package:
+1. Create and activate a virtual environment:
 ```bash
-pip install code_generator
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
-2. Set up your environment variables in a `.env` file as described above.
+2. Install the required dependencies:
+```bash
+pip install -r requirements.txt
+```
 
 3. Use the package in your Python code:
 ```python
@@ -176,19 +184,23 @@ A FastAPI-based WebSocket API for generating Android projects using the code gen
 
 ## Deployment
 
-The API can be deployed using the following steps:
-
-1. Install the required dependencies:
+1. Create and activate a virtual environment:
 ```bash
-pip install fastapi uvicorn
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
-2. Start the API server:
+2. Install the required dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Start the API server:
 ```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
-3. The API will be available at:
+4. The API will be available at:
 - WebSocket endpoint: `ws://localhost:8000/api/ttandroid`
 - API documentation: `http://localhost:8000/docs`
 
