@@ -1,89 +1,83 @@
-# LikeMinds Android Feed SDK Code Generator
+# Document Parser
 
-This project provides tools for generating code for the LikeMinds Android Feed SDK using AI.
+A Python package for processing and combining markdown documentation from Git repositories.
 
-## Features
+## Environment Variables
 
-- Documentation parsing and processing
-- AI-powered code generation using Gemini 2.5 Pro
-- Interactive code generation interface
-- Streaming and non-streaming output options
+The package requires the following environment variables to be set in your `.env` file:
 
-## Project Structure
+- `REPO_URL` (Required): The URL of the Git repository containing the markdown documentation.
+- `INCLUDED_DIRS` (Required): Comma-separated list of directories to include in the documentation processing.
+- `EXCLUDED_DIRS` (Optional): Comma-separated list of directories to exclude from the documentation processing.
+- `OUTPUT_FILE` (Required): The path where the combined documentation will be saved.
 
+Example `.env` file:
 ```
-ai-mvp/
-├── code_generator/           # Main code generation package
-│   ├── core/                # Core functionality
-│   │   └── generator.py     # Code generation logic
-│   ├── config/              # Configuration
-│   │   └── settings.py      # Settings and defaults
-│   ├── utils/               # Utilities
-│   │   └── documentation.py # Documentation handling
-│   ├── __init__.py          # Package initialization
-│   └── __main__.py          # Main entry point
-├── document_parser.py        # Documentation parsing utility
-├── combined_documentation.md # SDK documentation
-├── requirements.txt          # Python dependencies
-└── .env                      # Environment variables
+# Document Parser Configuration
+REPO_URL=https://github.com/LikeMindsCommunity/likeminds-docs
+INCLUDED_DIRS=feed/Android
+EXCLUDED_DIRS=feed/Android/Data
+OUTPUT_FILE=document_parser/single_file/feed_android_documentation.md
 ```
 
-## Setup
+## Package Usage
 
-1. Clone the repository
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Create a `.env` file with your Gemini API key and model name:
-   ```
-   GEMINI_API_KEY=your_api_key_here
-   GEMINI_MODEL_NAME=gemini-2.5-pro-exp-03-25
-   ```
-
-## Usage
-
-### Documentation Parser
-
-To parse and process the SDK documentation:
+1. Install the package:
 ```bash
-python document_parser.py
+pip install document-parser
 ```
 
-### Code Generator
+2. Set up your environment variables in a `.env` file as described above.
 
-To start the interactive code generator:
+3. Use the package in your Python code:
+```python
+from document_parser.core import DocumentParser
+from document_parser.config import Settings
+
+# Initialize settings and parser
+settings = Settings()
+parser = DocumentParser(settings)
+
+# Generate combined documentation
+parser.generate_combined_document()
+```
+
+Or run it directly from the command line:
 ```bash
-python -m code_generator
+python -m document_parser
 ```
 
-The code generator will:
-1. Load the SDK documentation
-2. Provide an interactive interface
-3. Generate code based on your requests
-4. Support both streaming and non-streaming output
+## Functionality
 
-## Default Values
+The Document Parser package provides the following features:
 
-The code generator uses the following default values:
-- API Key: `701a4436-6bab-45b7-92e5-a1c61763e229`
-- Model Name: `gemini-2.5-pro-exp-03-25`
-- Username: `test`
+1. **Repository Cloning**: Automatically clones the specified Git repository.
+2. **Selective Processing**: Processes only the specified directories while excluding others.
+3. **Markdown Processing**:
+   - Extracts and organizes headings
+   - Converts relative links to proper references
+   - Handles GitHub links and fetches their content
+4. **Documentation Generation**:
+   - Creates a combined markdown document
+   - Preserves the original structure with proper heading levels
+   - Includes a summary of subheadings for each file
+   - Appends GitHub file contents at the end of the document
+5. **Cleanup**: Automatically removes the cloned repository after processing
 
-These values are automatically used when generating code that requires authentication.
+The generated documentation will include:
+- File paths as main headings
+- Subheadings summary for each file
+- Processed content with proper heading levels
+- GitHub file contents (if referenced)
+- Properly formatted links and references
 
-## Contributing
+## Error Handling
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+The package includes comprehensive error handling for:
+- Repository cloning failures
+- File processing errors
+- GitHub content fetching issues
+- Environment variable validation
+- File system operations
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+All errors are logged with descriptive messages to help with debugging. 
