@@ -1,5 +1,4 @@
-from typing import Optional, Dict
-from fastapi import WebSocket
+from typing import Optional, Dict, Callable
 from code_generator.core import CodeGenerator
 from code_generator.config import Settings
 from api.domain import CodeGeneratorService
@@ -12,24 +11,21 @@ class CodeGeneratorServiceImpl(CodeGeneratorService):
         self.settings = Settings()
         self.generator = CodeGenerator(self.settings)
     
-    async def generate_project(self, user_query: str, websocket: WebSocket) -> Optional[Dict]:
+    async def generate_project(self, user_query: str, on_chunk: Callable[[str], None]) -> Optional[Dict]:
         """
         Generate a project based on user query.
         
         Args:
             user_query (str): The user's input query
-            websocket (WebSocket): WebSocket connection for sending updates
+            on_chunk (Callable[[str], None]): Callback function to handle each chunk of output
             
         Returns:
             Optional[Dict]: The generated project data or None if generation failed
         """
         try:
             # Create project using the generator
-            success = await self.generator.create_project(user_query, websocket)
+            success = await self.generator.create_project(user_query, on_chunk)
             return {"success": success}
         except Exception as e:
-            await websocket.send_json({
-                "type": "Error",
-                "value": str(e)
-            })
+            await on_chunk(f"Error: {str(e)}")
             return None 
