@@ -24,7 +24,7 @@ OUTPUT_FILE=document_parser/single_file/feed_android_documentation.md
 
 1. Install the package:
 ```bash
-pip install document-parser
+pip install document_parser
 ```
 
 2. Set up your environment variables in a `.env` file as described above.
@@ -109,7 +109,7 @@ OUTPUT_DIR=code_generator/generated_projects
 
 1. Install the package:
 ```bash
-pip install code-generator
+pip install code_generator
 ```
 
 2. Set up your environment variables in a `.env` file as described above.
