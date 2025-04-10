@@ -1,24 +1,54 @@
 """
-Core code generation functionality.
+Generates code using the Gemini model based on documentation.
 """
 
 import json
 import os
 from typing import Dict, List, Optional
+
 import google.generativeai as genai
-from code_generator import Settings, DocumentationManager, ProjectCreator
+from code_generator.config.settings import Settings
+from code_generator.utils.documentation import DocumentationManager
+from code_generator.core.project_creator import ProjectCreator
 
 class CodeGenerator:
-    """
-    Uses Gemini to generate code based on documentation.
-    """
-    
+    """Generates code using the Gemini model based on documentation."""
+
     def __init__(self, settings: Settings):
         """Initialize the code generator with settings."""
         self.settings = settings
-        self.model = genai.GenerativeModel(settings.model_name)
-        genai.configure(api_key=settings.gemini_api_key)
-    
+        self.documentation_manager = DocumentationManager()
+        self.project_creator = ProjectCreator()
+        
+        # Configure Gemini
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        self.model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
+
+    def run(self):
+        """Run the code generator in interactive mode."""
+        print("Welcome to the LikeMinds Android Feed SDK Code Generator!")
+        print("Type 'exit' to quit.")
+        print("--------------------------------------------------")
+        
+        while True:
+            user_input = input("\nWhat project would you like to generate? ")
+            
+            if user_input.lower() == 'exit':
+                break
+                
+            try:
+                print("\nGenerating project...")
+                success = self.create_project(user_input)
+                
+                if success:
+                    print("\nProject generated successfully!")
+                else:
+                    print("\nFailed to generate project. Please check the error messages above.")
+                    
+            except Exception as e:
+                print(f"\nAn error occurred: {str(e)}")
+                break
+
     def _create_prompt(self, user_input: str) -> str:
         """Create a prompt for the Gemini model."""
         # Load documentation
@@ -124,8 +154,7 @@ class CodeGenerator:
             project_data = self.generate_code(user_input)
             
             # Create project using template
-            creator = ProjectCreator(template_repo_url=self.settings.template_repo_url)
-            return creator.create_project(project_data)
+            return self.project_creator.create_project(project_data)
             
         except Exception as e:
             print(f"Error creating project: {str(e)}")
