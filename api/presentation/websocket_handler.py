@@ -1,6 +1,6 @@
 import json
 from fastapi import WebSocket
-from api.infrastructure.services.code_generator_service_impl import CodeGeneratorServiceImpl
+from api.infrastructure import CodeGeneratorServiceImpl
 from typing import Dict
 
 class WebSocketHandler:
