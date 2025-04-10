@@ -1,4 +1,7 @@
 # No external dependencies required 
 
 google-genai>=0.3.0
-python-dotenv>=1.0.0 
+python-dotenv>=1.0.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+websockets>=12.0 

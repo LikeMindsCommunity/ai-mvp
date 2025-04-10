@@ -6,7 +6,7 @@ import json
 import os
 import subprocess
 import shutil
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
 
 import google.genai as genai
 from google.genai import types
@@ -179,7 +179,7 @@ class CodeGenerator:
         
         return prompt
 
-    def generate_code(self, user_input: str) -> Optional[Dict]:
+    def generate_code(self, user_input: str, on_chunk: Callable[[str], None] = None) -> Optional[Dict]:
         """Generate code using the Gemini model."""
         try:
             # Create prompt
@@ -196,8 +196,11 @@ class CodeGenerator:
             full_response = ""
             for chunk in response:
                 if chunk.text:
-                    print(chunk.text, end='', flush=True)
-                    full_response += chunk.text
+                    chunk_text = chunk.text
+                    print(chunk_text, end='', flush=True)
+                    full_response += chunk_text
+                    if on_chunk:
+                        on_chunk(chunk_text)
             
             print("\n")  # Add newline after streaming
             
@@ -217,31 +220,40 @@ class CodeGenerator:
             try:
                 return json.loads(full_response)
             except json.JSONDecodeError as e:
-                print(f"\nError: Invalid JSON response from model. Please try again.")
-                print(f"JSON Parse Error: {str(e)}")
+                error_msg = f"Error: Invalid JSON response from model. Please try again.\nJSON Parse Error: {str(e)}"
+                print(error_msg)
+                if on_chunk:
+                    on_chunk(error_msg)
                 return None
                 
         except Exception as e:
-            print(f"\nError: {str(e)}")
+            error_msg = f"\nError: {str(e)}"
+            print(error_msg)
+            if on_chunk:
+                on_chunk(error_msg)
             return None
 
-    def create_project(self, user_input: str) -> bool:
+    def create_project(self, user_input: str, on_chunk: Callable[[str], None] = None) -> bool:
         """
         Generate and create a complete Android project.
         
         Args:
             user_input (str): User's input describing the project to generate
+            on_chunk (Callable[[str], None], optional): Callback function to handle each chunk of output
             
         Returns:
             bool: True if project was created successfully, False otherwise
         """
         try:
             # Generate project data
-            project_data = self.generate_code(user_input)
+            project_data = self.generate_code(user_input, on_chunk)
             
             # Create project using template
             return self.project_creator.create_project(project_data)
             
         except Exception as e:
-            print(f"Error creating project: {str(e)}")
+            error_msg = f"Error creating project: {str(e)}"
+            print(error_msg)
+            if on_chunk:
+                on_chunk(error_msg)
             return False
