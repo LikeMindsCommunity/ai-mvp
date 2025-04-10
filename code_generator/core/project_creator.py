@@ -8,7 +8,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional
-from code_generator import Settings
+from code_generator.config import Settings
 
 class ProjectCreator:
     """

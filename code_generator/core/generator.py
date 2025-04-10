@@ -6,9 +6,9 @@ import json
 from typing import Dict
 
 import google.generativeai as genai
-from code_generator.config.settings import Settings
+from code_generator.config import Settings
 from code_generator.core.project_creator import ProjectCreator
-from code_generator.utils.documentation import DocumentationManager
+from code_generator.utils import DocumentationManager
 
 class CodeGenerator:
     """Generates code using the Gemini model based on documentation."""

@@ -9,7 +9,7 @@ from typing import List, Set
 import requests
 from urllib.parse import urlparse
 import re
-from code_generator.config import Settings
+from document_parser.config import Settings
 
 class DocumentParser:
     def __init__(self, settings: Settings = None):

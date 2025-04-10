@@ -6,8 +6,5 @@ using the Gemini 2.5 Pro model. It uses the combined documentation as context to
 accurate and relevant code snippets based on user requests.
 """
 
-from code_generator.core.generator import CodeGenerator
-from code_generator.config.settings import Settings
-
-__version__ = "0.1.0"
-__all__ = ["CodeGenerator", "Settings"] 
+__version__ = "1.0.0"
+__all__ = [] 
