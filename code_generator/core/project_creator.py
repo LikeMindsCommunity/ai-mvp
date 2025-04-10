@@ -61,7 +61,7 @@ class ProjectCreator:
             gradle_wrapper_files = [
                 'gradlew',
                 'gradlew.bat',
-                'gradle/wrapper/gradle-wrapper.properties'
+                'gradle/wrapper/gradle-wrapper.jar'
             ]
             
             for file in gradle_wrapper_files:

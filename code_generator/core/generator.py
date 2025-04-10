@@ -6,9 +6,10 @@ import json
 import os
 import subprocess
 import shutil
-from typing import Dict
+from typing import Dict, Optional
 
-import google.generativeai as genai
+import google.genai as genai
+from google.genai import types
 from code_generator.config import Settings
 from code_generator.core.project_creator import ProjectCreator
 from code_generator.utils import DocumentationManager
@@ -23,8 +24,10 @@ class CodeGenerator:
         self.project_creator = ProjectCreator(settings)
         
         # Configure Gemini
-        genai.configure(api_key=settings.gemini_api_key)
-        self.model = genai.GenerativeModel(settings.model_name)
+        self.client = genai.Client(
+            api_key=settings.gemini_api_key,
+            http_options=types.HttpOptions(api_version='v1alpha')
+        )
 
     def run(self):
         """Run the code generator in interactive mode."""
@@ -176,46 +179,52 @@ class CodeGenerator:
         
         return prompt
 
-    def generate_code(self, user_input: str) -> Dict:
-        """
-        Generate code based on user input.
-        
-        Args:
-            user_input (str): User's input describing the project to generate
-            
-        Returns:
-            Dict: Generated project structure and files
-        """
+    def generate_code(self, user_input: str) -> Optional[Dict]:
+        """Generate code using the Gemini model."""
         try:
+            # Create prompt
             prompt = self._create_prompt(user_input)
-            response = self.model.generate_content(prompt)
             
-            # Print raw response for debugging
-            print("\nRaw response from model:")
-            print("----------------------")
-            print(response.text)
-            print("----------------------\n")
+            # Generate content with streaming
+            print("\nGenerating code...")
+            response = self.client.models.generate_content_stream(
+                model=self.settings.model_name,
+                contents=prompt,
+            )
             
-            # Clean the response by removing markdown code block markers
-            cleaned_response = response.text.strip()
-            if cleaned_response.startswith("```json"):
-                cleaned_response = cleaned_response[7:]
-            if cleaned_response.endswith("```"):
-                cleaned_response = cleaned_response[:-3]
-            cleaned_response = cleaned_response.strip()
+            # Process streaming response
+            full_response = ""
+            for chunk in response:
+                if chunk.text:
+                    print(chunk.text, end='', flush=True)
+                    full_response += chunk.text
             
-            # Try to parse the response as JSON
+            print("\n")  # Add newline after streaming
+            
+            # Clean up the response to ensure it's valid JSON
+            # Remove any markdown formatting or extra text
+            full_response = full_response.strip()
+            if full_response.startswith("```json"):
+                full_response = full_response[7:]
+            if full_response.endswith("```"):
+                full_response = full_response[:-3]
+            full_response = full_response.strip()
+            
+            # Print the cleaned response for debugging
+            print("Cleaned Response:\n", full_response)
+            
+            # Parse response
             try:
-                return json.loads(cleaned_response)
+                return json.loads(full_response)
             except json.JSONDecodeError as e:
-                print(f"Error parsing JSON response: {str(e)}")
-                print("Response was not valid JSON. Please check the raw response above.")
-                raise
+                print(f"\nError: Invalid JSON response from model. Please try again.")
+                print(f"JSON Parse Error: {str(e)}")
+                return None
                 
         except Exception as e:
-            print(f"Error generating code: {str(e)}")
-            raise
-    
+            print(f"\nError: {str(e)}")
+            return None
+
     def create_project(self, user_input: str) -> bool:
         """
         Generate and create a complete Android project.
@@ -235,4 +244,4 @@ class CodeGenerator:
             
         except Exception as e:
             print(f"Error creating project: {str(e)}")
-            return False 
+            return False
