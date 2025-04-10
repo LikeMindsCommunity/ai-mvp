@@ -3,13 +3,12 @@ Generates code using the Gemini model based on documentation.
 """
 
 import json
-import os
-from typing import Dict, List, Optional
+from typing import Dict
 
 import google.generativeai as genai
 from code_generator.config.settings import Settings
-from code_generator.utils.documentation import DocumentationManager
 from code_generator.core.project_creator import ProjectCreator
+from code_generator.utils.documentation import DocumentationManager
 
 class CodeGenerator:
     """Generates code using the Gemini model based on documentation."""
@@ -17,12 +16,12 @@ class CodeGenerator:
     def __init__(self, settings: Settings):
         """Initialize the code generator with settings."""
         self.settings = settings
-        self.documentation_manager = DocumentationManager()
-        self.project_creator = ProjectCreator()
+        self.documentation_manager = DocumentationManager(self.settings.documentation_path)
+        self.project_creator = ProjectCreator(settings)
         
         # Configure Gemini
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
+        genai.configure(api_key=settings.gemini_api_key)
+        self.model = genai.GenerativeModel(settings.model_name)
 
     def run(self):
         """Run the code generator in interactive mode."""
