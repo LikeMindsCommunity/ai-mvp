@@ -11,13 +11,13 @@ class CodeGeneratorServiceImpl(CodeGeneratorService):
         self.settings = Settings()
         self.generator = CodeGenerator(self.settings)
     
-    async def generate_project(self, user_query: str, on_chunk: Callable[[str], None]) -> Optional[Dict]:
+    async def generate_project(self, user_query: str, on_chunk: Callable[[Dict], None]) -> Optional[Dict]:
         """
         Generate a project based on user query.
         
         Args:
             user_query (str): The user's input query
-            on_chunk (Callable[[str], None]): Callback function to handle each chunk of output
+            on_chunk (Callable[[Dict], None]): Callback function to handle each chunk of output
             
         Returns:
             Optional[Dict]: The generated project data or None if generation failed
@@ -27,5 +27,8 @@ class CodeGeneratorServiceImpl(CodeGeneratorService):
             success = await self.generator.create_project(user_query, on_chunk)
             return {"success": success}
         except Exception as e:
-            await on_chunk(f"Error: {str(e)}")
+            await on_chunk({
+                "type": "Error",
+                "value": str(e)
+            })
             return None 
