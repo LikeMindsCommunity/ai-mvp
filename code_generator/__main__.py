@@ -3,7 +3,7 @@ Main entry point for the code generator.
 """
 
 import sys
-from code_generator import Settings, CodeGenerator  
+from code_generator import Settings, CodeGenerator
 
 def main():
     """Main entry point for the code generator."""
