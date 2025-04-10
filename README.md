@@ -168,4 +168,110 @@ The package includes comprehensive error handling for:
 - JSON parsing errors
 - File system operations
 
-All errors are logged with descriptive messages to help with debugging. 
+All errors are logged with descriptive messages to help with debugging.
+
+# API
+
+A FastAPI-based WebSocket API for generating Android projects using the code generator package.
+
+## Deployment
+
+The API can be deployed using the following steps:
+
+1. Install the required dependencies:
+```bash
+pip install fastapi uvicorn
+```
+
+2. Start the API server:
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+3. The API will be available at:
+- WebSocket endpoint: `ws://localhost:8000/api/ttandroid`
+- API documentation: `http://localhost:8000/docs`
+
+## API Endpoints
+
+### WebSocket Endpoint: `/api/ttandroid`
+
+A WebSocket endpoint for real-time code generation and project creation.
+
+#### Request Format
+```json
+{
+    "user_query": "string"  // The query describing the project to generate
+}
+```
+
+#### Response Format
+The API sends multiple responses during the generation process:
+
+1. **Text Updates** (type: "Text")
+```json
+{
+    "type": "Text",
+    "value": "string"  // Progress updates or generated code chunks
+}
+```
+
+2. **Error Messages** (type: "Error")
+```json
+{
+    "type": "Error",
+    "value": "string"  // Error message describing what went wrong
+}
+```
+
+3. **Final Result** (type: "Result")
+```json
+{
+    "type": "Result",
+    "value": {
+        "success": boolean  // Whether the project was generated successfully
+    }
+}
+```
+
+#### Example Usage
+
+1. Connect to the WebSocket endpoint:
+```javascript
+const ws = new WebSocket('ws://localhost:8000/api/ttandroid');
+```
+
+2. Send a generation request:
+```javascript
+ws.send(JSON.stringify({
+    "user_query": "Create a social feed app with LikeMinds Feed SDK"
+}));
+```
+
+3. Handle responses:
+```javascript
+ws.onmessage = (event) => {
+    const response = JSON.parse(event.data);
+    switch(response.type) {
+        case "Text":
+            console.log("Progress:", response.value);
+            break;
+        case "Error":
+            console.error("Error:", response.value);
+            break;
+        case "Result":
+            console.log("Generation complete:", response.value);
+            break;
+    }
+};
+```
+
+#### Error Handling
+
+The API handles various error cases:
+- Invalid request format
+- Missing user_query
+- Code generation failures
+- WebSocket connection issues
+
+All errors are returned with a descriptive message in the Error response format. 
