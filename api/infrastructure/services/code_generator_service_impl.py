@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Callable
 from code_generator.core import CodeGenerator
 from code_generator.config import Settings
-from api.domain.interfaces.code_generator_service import CodeGeneratorService
+from api.domain import CodeGeneratorService
 
 class CodeGeneratorServiceImpl(CodeGeneratorService):
     """Implementation of the code generator service."""
