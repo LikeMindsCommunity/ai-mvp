@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  flutter-assistant:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"  # API port
+      - "8080:8080"  # Web server port for Flutter previews
+    volumes:
+      - ../integration:/app/integration  # Mount integration directory
+      - ../output:/app/output  # Mount output directory
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_MODEL=gemini-2.5-pro-exp-03-25
+      - WEB_HOST=localhost
+      - WEB_PORT=8080
+      - COMMAND_TIMEOUT=30
+      - BUILD_TIMEOUT=120
+    restart: unless-stopped 
