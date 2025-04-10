@@ -117,12 +117,12 @@ class CodeGenerator:
 
         Follow these guidelines:
         1. Use the LikeMinds Feed SDK documentation provided below for implementation details
-        2. Generate only the necessary files in the app/src directory
+        2. Generate ALL necessary files including build configuration files
         3. Use the correct SDK classes and methods as specified in the documentation
         4. Follow Android best practices and Kotlin coding conventions
         5. Include proper error handling and logging
         6. Use the default username and API key provided in the settings
-        7. DO NOT modify any build configuration files - they will be copied from the template
+        7. Use the template's build configuration files as a reference for your generated files
 
         Documentation:
         {documentation}
@@ -139,8 +139,8 @@ class CodeGenerator:
             "project_name": "string",
             "files": [
                 {{
-                    "path": "string",
-                    "content": "string"
+                    "path": "string",  // Path relative to project root
+                    "content": "string"  // File content
                 }}
             ]
         }}
@@ -149,6 +149,22 @@ class CodeGenerator:
         {{
             "project_name": "SocialFeedApp",
             "files": [
+                {{
+                    "path": "build.gradle",
+                    "content": "plugins { ... }"
+                }},
+                {{
+                    "path": "app/build.gradle",
+                    "content": "plugins { ... }"
+                }},
+                {{
+                    "path": "settings.gradle",
+                    "content": "rootProject.name = ..."
+                }},
+                {{
+                    "path": "gradle.properties",
+                    "content": "org.gradle.jvmargs=..."
+                }},
                 {{
                     "path": "app/src/main/java/com/example/socialfeed/MainActivity.kt",
                     "content": "package com.example.socialfeed\\n\\nimport ..."
