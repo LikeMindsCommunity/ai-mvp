@@ -1,48 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:likeminds_chat_flutter_core/likeminds_chat_flutter_core.dart';
 
-// Define a custom builder delegate for the Chatroom screen
-class CustomChatroomBuilder extends LMChatroomBuilderDelegate {
-  @override
-  PreferredSizeWidget appBarBuilder(
-    BuildContext context,
-    LMChatRoomViewData chatroom,
-    LMChatAppBar appBar,
-    int participantCount, // Corrected signature
-  ) {
-    // Use copyWith to customize the default app bar
-    return appBar.copyWith(
-      // Customize the style of the app bar
-      style: appBar.style?.copyWith(
-            backgroundColor: Colors.blue, // Set background color to blue
-          ) ??
-          const LMChatAppBarStyle(backgroundColor: Colors.blue),
-      // Customize the title widget
-      title: LMChatText(
-        'Custom Chatroom', // Set the title text
-        style: LMChatTextStyle(
-          textStyle: TextStyle(
-            color: Colors.white, // Set text color to white
-            fontSize: 18, // Optional: Set font size
-            fontWeight: FontWeight.bold, // Optional: Set font weight
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Call setup function before the runApp() function
-  // Initialize LMChatCore with the custom configuration
-  await LMChatCore.instance.initialize(
-    config: LMChatConfig(
-      chatRoomConfig: LMChatroomConfig(
-        builder: CustomChatroomBuilder(), // Pass the custom builder delegate
-      ),
-    ),
-  );
+  await LMChatCore.instance.initialize();
   // run the app
   runApp(const MaterialApp(home: LMSampleChat()));
 }
@@ -73,7 +35,6 @@ class LMSampleChat extends StatelessWidget {
               userName: "abc",
             );
             if (response.success) {
-              if (!context.mounted) return; // Check context validity
               // create route with LMChatHomeScreen
               MaterialPageRoute route = MaterialPageRoute(
                 builder: (context) => const LMChatHomeScreen(),
@@ -82,12 +43,6 @@ class LMSampleChat extends StatelessWidget {
               Navigator.pushReplacement(context, route);
             } else {
               debugPrint("Error opening chat: ${response.errorMessage}");
-              // Optionally, show a snackbar or dialog for the error
-              // if (context.mounted) { // Check context validity
-              //   ScaffoldMessenger.of(context).showSnackBar(
-              //     SnackBar(content: Text("Error opening chat: ${response.errorMessage}")),
-              //   );
-              // }
             }
           },
           child: const Text('Open Chat'),

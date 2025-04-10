@@ -24,9 +24,12 @@ class FlutterCodeGenerator:
         self.system_instructions = self._load_system_instructions()
         
         # Configure Google Generative AI client
-        self.client = genai.Client(api_key=self.settings.google_api_key)
+        self.client = genai.Client(
+            api_key=self.settings.google_api_key,
+        )
         
-        # Setup generation configuration
+        # Setup model and configuration
+        self.model = self.settings.gemini_model
         self.generate_content_config = types.GenerateContentConfig(
             response_mime_type="text/plain",
             system_instruction=self.system_instructions,
@@ -75,7 +78,7 @@ class FlutterCodeGenerator:
             str: Generated code response
         """
         try:
-            # Create the prompt
+            # Create content from user prompt
             contents = [
                 types.Content(
                     role="user",
@@ -85,12 +88,26 @@ class FlutterCodeGenerator:
             
             # Generate content with streaming
             response_text = ""
-            async for chunk in self.client.models.generate_content_stream(
-                model=self.settings.gemini_model,
+            
+            # Get the streaming response
+            stream = self.client.models.generate_content_stream(
+                model=self.model,
                 contents=contents,
                 config=self.generate_content_config,
-            ):
-                chunk_text = chunk.text if not chunk.function_calls else str(chunk.function_calls[0])
+            )
+            
+            # Process the stream with a regular for loop
+            for chunk in stream:
+                # Safely extract text from chunk
+                chunk_text = ""
+                if hasattr(chunk, 'text') and chunk.text is not None:
+                    chunk_text = chunk.text
+                elif hasattr(chunk, 'function_calls') and chunk.function_calls:
+                    chunk_text = str(chunk.function_calls[0])
+                
+                # Skip empty chunks
+                if not chunk_text:
+                    continue
                 
                 # Stream chunk to client
                 await on_chunk({

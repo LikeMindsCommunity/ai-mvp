@@ -129,7 +129,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             
             exit_code, output = self.integration_manager.run_command_with_timeout(
-                'flutter build web --web-renderer html', 
+                'flutter build web', 
                 timeout=120
             )
             if exit_code != 0:
