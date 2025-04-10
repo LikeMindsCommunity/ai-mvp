@@ -1,7 +1,6 @@
 import json
-import asyncio
 from fastapi import WebSocket
-from api.infrastructure import CodeGeneratorServiceImpl
+from api.infrastructure.services.code_generator_service_impl import CodeGeneratorServiceImpl
 
 class WebSocketHandler:
     """Handler for WebSocket connections."""
@@ -32,18 +31,10 @@ class WebSocketHandler:
                     })
                     continue
                 
-                # Define callback for handling chunks
-                def on_chunk(chunk: str):
-                    # Create a task to send the chunk asynchronously
-                    asyncio.create_task(websocket.send_json({
-                        "type": "Text",
-                        "value": chunk
-                    }))
-                
                 # Generate project
-                result = self.code_generator_service.generate_project(
+                result = await self.code_generator_service.generate_project(
                     message["user_query"],
-                    on_chunk
+                    websocket
                 )
                 
                 # Send final result

@@ -8,6 +8,7 @@ import subprocess
 import shutil
 from typing import Dict, Optional, Callable
 
+from fastapi import WebSocket
 import google.genai as genai
 from google.genai import types
 from code_generator.config import Settings
@@ -179,7 +180,7 @@ class CodeGenerator:
         
         return prompt
 
-    def generate_code(self, user_input: str, on_chunk: Callable[[str], None] = None) -> Optional[Dict]:
+    async def generate_code(self, user_input: str, websocket: WebSocket) -> Optional[Dict]:
         """Generate code using the Gemini model."""
         try:
             # Create prompt
@@ -199,8 +200,10 @@ class CodeGenerator:
                     chunk_text = chunk.text
                     print(chunk_text, end='', flush=True)
                     full_response += chunk_text
-                    if on_chunk:
-                        on_chunk(chunk_text)
+                    await websocket.send_json({
+                        "type": "Text",
+                        "value": chunk_text
+                    })
             
             print("\n")  # Add newline after streaming
             
@@ -233,20 +236,20 @@ class CodeGenerator:
                 on_chunk(error_msg)
             return None
 
-    def create_project(self, user_input: str, on_chunk: Callable[[str], None] = None) -> bool:
+    async def create_project(self, user_input: str, websocket: WebSocket) -> bool:
         """
         Generate and create a complete Android project.
         
         Args:
             user_input (str): User's input describing the project to generate
-            on_chunk (Callable[[str], None], optional): Callback function to handle each chunk of output
+            websocket (WebSocket): WebSocket connection for sending updates
             
         Returns:
             bool: True if project was created successfully, False otherwise
         """
         try:
             # Generate project data
-            project_data = self.generate_code(user_input, on_chunk)
+            project_data = await self.generate_code(user_input, websocket)
             
             # Create project using template
             return self.project_creator.create_project(project_data)
@@ -254,6 +257,8 @@ class CodeGenerator:
         except Exception as e:
             error_msg = f"Error creating project: {str(e)}"
             print(error_msg)
-            if on_chunk:
-                on_chunk(error_msg)
+            await websocket.send_json({
+                "type": "Error",
+                "value": error_msg
+            })
             return False
