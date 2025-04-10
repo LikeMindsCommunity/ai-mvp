@@ -1,0 +1,79 @@
+{
+    "info": {
+        "name": "LikeMinds Flutter Assistant API",
+        "description": "API collection for the LikeMinds Flutter Integration Assistant",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Root",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        ""
+                    ]
+                },
+                "description": "Root endpoint that returns API information"
+            }
+        },
+        {
+            "name": "Generate Code",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"prompt\": \"Create a simple Flutter counter app\",\n    \"project_id\": \"optional-existing-project-id\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/generate",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "generate"
+                    ]
+                },
+                "description": "Generate Flutter code from a prompt"
+            }
+        },
+        {
+            "name": "WebSocket Preview Connection",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/ws/{{project_id}}",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ws",
+                        "{{project_id}}"
+                    ]
+                },
+                "description": "WebSocket endpoint for real-time project updates. Note: Use this in a WebSocket client, not as a regular HTTP request."
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000",
+            "type": "string"
+        }
+    ]
+}

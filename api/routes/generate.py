@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from api.models.schemas import GenerateCodeRequest, GenerateCodeResponse
 from api.services.generator import CodeGenerationService
 from api.services.flutter import FlutterProjectManager
+import uuid
 
 router = APIRouter()
 
@@ -10,6 +11,15 @@ async def get_code_generator():
 
 async def get_flutter_manager():
     return FlutterProjectManager()
+
+@router.get("/test")
+async def test_endpoint():
+    """Simple test endpoint that doesn't use external services"""
+    return {
+        "success": True,
+        "message": "API is working correctly!",
+        "timestamp": str(uuid.uuid4())
+    }
 
 @router.post("/generate", response_model=GenerateCodeResponse)
 async def generate_code(

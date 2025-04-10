@@ -15,13 +15,13 @@ class CodeGenerationService:
     def _load_system_instructions(self) -> List[types.Part]:
         """Load system instructions from files"""
         try:
-            with open('./prompt.txt', 'r', encoding='utf-8') as prompt_file:
+            with open('./api/prompt.txt', 'r', encoding='utf-8') as prompt_file:
                 prompt_content = prompt_file.read()
             
-            with open('./docs.txt', 'r', encoding='utf-8') as docs_file:
+            with open('./api/docs.txt', 'r', encoding='utf-8') as docs_file:
                 docs_content = docs_file.read()
             
-            with open('./code.txt', 'r', encoding='utf-8') as code_file:
+            with open('./api/code.txt', 'r', encoding='utf-8') as code_file:
                 code_content = code_file.read()
             
             return [
@@ -51,14 +51,14 @@ class CodeGenerationService:
         ]
         
         try:
-            response_text = ""
-            async for chunk in self.client.models.generate_content_stream(
+            # Use a synchronous approach instead of async streaming
+            response = self.client.models.generate_content(
                 model=self.model,
                 contents=contents,
                 config=self.generate_content_config,
-            ):
-                chunk_text = chunk.text if not chunk.function_calls else chunk.function_calls[0]
-                response_text += chunk_text
+            )
+            
+            response_text = response.text
             
             # Extract Dart code from the response
             dart_code = self._extract_dart_code(response_text)

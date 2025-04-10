@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/divyanshgandhi/Documents/Work/ai-ml/ai-mvp-1/projects:/app/projects:rw
+      - projects_data:/app/projects
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     restart: unless-stopped
@@ -23,4 +23,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  redis_data: 
+  redis_data:
+  projects_data: 

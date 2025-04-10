@@ -1,3 +1,5 @@
+# NOTE: Run this server on port 8001 to avoid conflicts with Docker processes on port 8000
+# Example: uvicorn api.main:app --port 8001
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
