@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            background-color: #f8f8f8;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .info {
+            color: blue;
+        }
+
+        button {
+            margin-right: 10px;
+            padding: 5px 10px;
+        }
+
+        input {
+            padding: 5px;
+            width: 300px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebSocket Connection Test</h1>
+
+    <div>
+        <label for="project-id">Project ID:</label>
+        <input type="text" id="project-id" placeholder="Enter project ID" value="65e67fe2-c6e3-4ffa-ab7f-a52862568d2c">
+    </div>
+    <br>
+
+    <div>
+        <label for="hostname">WebSocket Host:</label>
+        <select id="hostname">
+            <option value="localhost">localhost</option>
+            <option value="127.0.0.1">127.0.0.1</option>
+            <option value="0.0.0.0">0.0.0.0</option>
+        </select>
+    </div>
+    <br>
+
+    <div>
+        <button id="check-project-btn">Check Project</button>
+        <button id="connect-btn">Connect</button>
+        <button id="disconnect-btn" disabled>Disconnect</button>
+        <button id="compile-btn" disabled>Send Compile Command</button>
+    </div>
+
+    <h3>Connection Log:</h3>
+    <div id="log"></div>
+
+    <script>
+        let socket = null;
+        const log = document.getElementById('log');
+        const projectIdInput = document.getElementById('project-id');
+        const hostnameSelect = document.getElementById('hostname');
+        const checkProjectBtn = document.getElementById('check-project-btn');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const compileBtn = document.getElementById('compile-btn');
+
+        function logMessage(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        checkProjectBtn.addEventListener('click', async () => {
+            const projectId = projectIdInput.value.trim();
+            const hostname = hostnameSelect.value;
+
+            if (!projectId) {
+                logMessage('Please enter a project ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://${hostname}:8001/debug/project/${projectId}`);
+                const data = await response.json();
+
+                if (data.exists) {
+                    logMessage(`Project exists at: ${data.path}`, 'success');
+                } else {
+                    logMessage(`Project does not exist: ${data.project_id}`, 'error');
+                }
+            } catch (error) {
+                logMessage(`Failed to check project: ${error.message}`, 'error');
+            }
+        });
+
+        connectBtn.addEventListener('click', () => {
+            const projectId = projectIdInput.value.trim();
+            const hostname = hostnameSelect.value;
+
+            if (!projectId) {
+                logMessage('Please enter a project ID', 'error');
+                return;
+            }
+
+            try {
+                // Close existing connection if any
+                if (socket && socket.readyState !== WebSocket.CLOSED) {
+                    socket.close();
+                }
+
+                // Create new connection
+                const wsUrl = `ws://${hostname}:8001/ws/${projectId}`;
+                logMessage(`Connecting to ${wsUrl}...`);
+
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = () => {
+                    logMessage('Connection established', 'success');
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    compileBtn.disabled = false;
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        logMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'info');
+                    } catch (e) {
+                        logMessage(`Received: ${event.data}`, 'info');
+                    }
+                };
+
+                socket.onerror = (error) => {
+                    logMessage(`Error: ${error.message || 'WebSocket error occurred'}`, 'error');
+                };
+
+                socket.onclose = (event) => {
+                    logMessage(`Connection closed: ${event.reason || 'No reason provided'}`);
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    compileBtn.disabled = true;
+                };
+
+            } catch (error) {
+                logMessage(`Failed to create connection: ${error.message}`, 'error');
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            if (socket && socket.readyState !== WebSocket.CLOSED) {
+                socket.close();
+                logMessage('Disconnected by user');
+            }
+        });
+
+        compileBtn.addEventListener('click', () => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send('compile');
+                logMessage('Sent "compile" command', 'success');
+            } else {
+                logMessage('Socket not connected', 'error');
+            }
+        });
+    </script>
+</body>
+
+</html>

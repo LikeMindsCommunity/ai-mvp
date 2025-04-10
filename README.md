@@ -60,9 +60,152 @@ The API uses Docker for Flutter project creation and compilation, but has a fall
     }
     ```
 
-### WebSocket Preview
+### WebSocket API
+
+The API provides a WebSocket interface for real-time updates during project compilation and preview.
+
+#### WebSocket Endpoint
 
 - `WebSocket /ws/{project_id}`: WebSocket endpoint for real-time project updates
+
+#### Connection Flow
+
+1. Connect to the WebSocket endpoint with a valid project ID
+2. On successful connection, you'll receive a "connected" status message
+3. Send a "compile" message to request compilation
+4. Receive real-time updates during the compilation process
+5. Receive a completion message with success status when done
+
+#### Message Types
+
+The WebSocket API uses JSON messages with the following format:
+
+```json
+{
+  "type": "status|error|preview|completion",
+  "data": {
+    // Type-specific data
+  },
+  "timestamp": "ISO date string"
+}
+```
+
+**Message Types:**
+
+1. **Status Messages** (type: "status")
+   ```json
+   {
+     "type": "status",
+     "data": {
+       "status": "connected|compiling|completed",
+       "details": {}
+     },
+     "timestamp": "2025-04-10T10:30:00.000Z"
+   }
+   ```
+
+2. **Error Messages** (type: "error")
+   ```json
+   {
+     "type": "error",
+     "data": {
+       "error": "Error message"
+     },
+     "timestamp": "2025-04-10T10:30:00.000Z"
+   }
+   ```
+
+3. **Preview Updates** (type: "preview")
+   ```json
+   {
+     "type": "preview",
+     "data": {
+       "url": "/preview/project-id"
+     },
+     "timestamp": "2025-04-10T10:30:00.000Z"
+   }
+   ```
+
+4. **Completion Messages** (type: "completion")
+   ```json
+   {
+     "type": "completion",
+     "data": {
+       "success": true,
+       "details": {}
+     },
+     "timestamp": "2025-04-10T10:30:00.000Z"
+   }
+   ```
+
+#### WebSocket Example (JavaScript)
+
+```javascript
+// Connect to the WebSocket
+const socket = new WebSocket(`ws://localhost:8001/ws/${projectId}`);
+
+// Handle connection open
+socket.onopen = () => {
+  console.log("WebSocket connection established");
+};
+
+// Handle incoming messages
+socket.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  console.log(`Received ${message.type} message:`, message.data);
+  
+  // Handle different message types
+  switch (message.type) {
+    case "status":
+      // Update UI with status
+      break;
+    case "error":
+      // Display error
+      break;
+    case "preview":
+      // Update preview iframe
+      document.getElementById("preview").src = message.data.url;
+      break;
+    case "completion":
+      // Handle completion
+      break;
+  }
+};
+
+// Request compilation
+function requestCompile() {
+  socket.send("compile");
+}
+```
+
+## Testing
+
+### Testing API Health
+
+Use the basic test script to verify API functionality:
+
+```bash
+python test_api.py
+```
+
+### Testing WebSocket Functionality
+
+To test the WebSocket functionality:
+
+```bash
+# Test with a specific project ID
+python test_websocket.py --project-id YOUR_PROJECT_ID
+
+# Full integration test (creates project and tests WebSocket)
+python test_websocket_integration.py
+```
+
+You can also use the provided HTML test page:
+1. Open `websocket_test.html` in a browser
+2. Enter a project ID or use the default one
+3. Click "Check Project" to verify the project exists
+4. Click "Connect" to establish a WebSocket connection
+5. Once connected, click "Send Compile Command" to test the compilation flow
 
 ## Troubleshooting
 
@@ -78,13 +221,13 @@ If you see timeout errors or Docker-related errors:
 2. Restart Docker if needed
 3. The API will fall back to a basic functionality mode if Docker is not available
 
-### Testing API Health
+### WebSocket Connection Issues
 
-Use the test script to verify API functionality:
+If you're having issues with WebSocket connections:
 
-```bash
-python test_api.py
-```
+1. Verify the project ID exists using the debug endpoint: `GET /debug/project/{project_id}`
+2. Check for any network restrictions that might block WebSocket connections
+3. Try different hostnames (localhost, 127.0.0.1) if connections are failing
 
 ## License
 

@@ -17,9 +17,16 @@ class WebSocketManager:
 
     async def disconnect(self, websocket: WebSocket, project_id: str):
         """Disconnect a WebSocket client"""
-        self.active_connections[project_id].remove(websocket)
-        if not self.active_connections[project_id]:
-            del self.active_connections[project_id]
+        if project_id in self.active_connections and websocket in self.active_connections[project_id]:
+            self.active_connections[project_id].remove(websocket)
+            if not self.active_connections[project_id]:
+                del self.active_connections[project_id]
+
+    def _serialize_datetime(self, obj):
+        """Helper method to serialize datetime objects in JSON"""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     async def broadcast_to_project(self, project_id: str, message_type: str, data: dict):
         """Broadcast a message to all clients connected to a project"""
@@ -30,11 +37,14 @@ class WebSocketManager:
                 timestamp=datetime.now()
             )
             
+            message_json = json.dumps(message.dict(), default=self._serialize_datetime)
+            
             dead_connections = set()
             for connection in self.active_connections[project_id]:
                 try:
-                    await connection.send_text(message.json())
-                except:
+                    await connection.send_text(message_json)
+                except Exception as e:
+                    print(f"Error sending message: {str(e)}")
                     dead_connections.add(connection)
             
             # Clean up dead connections

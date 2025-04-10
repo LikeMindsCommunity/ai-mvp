@@ -1,10 +1,18 @@
 # NOTE: Run this server on port 8001 to avoid conflicts with Docker processes on port 8000
 # Example: uvicorn api.main:app --port 8001
 import os
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from api.routes import generate, preview
+
+# Configure logging for better debugging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
+logger = logging.getLogger("api")
 
 app = FastAPI(
     title="LikeMinds Flutter Integration Assistant API",
@@ -23,7 +31,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(generate.router, prefix="/api/v1", tags=["generation"])
-app.include_router(preview.router, tags=["preview"])
+app.include_router(preview.router, prefix="", tags=["preview"])  # WebSocket route defined as /ws/{project_id}
 
 # Mount static files for web previews
 app.mount("/preview", StaticFiles(directory="projects"), name="preview")
@@ -33,6 +41,7 @@ async def startup_event():
     """Initialize services on startup"""
     # Create projects directory if it doesn't exist
     os.makedirs("projects", exist_ok=True)
+    logger.info("API server started successfully")
 
 @app.get("/")
 async def root():
