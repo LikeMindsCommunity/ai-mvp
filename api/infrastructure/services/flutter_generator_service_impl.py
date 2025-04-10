@@ -1,0 +1,198 @@
+"""
+Implementation of the Flutter code generator service.
+"""
+
+import os
+import re
+import time
+import subprocess
+import threading
+from typing import Dict, Optional, Callable, Awaitable, Any, List, Tuple
+
+from api.domain.interfaces.flutter_generator_service import FlutterGeneratorService
+from flutter_generator.core.generator import FlutterCodeGenerator
+from flutter_generator.core.code_manager import FlutterCodeManager
+from flutter_generator.core.integration_manager import FlutterIntegrationManager
+
+class FlutterGeneratorServiceImpl(FlutterGeneratorService):
+    """Implementation of the Flutter code generator service."""
+    
+    def __init__(self):
+        """Initialize the Flutter generator service."""
+        self.code_generator = FlutterCodeGenerator()
+        self.code_manager = FlutterCodeManager()
+        self.integration_manager = FlutterIntegrationManager()
+        self.root_dir = os.getcwd()
+    
+    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]]) -> Dict[str, Any]:
+        """
+        Generate Flutter code based on user query.
+        
+        Args:
+            user_query (str): The user's input query
+            on_chunk (Callable): Callback function to handle streaming output chunks
+            
+        Returns:
+            Dict[str, Any]: Response containing the generation result
+        """
+        try:
+            # Inform starting generation
+            await on_chunk({
+                "type": "Text",
+                "value": "Generating Flutter code based on your request..."
+            })
+            
+            # Generate code
+            generated_text = await self.code_generator.generate_code(user_query, on_chunk)
+            if not generated_text:
+                await on_chunk({
+                    "type": "Error",
+                    "value": "Failed to generate code. Please try again."
+                })
+                return {"success": False, "error": "Failed to generate code"}
+            
+            # Extract and save code
+            await on_chunk({
+                "type": "Text",
+                "value": "Processing generated code..."
+            })
+            
+            dart_codes = self.code_manager.extract_dart_code(generated_text)
+            if not dart_codes:
+                await on_chunk({
+                    "type": "Error",
+                    "value": "No valid Dart code found in the response"
+                })
+                return {"success": False, "error": "No valid Dart code found"}
+            
+            # Save the first code block
+            latest_file = self.code_manager.save_dart_code(dart_codes[0])
+            
+            # Copy to integration project
+            await on_chunk({
+                "type": "Text",
+                "value": "Setting up integration..."
+            })
+            
+            if not self.code_manager.copy_to_integration(latest_file):
+                await on_chunk({
+                    "type": "Error",
+                    "value": "Failed to copy code to integration project"
+                })
+                return {"success": False, "error": "Failed to copy code"}
+            
+            # Change to integration directory
+            os.chdir(os.path.join(self.root_dir, "integration"))
+            
+            # Run Flutter pub get
+            await on_chunk({
+                "type": "Text",
+                "value": "Running flutter pub get..."
+            })
+            
+            exit_code, output = self.integration_manager.run_command_with_timeout('flutter pub get', timeout=30)
+            if exit_code != 0:
+                await on_chunk({
+                    "type": "Error",
+                    "value": f"Error running flutter pub get:\n{output}"
+                })
+                # Return to root directory
+                os.chdir(self.root_dir)
+                return {"success": False, "error": f"Flutter pub get failed: {output}"}
+            
+            # Analyze code
+            await on_chunk({
+                "type": "Text",
+                "value": "Analyzing Flutter code..."
+            })
+            
+            success, error_message = self.code_manager.analyze_flutter_code()
+            
+            if not success:
+                await on_chunk({
+                    "type": "AnalysisError",
+                    "value": error_message
+                })
+                # Return to root directory
+                os.chdir(self.root_dir)
+                return {
+                    "success": False, 
+                    "error": "Flutter code analysis found errors",
+                    "analysis_error": error_message,
+                    "needs_fix": True
+                }
+            
+            # Build for web
+            await on_chunk({
+                "type": "Text",
+                "value": "Building Flutter project for web..."
+            })
+            
+            exit_code, output = self.integration_manager.run_command_with_timeout(
+                'flutter build web --web-renderer html', 
+                timeout=120
+            )
+            if exit_code != 0:
+                await on_chunk({
+                    "type": "Error",
+                    "value": f"Error building Flutter for web:\n{output}"
+                })
+                # Return to root directory
+                os.chdir(self.root_dir)
+                return {"success": False, "error": f"Flutter web build failed: {output}"}
+            
+            # Serve the web build
+            await on_chunk({
+                "type": "Text",
+                "value": "Starting web server..."
+            })
+            
+            # Start a background thread to serve the web build
+            web_url = self.integration_manager.serve_web_build()
+            
+            await on_chunk({
+                "type": "Success",
+                "value": "Integration completed successfully!"
+            })
+            
+            # Return to root directory
+            os.chdir(self.root_dir)
+            
+            return {
+                "success": True,
+                "web_url": web_url,
+                "code_path": latest_file
+            }
+            
+        except Exception as e:
+            await on_chunk({
+                "type": "Error",
+                "value": f"An error occurred: {str(e)}"
+            })
+            # Return to root directory if needed
+            if os.getcwd() != self.root_dir:
+                os.chdir(self.root_dir)
+            return {"success": False, "error": str(e)}
+    
+    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]]) -> Dict[str, Any]:
+        """
+        Fix Flutter code based on analysis errors.
+        
+        Args:
+            user_query (str): The original user query
+            error_message (str): The Flutter analysis error message
+            on_chunk (Callable): Callback function to handle streaming output chunks
+            
+        Returns:
+            Dict[str, Any]: Response containing the fixed code generation result
+        """
+        await on_chunk({
+            "type": "Text",
+            "value": "Regenerating with error fixes..."
+        })
+        
+        # Create enhanced prompt with error info
+        enhanced_prompt = f"{user_query}\n\nPlease fix these errors:\n{error_message}"
+        
+        # Call the generate method with the enhanced prompt
+        return await self.generate_flutter_code(enhanced_prompt, on_chunk) 
