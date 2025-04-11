@@ -8,4 +8,7 @@ google-genai>=0.3.0
 
 # Utilities
 python-dotenv>=1.0.0
-rich>=13.5.0 
+rich>=13.5.0
+
+# Watchfiles
+watchfiles>=0.18.0 

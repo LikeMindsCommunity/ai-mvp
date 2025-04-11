@@ -22,15 +22,23 @@ RUN yes | flutter doctor --android-licenses || true
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install watchfiles for Uvicorn hot reload
+RUN pip install --no-cache-dir watchfiles
+
 # Copy only necessary files for the application
 COPY *.py *.txt ./
 COPY api/ ./api/
 COPY flutter_generator/ ./flutter_generator/
 COPY integration/ ./integration/
+
+# Set environment variables for Flutter
+ENV WEB_HOST=0.0.0.0
+ENV FLUTTER_WEB_PORT=8080
+
 # Make sure .dockerignore excludes unnecessary files
 
 # Expose the API port
-EXPOSE 8000
+EXPOSE 8000 8080
 
 # Command to run the server
 CMD ["python", "run_server.py"] 

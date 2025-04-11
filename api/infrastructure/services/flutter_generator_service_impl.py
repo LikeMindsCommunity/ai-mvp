@@ -131,6 +131,18 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Start the Flutter app with hot reload
             web_url = self.integration_manager.start_flutter_app()
             
+            if not web_url:
+                await on_chunk({
+                    "type": "Error",
+                    "value": "Failed to start Flutter development server"
+                })
+                # Return to root directory
+                os.chdir(self.root_dir)
+                return {
+                    "success": False,
+                    "error": "Failed to start Flutter development server"
+                }
+            
             await on_chunk({
                 "type": "Success",
                 "value": "Integration completed successfully!"

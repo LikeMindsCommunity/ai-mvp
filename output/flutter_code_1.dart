@@ -27,9 +27,10 @@ class LMSampleChat extends StatelessWidget {
             // this is required to show the chat
             LMResponse<void> response =
                 await LMChatCore.instance.showChatWithApiKey(
-              apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8", // TODO: Replace with YOUR_API_KEY
-              uuid: "abc", // TODO: Replace with USER_ID
-              userName: "abc", // TODO: Replace with USER_NAME
+              apiKey: "YOUR_API_KEY", // TODO: Replace with YOUR_API_KEY
+              uuid: "YOUR_USER_ID", // TODO: Replace with YOUR_USER_ID
+              userName:
+                  "YOUR_USER_NAME", // TODO: Replace with YOUR_USER_NAME
             );
             if (response.success) {
               // create route with LMChatHomeScreen

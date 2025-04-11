@@ -64,7 +64,14 @@ async def root():
 
 def start():
     """Start the FastAPI application with Uvicorn."""
-    uvicorn.run("api.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "api.main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True,
+        reload_dirs=["api"],  # Only watch the api directory
+        reload_excludes=["integration"]  # Explicitly exclude integration directory
+    )
 
 if __name__ == "__main__":
     start() 
