@@ -144,7 +144,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 }
             
             # Get the public host for client-facing URLs
-            public_host = os.environ.get("PUBLIC_HOST", "localhost")
+            public_host = os.environ.get("PUBLIC_HOST", "0.0.0.0")
             
             # Ensure the returned URL uses the public host
             if "localhost" in web_url:
