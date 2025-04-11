@@ -36,6 +36,6 @@ ARG PROJECT_DIR
 COPY ${PROJECT_DIR} .
 
 # Build the APK
-RUN  ./gradlew assembleDebug
+RUN ./gradlew assembleDebug
 
 # The APK will be available at project/app/build/outputs/apk/debug/app-debug.apk 

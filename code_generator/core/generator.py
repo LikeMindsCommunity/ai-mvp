@@ -55,78 +55,24 @@ class CodeGenerator:
                 print(f"\nAn error occurred: {str(e)}")
                 break
 
-    def _get_template_build_config(self) -> str:
-        """Get the build configuration from the template repository."""
-        try:
-            # Use the local template directory
-            template_dir = os.path.join(os.getcwd(), "code_generator", "likeminds-feed-android-social-feed-theme")
-            
-            # Read build configuration files
-            build_config = []
-            
-            # Read build.gradle
-            with open(os.path.join(template_dir, 'build.gradle'), 'r') as f:
-                build_config.append("build.gradle:\n" + f.read())
-            
-            # Read gradle.properties
-            with open(os.path.join(template_dir, 'gradle.properties'), 'r') as f:
-                build_config.append("gradle.properties:\n" + f.read())
-            
-            # Read settings.gradle
-            with open(os.path.join(template_dir, 'settings.gradle'), 'r') as f:
-                build_config.append("settings.gradle:\n" + f.read())
-            
-            # Read local.properties
-            with open(os.path.join(template_dir, 'local.properties'), 'r') as f:
-                build_config.append("local.properties:\n" + f.read())
-            
-            # Skip binary files (gradlew and gradlew.bat)
-            
-            # Read gradle directory files
-            gradle_dir = os.path.join(template_dir, 'gradle')
-            if os.path.exists(gradle_dir):
-                for root, dirs, files in os.walk(gradle_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        relative_path = os.path.relpath(file_path, template_dir)
-                        
-                        # Skip binary files
-                        if file.endswith('.jar') or file.endswith('.bat'):
-                            continue
-                            
-                        try:
-                            with open(file_path, 'r') as f:
-                                build_config.append(f"{relative_path}:\n" + f.read())
-                        except UnicodeDecodeError:
-                            # Skip binary files
-                            continue
-            
-            return "\n\n".join(build_config)
-            
-        except Exception as e:
-            print(f"Error getting template build configuration: {str(e)}")
-            return ""
-
     def _create_prompt(self, user_input: str) -> str:
         """Create a prompt for the Gemini model."""
         # Load documentation
         docs_manager = DocumentationManager(self.settings.documentation_path)
         documentation = docs_manager.load_documentation()
         
-        # Get template build configuration
-        build_config = self._get_template_build_config()
-        
         prompt = f"""You are an expert Android developer specializing in the LikeMinds Feed SDK. 
         Your task is to generate Android project code based on the following request: {user_input}
 
         Follow these guidelines:
         1. Use the LikeMinds Feed SDK documentation provided below for implementation details
-        2. Generate ALL necessary files including build configuration files
+        2. Generate ALL necessary files EXCEPT build configuration files (build.gradle, gradle.properties, settings.gradle, etc.)
         3. Use the correct SDK classes and methods as specified in the documentation
         4. Follow Android best practices and Kotlin coding conventions
         5. Include proper error handling and logging
         6. Use the default username and API key provided in the settings
-        7. Use the template's build configuration files as a reference for your generated files
+        7. The namespace should be in the format: com.example.[project_name_lowercase]
+        8. The applicationId should match the namespace
 
         Documentation:
         {documentation}
@@ -135,12 +81,11 @@ class CodeGenerator:
         - Username: {self.settings.default_username}
         - API Key: {self.settings.default_api_key}
 
-        Template Build Configuration:
-        {build_config}
-
         Return a JSON object with the following structure:
         {{
             "project_name": "string",
+            "namespace": "string",  // e.g., "com.example.socialfeedapp"
+            "application_id": "string",  // e.g., "com.example.socialfeedapp"
             "files": [
                 {{
                     "path": "string",  // Path relative to project root
@@ -152,26 +97,12 @@ class CodeGenerator:
         Example response:
         {{
             "project_name": "SocialFeedApp",
+            "namespace": "com.example.socialfeedapp",
+            "application_id": "com.example.socialfeedapp",
             "files": [
                 {{
-                    "path": "build.gradle",
-                    "content": "plugins { ... }"
-                }},
-                {{
-                    "path": "app/build.gradle",
-                    "content": "plugins { ... }"
-                }},
-                {{
-                    "path": "settings.gradle",
-                    "content": "rootProject.name = ..."
-                }},
-                {{
-                    "path": "gradle.properties",
-                    "content": "org.gradle.jvmargs=..."
-                }},
-                {{
-                    "path": "app/src/main/java/com/example/socialfeed/MainActivity.kt",
-                    "content": "package com.example.socialfeed\\n\\nimport ..."
+                    "path": "app/src/main/java/com/example/socialfeedapp/MainActivity.kt",
+                    "content": "package com.example.socialfeedapp\\n\\nimport ..."
                 }}
             ]
         }}
