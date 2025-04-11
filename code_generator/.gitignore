@@ -1,0 +1,10 @@
+# Output directory
+output/
+
+# Android build files
+*.apk
+*.aab
+build/
+app/build/
+.gradle/
+local.properties 

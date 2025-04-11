@@ -6,7 +6,7 @@ import os
 import subprocess
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 from code_generator.config import Settings
 
 class ProjectCreator:
@@ -25,12 +25,71 @@ class ProjectCreator:
         self.output_dir = os.path.join(os.getcwd(), self.settings.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
     
-    def create_project(self, project_data: Dict) -> bool:
+    def _build_docker_image(self, project_dir: str) -> bool:
+        """
+        Build the Docker image for the project.
+        
+        Args:
+            project_dir (str): Path to the project directory
+            
+        Returns:
+            bool: True if build was successful, False otherwise
+        """
+        try:
+            # Get the relative path from code_generator directory
+            rel_project_dir = os.path.relpath(project_dir, os.path.join(os.getcwd(), "code_generator"))
+            print(f"Relative project directory: {rel_project_dir}")  # Debugging output
+            
+            # Build the Docker image
+            print(f"\nBuilding Docker image for project: {rel_project_dir}")
+            build_cmd = [
+                "docker", "build",
+                "-t", "likeminds-feed-builder",
+                "--build-arg", f"PROJECT_DIR={rel_project_dir}",
+                "."
+            ]
+            
+            result = subprocess.run(build_cmd, cwd=os.path.join(os.getcwd(), "code_generator"), capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"Error building Docker image: {result.stderr}")
+                return False
+                
+            print("Docker image built successfully!")
+            
+            # Create output directory for APK
+            output_dir = os.path.join(os.getcwd(), "output")
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Copy the APK from the container
+            print("\nCopying APK to output directory...")
+            run_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{output_dir}:/output",
+                "likeminds-feed-builder",
+                "cp", "project/app/build/outputs/apk/debug/app-debug.apk", "/output/"
+            ]
+            
+            result = subprocess.run(run_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"Error copying APK: {result.stderr}")
+                return False
+                
+            print("APK copied successfully!")
+            return True
+            
+        except Exception as e:
+            print(f"Error in Docker build process: {str(e)}")
+            return False
+    
+    def create_project(self, project_data: Dict, on_chunk: Optional[Callable[[Dict], None]] = None) -> bool:
         """
         Create a complete Android project from the generated data.
         
         Args:
             project_data (Dict): Project data containing file structure and content
+            on_chunk (Optional[Callable[[Dict], None]]): Optional callback function for progress updates
             
         Returns:
             bool: True if project was created successfully, False otherwise
@@ -85,8 +144,16 @@ class ProjectCreator:
                 os.makedirs(os.path.dirname(full_path), exist_ok=True)
                 with open(full_path, "w") as f:
                     f.write(content)
+                
+                # Call on_chunk callback if provided
+                if on_chunk:
+                    on_chunk({
+                        "type": "Result",
+                        "value": file_path
+                    })
             
-            return True
+            # Build Docker image and get APK
+            return self._build_docker_image(project_dir)
             
         except Exception as e:
             print(f"Error creating project: {str(e)}")

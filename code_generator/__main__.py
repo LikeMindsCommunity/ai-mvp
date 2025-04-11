@@ -3,10 +3,11 @@ Main entry point for the code generator.
 """
 
 import sys
+import asyncio
 from code_generator.config import Settings
 from code_generator.core import CodeGenerator
 
-def main():
+async def main():
     """Main entry point for the code generator."""
     try:
         # Initialize settings
@@ -27,7 +28,7 @@ def main():
                 
             try:
                 print("\nGenerating project...")
-                success = generator.create_project(user_input)
+                success = await generator.create_project(user_input)
                 
                 if success:
                     print("\nProject generated successfully!")
@@ -43,4 +44,4 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 
