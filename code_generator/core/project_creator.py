@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from code_generator.config import Settings
+from .constants import BUILD_CONFIG_FILES
 
 class ProjectCreator:
     """
@@ -173,25 +174,11 @@ class ProjectCreator:
             template_dir = os.path.join(os.getcwd(), "code_generator", "likeminds-feed-android-social-feed-theme")
             
             # Copy all build configuration files from template
-            build_config_files = [
-                'build.gradle',
-                'gradle.properties',
-                'settings.gradle',
-                'gradle/wrapper/gradle-wrapper.properties',
-                'gradle/wrapper/gradle-wrapper.jar',
-                'gradlew',
-                'gradlew.bat',
-                'app/build.gradle',
-                'app/gradle.properties',
-                'app/proguard-rules.pro',
-                'gradle/libs.versions.toml'
-            ]
-            
-            for file in build_config_files:
+            for file in BUILD_CONFIG_FILES:
                 src_path = os.path.join(template_dir, file)
                 dst_path = os.path.join(project_dir, file)
                 
-                # Create parpyent directories if they don't exist
+                # Create parent directories if they don't exist
                 os.makedirs(os.path.dirname(dst_path), exist_ok=True)
                 
                 # Copy file if it exists in template

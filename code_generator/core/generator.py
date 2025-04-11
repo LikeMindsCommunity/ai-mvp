@@ -6,7 +6,7 @@ import json
 import os
 import subprocess
 import shutil
-from typing import Dict, Optional, Callable
+from typing import Dict, List, Optional, Callable
 
 from fastapi import WebSocket
 import google.genai as genai
@@ -14,6 +14,7 @@ from google.genai import types
 from code_generator.config import Settings
 from code_generator.core.project_creator import ProjectCreator
 from code_generator.utils import DocumentationManager
+from .constants import BUILD_CONFIG_FILES
 
 class CodeGenerator:
     """Generates code using the Gemini model based on documentation."""
@@ -66,7 +67,7 @@ class CodeGenerator:
 
         Follow these guidelines:
         1. Use the LikeMinds Feed SDK documentation provided below for implementation details
-        2. Generate ALL necessary files EXCEPT build configuration files (build.gradle, gradle.properties, settings.gradle, etc.)
+        2. Generate ALL necessary files EXCEPT the following build configuration files: {BUILD_CONFIG_FILES}
         3. Use the correct SDK classes and methods as specified in the documentation
         4. Follow Android best practices and Kotlin coding conventions
         5. Include proper error handling and logging
