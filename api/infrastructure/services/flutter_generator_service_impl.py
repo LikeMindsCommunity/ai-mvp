@@ -90,7 +90,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Running flutter pub get..."
             })
             
-            exit_code, output = self.integration_manager.run_command_with_timeout('flutter pub get', timeout=30)
+            exit_code, output = self.integration_manager.run_command_with_timeout('flutter pub get', timeout=300)
             if exit_code != 0:
                 await on_chunk({
                     "type": "Error",

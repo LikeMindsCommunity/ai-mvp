@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flutter Integration Assistant - WebSocket Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #1565c0;
+            border-bottom: 2px solid #1565c0;
+            padding-bottom: 10px;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .control-panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-right: 20px;
+            margin-bottom: 20px;
+        }
+
+        .output-panel {
+            flex: 2;
+            min-width: 450px;
+        }
+
+        .connection-status {
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f8d7da;
+        }
+
+        .connection-status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .connection-status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .message-log {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .text-message {
+            background-color: #e2f3f5;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+        }
+
+        .analysis-error {
+            background-color: #fff3cd;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0d47a1;
+        }
+
+        button:disabled {
+            background-color: #b0bec5;
+            cursor: not-allowed;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Flutter Integration Assistant - WebSocket Tester</h1>
+    <div class="container">
+        <div class="control-panel">
+            <div id="status" class="connection-status disconnected">Disconnected</div>
+
+            <div>
+                <h3>Connection</h3>
+                <div>
+                    <label for="wsUrl">WebSocket URL:</label>
+                    <input type="text" id="wsUrl" value="ws://localhost:8000/api/flutter"
+                        style="width: 100%; padding: 5px; margin-bottom: 10px;">
+                </div>
+                <button id="connectBtn">Connect</button>
+                <button id="disconnectBtn" disabled>Disconnect</button>
+            </div>
+
+            <div class="controls">
+                <h3>Request</h3>
+                <div>
+                    <label for="requestType">Request Type:</label>
+                    <select id="requestType" style="padding: 5px; width: 100%; margin-bottom: 10px;">
+                        <option value="GenerateCode">Generate Code</option>
+                        <option value="FixCode">Fix Code</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="userQuery">User Query:</label>
+                    <textarea id="userQuery"
+                        placeholder="E.g., Create a Flutter chat screen with LikeMinds SDK"></textarea>
+                </div>
+
+                <div id="errorMessageContainer" style="display: none;">
+                    <label for="errorMessage">Error Message:</label>
+                    <textarea id="errorMessage"
+                        placeholder="E.g., The method 'initializeLikeMinds' isn't defined for the class 'ChatScreen'"></textarea>
+                </div>
+
+                <button id="sendBtn" disabled>Send Request</button>
+                <button id="clearBtn">Clear Log</button>
+            </div>
+        </div>
+
+        <div class="output-panel">
+            <h3>Messages</h3>
+            <div id="messageLog" class="message-log"></div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const wsUrlInput = document.getElementById('wsUrl');
+        const requestTypeSelect = document.getElementById('requestType');
+        const userQueryInput = document.getElementById('userQuery');
+        const errorMessageContainer = document.getElementById('errorMessageContainer');
+        const errorMessageInput = document.getElementById('errorMessage');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const messageLogEl = document.getElementById('messageLog');
+
+        // WebSocket connection
+        let socket = null;
+
+        // Event handlers
+        requestTypeSelect.addEventListener('change', () => {
+            if (requestTypeSelect.value === 'FixCode') {
+                errorMessageContainer.style.display = 'block';
+            } else {
+                errorMessageContainer.style.display = 'none';
+            }
+        });
+
+        connectBtn.addEventListener('click', () => {
+            if (socket) {
+                appendMessage('Already connected', 'error-message');
+                return;
+            }
+
+            try {
+                const wsUrl = wsUrlInput.value;
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = () => {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'connection-status connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendBtn.disabled = false;
+                    appendMessage('WebSocket connection established', 'success-message');
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        let messageClass = 'text-message';
+
+                        if (data.type === 'Error') {
+                            messageClass = 'error-message';
+                        } else if (data.type === 'Success') {
+                            messageClass = 'success-message';
+                        } else if (data.type === 'AnalysisError') {
+                            messageClass = 'analysis-error';
+                        }
+
+                        if (data.type === 'Result') {
+                            appendMessage(`[${data.type}] ${JSON.stringify(data.value, null, 2)}`, messageClass);
+                        } else {
+                            appendMessage(`[${data.type}] ${data.value}`, messageClass);
+                        }
+                    } catch (e) {
+                        appendMessage(`Error parsing message: ${event.data}`, 'error-message');
+                    }
+                };
+
+                socket.onerror = (error) => {
+                    appendMessage(`WebSocket error: ${error}`, 'error-message');
+                };
+
+                socket.onclose = (event) => {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'connection-status disconnected';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    sendBtn.disabled = true;
+                    socket = null;
+                    appendMessage(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`, 'error-message');
+                };
+            } catch (e) {
+                appendMessage(`Connection error: ${e.message}`, 'error-message');
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close();
+            }
+        });
+
+        sendBtn.addEventListener('click', () => {
+            if (!socket) {
+                appendMessage('Not connected', 'error-message');
+                return;
+            }
+
+            const requestType = requestTypeSelect.value;
+            const userQuery = userQueryInput.value.trim();
+
+            if (!userQuery) {
+                appendMessage('Please enter a user query', 'error-message');
+                return;
+            }
+
+            const request = {
+                type: requestType,
+                user_query: userQuery
+            };
+
+            if (requestType === 'FixCode') {
+                const errorMessage = errorMessageInput.value.trim();
+                if (!errorMessage) {
+                    appendMessage('Please enter an error message for FixCode request', 'error-message');
+                    return;
+                }
+                request.error_message = errorMessage;
+            }
+
+            try {
+                socket.send(JSON.stringify(request));
+                appendMessage(`Sent request: ${JSON.stringify(request)}`, 'text-message');
+            } catch (e) {
+                appendMessage(`Error sending message: ${e.message}`, 'error-message');
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            messageLogEl.innerHTML = '';
+        });
+
+        // Helper functions
+        function appendMessage(message, className) {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${className}`;
+
+            // Format JSON if it contains it
+            if (message.includes('{') && message.includes('}')) {
+                try {
+                    const parts = message.split('{');
+                    const prefix = parts.shift();
+                    const jsonText = '{' + parts.join('{');
+
+                    messageEl.innerHTML = `${prefix}<pre>${jsonText}</pre>`;
+                } catch (e) {
+                    messageEl.textContent = message;
+                }
+            } else {
+                messageEl.textContent = message;
+            }
+
+            messageLogEl.appendChild(messageEl);
+            messageLogEl.scrollTop = messageLogEl.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>

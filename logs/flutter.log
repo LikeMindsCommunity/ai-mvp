@@ -6,3 +6,4 @@ The web-server device requires the Dart Debug Chrome extension for debugging. Co
 🔥  To hot restart changes while running, press "r" or "R".
 For a more detailed help message, press "h". To quit, press "q".
 
+the Dart compiler exited unexpectedly.

@@ -1,0 +1,215 @@
+{
+    "info": {
+        "_postman_id": "62f3a4c5-5b3e-4e7d-88cf-6d3f6fd23c5a",
+        "name": "Flutter Integration Assistant API",
+        "description": "A collection of API endpoints for the Flutter Integration Assistant, including WebSocket operations for generating Flutter code.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "System",
+            "item": [
+                {
+                    "name": "API Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "http://localhost:8000/",
+                            "protocol": "http",
+                            "host": [
+                                "localhost"
+                            ],
+                            "port": "8000",
+                            "path": [
+                                ""
+                            ]
+                        },
+                        "description": "Get the API status and information"
+                    },
+                    "response": [
+                        {
+                            "name": "API Status 200 OK",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "http://localhost:8000/",
+                                    "protocol": "http",
+                                    "host": [
+                                        "localhost"
+                                    ],
+                                    "port": "8000",
+                                    "path": [
+                                        ""
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [],
+                            "cookie": [],
+                            "body": "{\n    \"status\": \"online\",\n    \"message\": \"Flutter Integration Assistant API is running\",\n    \"websocket_endpoint\": \"/api/flutter\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "API Documentation",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "http://localhost:8000/docs",
+                            "protocol": "http",
+                            "host": [
+                                "localhost"
+                            ],
+                            "port": "8000",
+                            "path": [
+                                "docs"
+                            ]
+                        },
+                        "description": "Get the API documentation (Swagger UI)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "OpenAPI Specification",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "http://localhost:8000/openapi.json",
+                            "protocol": "http",
+                            "host": [
+                                "localhost"
+                            ],
+                            "port": "8000",
+                            "path": [
+                                "openapi.json"
+                            ]
+                        },
+                        "description": "Get the OpenAPI specification in JSON format"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "System-related endpoints"
+        },
+        {
+            "name": "WebSocket",
+            "item": [
+                {
+                    "name": "Generate Flutter Code",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "setTimeout(function() {",
+                                    "    // Close the connection after 5 seconds",
+                                    "    pm.websocket.close();",
+                                    "}, 5000);",
+                                    ""
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "ws://localhost:8000/api/flutter",
+                            "protocol": "ws",
+                            "host": [
+                                "localhost"
+                            ],
+                            "port": "8000",
+                            "path": [
+                                "api",
+                                "flutter"
+                            ]
+                        },
+                        "description": "WebSocket connection for generating Flutter code"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "WebSocket endpoints",
+            "event": [
+                {
+                    "listen": "prerequest",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "// Generate code request example",
+                            "const generateCodeRequest = {",
+                            "    type: \"GenerateCode\",",
+                            "    user_query: \"Create a Flutter chat screen with LikeMinds SDK\"",
+                            "};",
+                            "",
+                            "// Fix code request example",
+                            "const fixCodeRequest = {",
+                            "    type: \"FixCode\",",
+                            "    user_query: \"Create a Flutter chat screen with LikeMinds SDK\",",
+                            "    error_message: \"Error: The method 'initializeLikeMinds' isn't defined for the class 'ChatScreen'\"",
+                            "};",
+                            "",
+                            "// Handle WebSocket connection",
+                            "pm.test(\"WebSocket Connection\", function () {",
+                            "    pm.variables.set(\"wsUrl\", \"ws://localhost:8000/api/flutter\");",
+                            "    ",
+                            "    // Handle incoming messages",
+                            "    pm.websocket.on(\"message\", function(message) {",
+                            "        try {",
+                            "            const data = JSON.parse(message);",
+                            "            console.log(`[${data.type}] ${JSON.stringify(data.value)}`);",
+                            "            ",
+                            "            // If this is the Response object, we can close the connection",
+                            "            if (data.type === \"Result\") {",
+                            "                console.log(\"Final result received, closing connection\");",
+                            "                pm.websocket.close();",
+                            "            }",
+                            "        } catch (e) {",
+                            "            console.error(\"Error parsing message: \" + e.message);",
+                            "        }",
+                            "    });",
+                            "    ",
+                            "    // Handle socket open",
+                            "    pm.websocket.on(\"open\", function() {",
+                            "        console.log(\"WebSocket connection established\");",
+                            "        ",
+                            "        // Send a generate code request",
+                            "        pm.websocket.send(JSON.stringify(generateCodeRequest));",
+                            "        console.log(\"Sent generate code request\");",
+                            "    });",
+                            "    ",
+                            "    // Handle socket error",
+                            "    pm.websocket.on(\"error\", function(error) {",
+                            "        console.error(\"WebSocket error: \" + error);",
+                            "    });",
+                            "    ",
+                            "    // Handle socket close",
+                            "    pm.websocket.on(\"close\", function(code, reason) {",
+                            "        console.log(`WebSocket closed with code ${code}: ${reason}`);",
+                            "    });",
+                            "});",
+                            ""
+                        ]
+                    }
+                },
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            ""
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}
