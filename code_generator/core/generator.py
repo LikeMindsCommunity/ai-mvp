@@ -90,6 +90,40 @@ class CodeGenerator:
                     
         return template_files
 
+    def _get_sdk_imports(self) -> Dict[str, str]:
+        """
+        Get SDK import information from the template project.
+        
+        Returns:
+            Dict[str, str]: Dictionary mapping import paths to their usage examples
+        """
+        sdk_dir = os.path.join(os.getcwd(), "code_generator", "likeminds-feed-android")
+        sdk_imports = {}
+        
+        # Walk through the template directory to find Kotlin files
+        for root, _, files in os.walk(sdk_dir):
+            for file in files:
+                if not file.endswith('.kt'):
+                    continue
+                    
+                try:
+                    with open(os.path.join(root, file), 'r') as f:
+                        content = f.read()
+                        
+                    # Find all SDK imports
+                    import_lines = [line for line in content.split('\n') 
+                                  if line.startswith('import com.likeminds')]
+                    
+                    for import_line in import_lines:
+                        import_path = import_line.replace('import ', '').strip()
+                        # Only include the import path in the example, not the entire file content
+                        sdk_imports[import_path] = import_path
+                        
+                except Exception as e:
+                    print(f"Error reading file {file}: {str(e)}")
+                    
+        return sdk_imports
+        
     def _create_prompt(self, user_input: str) -> str:
         """Create a prompt for the Gemini model."""
         # Load documentation
@@ -97,12 +131,20 @@ class CodeGenerator:
         documentation = docs_manager.load_documentation()
         
         # Get template files
-        template_files = self._get_template_files()
+        # template_files = self._get_template_files()
+        
+        # Get SDK imports
+        sdk_imports = self._get_sdk_imports()
+        
+        # Format SDK imports for the prompt
+        sdk_imports_text = "\n\nSDK Import Information:\n"
+        for import_path, example in sdk_imports.items():
+            sdk_imports_text += f"\nImport: {import_path}\nExample usage:\n{example}\n"
         
         # Format template files for the prompt
-        template_examples = "\n\nTemplate Project Files (created for a social feed project):\n"
-        for path, content in template_files.items():
-            template_examples += f"\nFile: {path}\nContent:\n{content}\n"
+        # template_examples = "\n\nTemplate Project Files (created for a social feed project):\n"
+        # for path, content in template_files.items():
+        #     template_examples += f"\nFile: {path}\nContent:\n{content}\n"
         
         prompt = f"""You are an expert Android developer specializing in the LikeMinds Feed SDK. 
         Your task is to generate Android project code based on the following request: {user_input}
@@ -119,6 +161,9 @@ class CodeGenerator:
         9. IMPORTANT: When importing LikeMinds SDK classes, use 'com.likeminds' instead of 'community.likeminds'
            Example: import com.likeminds.feed.android.core.LMFeedCore
         10. Use the template project files provided below as reference for implementation. These files were created for a social feed project, so adapt them according to your specific requirements.
+        11. CRITICAL: Use ONLY the SDK imports provided below. Do not create or guess any new import paths.
+           The SDK imports are:
+           {sdk_imports_text}
 
         Documentation:
         {documentation}
@@ -127,7 +172,6 @@ class CodeGenerator:
         - Username: {self.settings.default_username}
         - API Key: {self.settings.default_api_key}
 
-        {template_examples}
 
         Return a JSON object with the following structure:
         {{
