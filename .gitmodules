@@ -1,0 +1,3 @@
+[submodule "code_generator/likeminds-feed-android"]
+	path = code_generator/likeminds-feed-android
+	url = https://github.com/LikeMindsCommunity/likeminds-feed-android.git
