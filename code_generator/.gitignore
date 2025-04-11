@@ -1,4 +1,5 @@
 # Output directory
+generated_projects/
 output/
 
 # Android build files
@@ -8,3 +9,4 @@ build/
 app/build/
 .gradle/
 local.properties 
+
