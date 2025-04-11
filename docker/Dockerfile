@@ -33,6 +33,7 @@ COPY integration/ ./integration/
 
 # Set environment variables for Flutter
 ENV WEB_HOST=0.0.0.0
+ENV PUBLIC_HOST=98.70.88.101
 ENV FLUTTER_WEB_PORT=8080
 
 # Make sure .dockerignore excludes unnecessary files

@@ -143,6 +143,14 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     "error": "Failed to start Flutter development server"
                 }
             
+            # Get the public host for client-facing URLs
+            public_host = os.environ.get("PUBLIC_HOST", "localhost")
+            
+            # Ensure the returned URL uses the public host
+            if "localhost" in web_url:
+                # Replace localhost with public host if needed
+                web_url = web_url.replace("localhost", public_host)
+            
             await on_chunk({
                 "type": "Success",
                 "value": "Integration completed successfully!"

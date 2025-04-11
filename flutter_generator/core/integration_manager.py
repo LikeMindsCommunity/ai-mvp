@@ -141,11 +141,17 @@ class FlutterIntegrationManager:
                 return False
             
             # Check both log file and make an actual HTTP request
-            url = f"http://localhost:{port}"
-            if is_server_running(url):
+            local_url = f"http://localhost:{port}"
+            
+            # Get the public host for client-facing URLs
+            public_host = os.environ.get("PUBLIC_HOST", "localhost")
+            public_url = f"http://{public_host}:{port}"
+            
+            if is_server_running(local_url):
                 print("Flutter web server confirmed running!")
+                print(f"Public URL: {public_url}")
                 os.chdir(self.root_dir)
-                return url
+                return public_url
             
             # If verification failed, check log for clues
             if os.path.exists(log_file):

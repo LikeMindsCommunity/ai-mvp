@@ -12,6 +12,8 @@ info:
     name: Proprietary
 
 servers:
+  - url: "http://98.70.88.101:8000"
+    description: Production server
   - url: "http://localhost:8000"
     description: Local development server
 
