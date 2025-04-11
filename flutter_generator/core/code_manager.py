@@ -141,7 +141,7 @@ class FlutterCodeManager:
             
             # Wait for process to complete with timeout
             try:
-                exit_code = process.wait(timeout=30)  # 15 second timeout
+                exit_code = process.wait(timeout=300)  # 15 second timeout
                 thread.join(timeout=1)
                 collected_output = ''.join(output)
                 
