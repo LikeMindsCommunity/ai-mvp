@@ -56,11 +56,53 @@ class CodeGenerator:
                 print(f"\nAn error occurred: {str(e)}")
                 break
 
+    def _get_template_files(self) -> Dict[str, str]:
+        """
+        Get all non-build configuration files from the template project.
+        
+        Returns:
+            Dict[str, str]: Dictionary mapping file paths to their contents
+        """
+        template_dir = os.path.join(os.getcwd(), "code_generator", "likeminds-feed-android-social-feed-theme")
+        template_files = {}
+        
+        # Walk through the template directory
+        for root, _, files in os.walk(template_dir):
+            for file in files:
+                # Get the relative path
+                rel_path = os.path.relpath(os.path.join(root, file), template_dir)
+                
+                # Skip build configuration files
+                if rel_path in BUILD_CONFIG_FILES:
+                    continue
+                    
+                # Skip .git directory and other hidden files
+                if rel_path.startswith('.') or '/.git/' in rel_path:
+                    continue
+                    
+                # Read file content
+                try:
+                    with open(os.path.join(root, file), 'r') as f:
+                        content = f.read()
+                    template_files[rel_path] = content
+                except Exception as e:
+                    print(f"Error reading template file {rel_path}: {str(e)}")
+                    
+        return template_files
+
     def _create_prompt(self, user_input: str) -> str:
         """Create a prompt for the Gemini model."""
         # Load documentation
         docs_manager = DocumentationManager(self.settings.documentation_path)
         documentation = docs_manager.load_documentation()
+        
+        # Get template files
+        template_files = self._get_template_files()
+        
+        # Format template files for the prompt
+        template_examples = "\n\nTemplate Project Files (created for a social feed project):\n"
+        for path, content in template_files.items():
+            template_examples += f"\nFile: {path}\nContent:\n{content}\n"
         
         prompt = f"""You are an expert Android developer specializing in the LikeMinds Feed SDK. 
         Your task is to generate Android project code based on the following request: {user_input}
@@ -76,6 +118,7 @@ class CodeGenerator:
         8. The applicationId should match the namespace
         9. IMPORTANT: When importing LikeMinds SDK classes, use 'com.likeminds' instead of 'community.likeminds'
            Example: import com.likeminds.feed.android.core.LMFeedCore
+        10. Use the template project files provided below as reference for implementation. These files were created for a social feed project, so adapt them according to your specific requirements.
 
         Documentation:
         {documentation}
@@ -83,6 +126,8 @@ class CodeGenerator:
         Default Settings:
         - Username: {self.settings.default_username}
         - API Key: {self.settings.default_api_key}
+
+        {template_examples}
 
         Return a JSON object with the following structure:
         {{
