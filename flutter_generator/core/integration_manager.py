@@ -7,6 +7,8 @@ import subprocess
 import threading
 import time
 from typing import Tuple, Optional
+import urllib.request
+import urllib.error
 
 from flutter_generator.config import Settings
 
@@ -73,124 +75,96 @@ class FlutterIntegrationManager:
             Optional[str]: URL or connection info to access the app, or None if failed
         """
         try:
-            # Kill any existing Flutter process
+            # First stop any existing Flutter web server processes
             self.stop_flutter_app()
             
             # Ensure we're in the integration directory
             os.chdir(os.path.join(self.root_dir, self.settings.integration_path))
             
-            # Debug info about the environment
-            # print(f"Current directory: {os.getcwd()}")
-            # print(f"Directory content: {os.listdir('.')}")
-            print(f"Flutter version: {subprocess.check_output('flutter --version', shell=True).decode()}")
+            # Run flutter pub get to update dependencies
+            print("Running flutter pub get...")
+            subprocess.run('flutter pub get', shell=True, check=True)
             
-            # Verify Flutter is installed and working
-            flutter_check = subprocess.run('which flutter', shell=True, capture_output=True, text=True)
-            if flutter_check.returncode != 0:
-                print("ERROR: Flutter command not found. Make sure Flutter is installed and in PATH.")
-                os.chdir(self.root_dir)
-                return None
-            
-            # print(f"Flutter binary location: {flutter_check.stdout.strip()}")
-            
-            # Use environment variables or defaults for host and port
-            host = os.environ.get("WEB_HOST", "localhost")
-            port = int(os.environ.get("FLUTTER_WEB_PORT", "8080"))
-            
-            # Create a log file for Flutter output
+            # Create logs directory if it doesn't exist
             log_dir = os.path.join(self.root_dir, "logs")
             os.makedirs(log_dir, exist_ok=True)
             log_file = os.path.join(log_dir, "flutter.log")
             
-            # Run flutter pub get first to make sure dependencies are updated
-            print("Running flutter pub get...")
-            pub_get = subprocess.run('flutter pub get', shell=True, capture_output=True, text=True)
-            print(f"flutter pub get output: {pub_get.stdout}")
-            if pub_get.stderr:
-                print(f"flutter pub get errors: {pub_get.stderr}")
+            # Get host and port from environment
+            host = os.environ.get("WEB_HOST", "localhost") 
+            port = int(os.environ.get("FLUTTER_WEB_PORT", "8080"))
             
-            # Construct the command for running Flutter web
+            print(f"Starting Flutter web server on {host}:{port}...")
             cmd = f"flutter run -d web-server --web-port {port} --web-hostname {host}"
-            print(f"Running Flutter command: {cmd}")
             
-            # Modified approach for Docker: start process in background but keep output visible
-            if os.name == 'posix':  # Linux/Mac
-                # Create a script file to run the Flutter command
-                script_path = os.path.join(log_dir, "run_flutter.sh")
-                with open(script_path, 'w') as script:
-                    script.write("#!/bin/bash\n")
-                    script.write(f"cd {os.getcwd()}\n")
-                    script.write(f"{cmd} | tee {log_file}")
-                
-                # Make the script executable
-                os.chmod(script_path, 0o755)
-                
-                # Run the script in background but redirect output to both console and file
-                print("STARTING FLUTTER IN BACKGROUND (output will appear in Docker logs)")
-                process_cmd = f"bash {script_path} &"
-                os.system(process_cmd)
-                
-                # Wait a bit to let things start
-                time.sleep(5)
-                
-                # Check if Flutter mentions the web server is running in the log file
-                try:
-                    with open(log_file, 'r') as f:
-                        log_content = f.read()
-                        if "is being served at" in log_content:
-                            print("FLUTTER SERVER STARTED SUCCESSFULLY!")
-                            print(log_content)
-                        else:
-                            print("Waiting for Flutter server to start...")
-                            print("Current log content:")
-                            print(log_content)
-                except Exception as e:
-                    print(f"Error reading log file: {str(e)}")
-            else:
-                # Windows approach
-                print("Running on Windows is not fully supported in Docker")
-                with open(log_file, 'w') as f:
-                    self.flutter_process = subprocess.Popen(
-                        cmd,
-                        shell=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True
-                    )
-                    
-                    # Start a thread to continuously read and print output
-                    def log_output():
-                        for line in self.flutter_process.stdout:
-                            print(f"FLUTTER > {line.strip()}")
-                            f.write(line)
-                            f.flush()
-                    
-                    thread = threading.Thread(target=log_output)
-                    thread.daemon = True
-                    thread.start()
+            # Start the process and redirect output to log file
+            # Use nohup to keep it running if parent process exits
+            start_cmd = f"nohup {cmd} > {log_file} 2>&1 &"
+            subprocess.run(start_cmd, shell=True)
             
-            print(f"Flutter web server should be running at http://{host}:{port}")
-            print(f"Process started. Check Docker logs for Flutter output.")
+            # Function to verify if a web server is accepting connections
+            def is_server_running(url, max_attempts=12, delay=5):
+                """Check if a server is running by making an HTTP request."""
+                print(f"Verifying web server at {url}...")
+                
+                for attempt in range(max_attempts):
+                    try:
+                        print(f"Attempt {attempt+1}/{max_attempts} to connect to {url}")
+                        
+                        # Try to open the URL with a timeout
+                        response = urllib.request.urlopen(url, timeout=5)
+                        
+                        # If we get a response, the server is running
+                        if response.getcode() == 200:
+                            print(f"Server at {url} is responding!")
+                            return True
+                    except (urllib.error.URLError, ConnectionRefusedError) as e:
+                        print(f"Server not responding yet: {e}")
+                    except Exception as e:
+                        print(f"Unexpected error checking server: {e}")
+                        
+                    # Check log file for errors
+                    if os.path.exists(log_file):
+                        with open(log_file, 'r') as f:
+                            content = f.read()
+                            if "Address already in use" in content:
+                                print(f"Error: Port {port} is already in use!")
+                                return False
+                            elif "Failed to start" in content or "Error:" in content:
+                                print(f"Error detected in logs: {content[-500:]}")
+                                return False
+                    
+                    # Wait before next attempt
+                    time.sleep(delay)
+                
+                print(f"Server verification timed out after {max_attempts * delay} seconds")
+                return False
+            
+            # Check both log file and make an actual HTTP request
+            url = f"http://localhost:{port}"
+            if is_server_running(url):
+                print("Flutter web server confirmed running!")
+                os.chdir(self.root_dir)
+                return url
+            
+            # If verification failed, check log for clues
+            if os.path.exists(log_file):
+                with open(log_file, 'r') as f:
+                    content = f.read()
+                    print(f"Server failed to start. Last log output:\n{content[-1000:]}")
             
             # Return to root directory
             os.chdir(self.root_dir)
-            
-            # Return the URL
-            return f"http://{host}:{port}"
+            return None
             
         except Exception as e:
             print(f"Error starting Flutter app: {str(e)}")
-            # Print traceback for better debugging
-            import traceback
-            traceback.print_exc()
-            
-            # Restore working directory
             if os.getcwd() != self.root_dir:
                 os.chdir(self.root_dir)
             return None
     
     def stop_flutter_app(self):
-        """Stop the Flutter app if it's running."""
+        """Stop only Flutter web server processes while preserving other Flutter processes."""
         # Try to kill specific process if we have a reference
         if self.flutter_process and self.flutter_process.poll() is None:
             try:
@@ -202,32 +176,35 @@ class FlutterIntegrationManager:
             except Exception as e:
                 print(f"Error terminating specific process: {str(e)}")
         
-        # Always try to kill all Flutter processes using pkill on Linux/Mac
+        # Target only Flutter web server processes
         if os.name == 'posix':
             try:
-                print("Killing all Flutter processes...")
-                # First check if any processes exist
-                check_cmd = "ps aux | grep 'flutter run' | grep -v grep"
+                # First check if any Flutter web server processes exist
+                # This is a very specific pattern that targets only web servers
+                check_cmd = "ps aux | grep 'flutter.*run.*web-server' | grep -v grep"
                 result = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
                 
                 if result.returncode == 0 and result.stdout.strip():
-                    print(f"Found Flutter processes:\n{result.stdout}")
-                    # Kill the processes
-                    kill_cmd = "pkill -f 'flutter run'"
+                    print("Found Flutter web server processes:")
+                    for line in result.stdout.strip().split('\n'):
+                        print(f"  {line.strip()}")
+                    
+                    # Kill only Flutter web server processes
+                    kill_cmd = "pkill -f 'flutter.*run.*web-server'"
                     subprocess.run(kill_cmd, shell=True)
                     
                     # Double check if they're gone
                     time.sleep(1)
                     check_again = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
                     if check_again.returncode == 0 and check_again.stdout.strip():
-                        print("Processes still running, using stronger pkill...")
-                        subprocess.run("pkill -9 -f 'flutter run'", shell=True)
+                        print("Web server processes still running, using stronger kill...")
+                        subprocess.run("pkill -9 -f 'flutter.*run.*web-server'", shell=True)
                     
-                    print("All Flutter processes terminated")
+                    print("Flutter web server processes terminated")
                 else:
-                    print("No Flutter processes found running")
+                    print("No Flutter web server processes found running")
             except Exception as e:
-                print(f"Error in pkill: {str(e)}")
+                print(f"Error in process management: {str(e)}")
         
         # Reset the process reference
         self.flutter_process = None 
