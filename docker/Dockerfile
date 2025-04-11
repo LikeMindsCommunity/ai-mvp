@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 RUN git clone https://github.com/flutter/flutter.git -b stable /flutter
 ENV PATH="/flutter/bin:${PATH}"
 
-# Run flutter doctor and accept licenses
+# Run flutter doctor
 RUN flutter doctor
 RUN yes | flutter doctor --android-licenses || true
 
@@ -22,8 +22,12 @@ RUN yes | flutter doctor --android-licenses || true
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
-COPY . .
+# Copy only necessary files for the application
+COPY *.py *.txt ./
+COPY api/ ./api/
+COPY flutter_generator/ ./flutter_generator/
+COPY integration/ ./integration/
+# Make sure .dockerignore excludes unnecessary files
 
 # Expose the API port
 EXPOSE 8000
