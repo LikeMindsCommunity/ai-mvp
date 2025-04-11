@@ -151,7 +151,7 @@ class FlutterCodeManager:
                 return True, ""
             except subprocess.TimeoutExpired:
                 process.kill()
-                return False, "Flutter analyze command timed out after 15 seconds"
+                return False, "Flutter analyze command timed out after 300 seconds"
                 
         except Exception as e:
             return False, f"Error analyzing Flutter code: {str(e)}" 
