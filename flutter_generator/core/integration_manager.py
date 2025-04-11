@@ -191,18 +191,43 @@ class FlutterIntegrationManager:
     
     def stop_flutter_app(self):
         """Stop the Flutter app if it's running."""
+        # Try to kill specific process if we have a reference
         if self.flutter_process and self.flutter_process.poll() is None:
             try:
-                # Try to terminate gracefully first
                 self.flutter_process.terminate()
-                time.sleep(2)
-                
-                # Force kill if still running
+                time.sleep(1)
                 if self.flutter_process.poll() is None:
                     self.flutter_process.kill()
-                    
-                print("Flutter app stopped")
+                print("Terminated specific Flutter process")
             except Exception as e:
-                print(f"Error stopping Flutter app: {str(e)}")
-            
-            self.flutter_process = None 
+                print(f"Error terminating specific process: {str(e)}")
+        
+        # Always try to kill all Flutter processes using pkill on Linux/Mac
+        if os.name == 'posix':
+            try:
+                print("Killing all Flutter processes...")
+                # First check if any processes exist
+                check_cmd = "ps aux | grep 'flutter run' | grep -v grep"
+                result = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    print(f"Found Flutter processes:\n{result.stdout}")
+                    # Kill the processes
+                    kill_cmd = "pkill -f 'flutter run'"
+                    subprocess.run(kill_cmd, shell=True)
+                    
+                    # Double check if they're gone
+                    time.sleep(1)
+                    check_again = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
+                    if check_again.returncode == 0 and check_again.stdout.strip():
+                        print("Processes still running, using stronger pkill...")
+                        subprocess.run("pkill -9 -f 'flutter run'", shell=True)
+                    
+                    print("All Flutter processes terminated")
+                else:
+                    print("No Flutter processes found running")
+            except Exception as e:
+                print(f"Error in pkill: {str(e)}")
+        
+        # Reset the process reference
+        self.flutter_process = None 
