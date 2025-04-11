@@ -760,19 +760,20 @@ packages:
   likeminds_chat_flutter_core:
     dependency: "direct main"
     description:
-      name: likeminds_chat_flutter_core
-      sha256: "3058cdd83de886d6b2c48cbe36c873c43347c361d292511bca9ea3a7854510f1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.14.1"
+      path: "lib/packages/core"
+      ref: web-compatibility
+      resolved-ref: e78aee8cb1f332f143dd192f689e513227f25de9
+      url: "https://github.com/LikeMindsCommunity/likeminds-chat-flutter.git"
+    source: git
+    version: "0.15.0"
   likeminds_chat_flutter_ui:
     dependency: transitive
     description:
       name: likeminds_chat_flutter_ui
-      sha256: c361d5d4be0b4c091e357cf88161f2d23c8f0247d5487e65c34c2badae568d54
+      sha256: b2cae11ed232fe4a675f858fb82adbf59229f2cab41bf9c2f694ff39041746b9
       url: "https://pub.dev"
     source: hosted
-    version: "0.14.1"
+    version: "0.15.0"
   lints:
     dependency: transitive
     description:
