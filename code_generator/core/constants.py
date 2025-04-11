@@ -13,5 +13,6 @@ BUILD_CONFIG_FILES = [
     'app/build.gradle',
     'gradle/wrapper/gradle-wrapper.properties',
     'gradle/wrapper/gradle-wrapper.jar',
-    'gradle/libs.versions.toml'
+    'gradle/libs.versions.toml',
+    'app/proguard-rules.pro'
 ] 
