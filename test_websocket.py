@@ -20,7 +20,7 @@ async def test_connection():
             # Send a test message
             message = {
                 "type": "GenerateCode",
-                "user_query": "Create a simple Flutter hello world app"
+                "user_query": "How to integrate LikeMinds Chat SDK in Flutter?"
             }
             
             print(f"Sending message: {message}")

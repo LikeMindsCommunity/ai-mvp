@@ -122,33 +122,14 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     "needs_fix": True
                 }
             
-            # Build for web
+            # Start Flutter development server
             await on_chunk({
                 "type": "Text",
-                "value": "Building Flutter project for web..."
+                "value": "Starting Flutter development server..."
             })
             
-            exit_code, output = self.integration_manager.run_command_with_timeout(
-                'flutter build web', 
-                timeout=120
-            )
-            if exit_code != 0:
-                await on_chunk({
-                    "type": "Error",
-                    "value": f"Error building Flutter for web:\n{output}"
-                })
-                # Return to root directory
-                os.chdir(self.root_dir)
-                return {"success": False, "error": f"Flutter web build failed: {output}"}
-            
-            # Serve the web build
-            await on_chunk({
-                "type": "Text",
-                "value": "Starting web server..."
-            })
-            
-            # Start a background thread to serve the web build
-            web_url = self.integration_manager.serve_web_build()
+            # Start the Flutter app with hot reload
+            web_url = self.integration_manager.start_flutter_app()
             
             await on_chunk({
                 "type": "Success",

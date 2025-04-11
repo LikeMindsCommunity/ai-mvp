@@ -111,7 +111,7 @@ class FlutterCodeGenerator:
                 
                 # Stream chunk to client
                 await on_chunk({
-                    "type": "GeneratedText",
+                    "type": "Text",
                     "value": chunk_text
                 })
                 

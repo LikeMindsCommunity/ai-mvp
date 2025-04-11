@@ -24,7 +24,7 @@ class FlutterIntegrationManager:
         """
         self.settings = settings or Settings()
         self.root_dir = os.getcwd()
-        self.web_server_process = None
+        self.flutter_process = None
     
     def run_command_with_timeout(self, cmd: str, timeout: int = None) -> Tuple[int, str]:
         """
@@ -65,87 +65,90 @@ class FlutterIntegrationManager:
             process.kill()
             return -1, f"Command timed out after {timeout} seconds: {cmd}"
     
-    def serve_web_build(self) -> Optional[str]:
+    def start_flutter_app(self) -> Optional[str]:
         """
-        Serve the Flutter web build using a local server.
+        Start the Flutter app using flutter run.
         
         Returns:
-            Optional[str]: URL to access the web app, or None if failed
+            Optional[str]: URL or connection info to access the app, or None if failed
         """
         try:
-            # Kill any existing server process
-            self.stop_web_server()
+            # Kill any existing Flutter process
+            self.stop_flutter_app()
             
-            # Ensure we're in the build/web directory of the integration project
-            build_web_dir = os.path.join(self.root_dir, self.settings.integration_path, 'build', 'web')
+            # Ensure we're in the integration directory
+            os.chdir(os.path.join(self.root_dir, self.settings.integration_path))
             
-            # Check if build/web directory exists
-            if not os.path.exists(build_web_dir):
-                print(f"Web build directory not found: {build_web_dir}")
-                # Try to create it as a fallback
-                os.makedirs(build_web_dir, exist_ok=True)
-                # Create a simple index.html file as fallback
-                with open(os.path.join(build_web_dir, 'index.html'), 'w') as f:
-                    f.write('<html><body><h1>Flutter Build Not Found</h1><p>The Flutter web build did not complete successfully.</p></body></html>')
+            # Start Flutter run in the background
+            print(f"Starting Flutter run in {os.getcwd()}")
             
-            # Start a simple HTTP server to serve the web build
-            os.chdir(build_web_dir)
+            # Use a different approach to start Flutter
+            flutter_cmd = "flutter run -d web-server --web-port 8080"
             
-            # Use a different approach to start the server
-            port = self.settings.web_port
-            
-            # Try alternate ports if the default is in use
+            # Try alternate ports if default is in use
+            port = 8080
             for attempt in range(3):
                 try:
-                    self.web_server_process = subprocess.Popen(
-                        f"python -m http.server {port}",
+                    cmd = f"flutter run -d web-server --web-port {port}"
+                    print(f"Attempting to start Flutter on port {port}")
+                    
+                    self.flutter_process = subprocess.Popen(
+                        cmd,
                         shell=True,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
                         text=True
                     )
                     
-                    # Give the server a moment to start
-                    time.sleep(2)
+                    # Wait a bit to see if Flutter starts successfully
+                    time.sleep(5)
                     
-                    # Check if the server started successfully
-                    if self.web_server_process.poll() is None:
-                        print(f"Web server started successfully on port {port}")
+                    # Check if the process is still running
+                    if self.flutter_process.poll() is None:
+                        print(f"Flutter dev server started successfully on port {port}")
                         # Restore working directory
                         os.chdir(self.root_dir)
-                        return f"http://{self.settings.web_host}:{port}"
+                        
+                        # Return the URL for the Flutter web app
+                        return f"http://localhost:{port}"
                     else:
-                        # Server failed to start, try another port
-                        output, _ = self.web_server_process.communicate(timeout=1)
-                        print(f"Failed to start web server on port {port}: {output}")
+                        # Process exited, check output
+                        output, _ = self.flutter_process.communicate(timeout=1)
+                        print(f"Flutter failed to start on port {port}: {output}")
+                        # Try next port
                         port += 1
+                        
                 except Exception as e:
-                    print(f"Error starting server on port {port}: {str(e)}")
+                    print(f"Error starting Flutter on port {port}: {str(e)}")
                     port += 1
             
-            # Restore working directory
+            # Restore working directory if we reach here
             os.chdir(self.root_dir)
             
-            print("Failed to start web server after multiple attempts")
+            print("Failed to start Flutter app after multiple attempts")
             return None
             
         except Exception as e:
-            print(f"Error serving web build: {str(e)}")
+            print(f"Error starting Flutter app: {str(e)}")
             # Restore working directory
             if os.getcwd() != self.root_dir:
                 os.chdir(self.root_dir)
             return None
     
-    def stop_web_server(self):
-        """Stop the web server if it's running."""
-        if self.web_server_process and self.web_server_process.poll() is None:
+    def stop_flutter_app(self):
+        """Stop the Flutter app if it's running."""
+        if self.flutter_process and self.flutter_process.poll() is None:
             try:
-                self.web_server_process.terminate()
-                time.sleep(1)
+                # Try to terminate gracefully first
+                self.flutter_process.terminate()
+                time.sleep(2)
+                
                 # Force kill if still running
-                if self.web_server_process.poll() is None:
-                    self.web_server_process.kill()
+                if self.flutter_process.poll() is None:
+                    self.flutter_process.kill()
+                    
+                print("Flutter app stopped")
             except Exception as e:
-                print(f"Error stopping web server: {str(e)}")
+                print(f"Error stopping Flutter app: {str(e)}")
             
-            self.web_server_process = None 
+            self.flutter_process = None 

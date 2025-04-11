@@ -29,8 +29,8 @@ class Settings:
         self.web_port = int(os.getenv("WEB_PORT", "8080"))
         
         # Command timeout settings
-        self.command_timeout = int(os.getenv("COMMAND_TIMEOUT", "30"))
-        self.build_timeout = int(os.getenv("BUILD_TIMEOUT", "120"))
+        self.command_timeout = int(os.getenv("COMMAND_TIMEOUT", "300"))
+        self.build_timeout = int(os.getenv("BUILD_TIMEOUT", "6000"))
         
         # Validate required settings
         self._validate_settings()
