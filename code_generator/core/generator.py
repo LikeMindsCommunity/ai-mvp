@@ -74,6 +74,8 @@ class CodeGenerator:
         6. Use the default username and API key provided in the settings
         7. The namespace should be in the format: com.example.[project_name_lowercase]
         8. The applicationId should match the namespace
+        9. IMPORTANT: When importing LikeMinds SDK classes, use 'com.likeminds' instead of 'community.likeminds'
+           Example: import com.likeminds.feed.android.core.LMFeedCore
 
         Documentation:
         {documentation}
@@ -103,7 +105,7 @@ class CodeGenerator:
             "files": [
                 {{
                     "path": "app/src/main/java/com/example/socialfeedapp/MainActivity.kt",
-                    "content": "package com.example.socialfeedapp\\n\\nimport ..."
+                    "content": "package com.example.socialfeedapp\\n\\nimport com.likeminds.feed.android.core.LMFeedCore\\n..."
                 }}
             ]
         }}
