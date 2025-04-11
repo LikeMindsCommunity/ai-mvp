@@ -51,7 +51,14 @@ async def debug_websocket_streaming():
                     # Debug print the timing info
                     print(f"\nChunk #{chunk_count}")
                     print(f"Time since start: {time_since_start:.4f}s")
-                    print(f"Time since last chunk: {time_since_last:.4f}s")
+                    
+                    # Visual indicator of time gap between chunks
+                    if time_since_last > 0.05:
+                        gap_indicator = "█" * min(int(time_since_last * 20), 40)
+                        print(f"Gap: {time_since_last:.4f}s {gap_indicator}")
+                    else:
+                        print(f"Time since last chunk: {time_since_last:.4f}s")
+                    
                     print(f"Message Type: {data.get('type', 'UNKNOWN')}")
                     print(f"Value Type: {type(data.get('value', None)).__name__}")
                     

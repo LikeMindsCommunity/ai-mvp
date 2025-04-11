@@ -5,6 +5,7 @@ WebSocket handler for Flutter code generation.
 import json
 from typing import Dict, Any
 from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
 
 from api.infrastructure.services.flutter_generator_service_impl import FlutterGeneratorServiceImpl
 
@@ -42,6 +43,12 @@ class WebSocketHandler:
                 # Define callback for streaming responses
                 async def on_chunk(response: Dict[str, Any]):
                     await websocket.send_json(response)
+                    # Add a tiny delay to ensure chunks are processed individually
+                    # Small enough not to be noticeable but helps prevent buffering
+                    if response.get("type") == "Text":
+                        await asyncio.sleep(0.02)  # Slightly longer delay for text chunks
+                    else:
+                        await asyncio.sleep(0.005)  # Minimal delay for other message types
                 
                 # Handle different message types
                 if message["type"] == "GenerateCode":
