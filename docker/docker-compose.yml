@@ -14,12 +14,12 @@ services:
       - ../output:/app/output  # Mount output directory
       - ../ssl:/app/ssl  # Mount SSL certificates directory
     env_file:
-      - ../.env
+      - .env
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-pro}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-pro-exp-03-25}
       - WEB_HOST=${WEB_HOST:-0.0.0.0}  # Bind to all interfaces
-      - PUBLIC_HOST=${PUBLIC_HOST:-localhost}  # Public IP for URLs returned to clients
+      - PUBLIC_HOST=${PUBLIC_HOST:-98.70.88.101}  # Public IP for URLs returned to clients
       - FLUTTER_WEB_PORT=${FLUTTER_WEB_PORT:-8080}
       - WEB_PORT=${WEB_PORT:-8080}
       - API_PORT=${API_PORT:-8000}
