@@ -4,6 +4,7 @@ Main entry point for the code generator.
 
 import sys
 import asyncio
+import os
 from code_generator.config import Settings
 from code_generator.core import CodeGenerator
 
@@ -13,8 +14,16 @@ async def main():
         # Initialize settings
         settings = Settings()
         
+        # Get paths from environment variables
+        docs_path = os.getenv("DOCS_PATH")
+        sdk_code_path = os.getenv("SDK_CODE_PATH")
+        
+        if not docs_path or not sdk_code_path:
+            print("Error: DOCS_PATH and SDK_CODE_PATH must be set in environment variables")
+            sys.exit(1)
+            
         # Initialize code generator
-        generator = CodeGenerator(settings)
+        generator = CodeGenerator(settings, docs_path, sdk_code_path)
         
         print("Welcome to the LikeMinds Android Feed SDK Code Generator!")
         print("Type 'exit' to quit.")

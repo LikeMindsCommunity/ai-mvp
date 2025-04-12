@@ -26,6 +26,9 @@ class Settings:
         self.documentation_path = os.getenv("OUTPUT_FILE")
         # Output directory for generated projects
         self.output_dir = os.getenv("OUTPUT_DIR")
+        # Documentation and SDK code paths
+        self.docs_path = os.getenv("DOCS_PATH")
+        self.sdk_code_path = os.getenv("SDK_CODE_PATH")
 
         # Default values for code generation
         self.default_username = "test"
@@ -66,4 +69,19 @@ class Settings:
         # Validate Output Directory
         if not self.output_dir:
             raise ValueError("OUTPUT_DIR not found in environment variables or .env file")
+            
+        # Validate Documentation and SDK Code Paths
+        if not self.docs_path:
+            raise ValueError("DOCS_PATH not found in environment variables or .env file")
+        if not os.path.exists(self.docs_path):
+            raise ValueError(f"Documentation file not found at: {self.docs_path}")
+        if not os.path.isfile(self.docs_path):
+            raise ValueError(f"Documentation path must be a file: {self.docs_path}")
+            
+        if not self.sdk_code_path:
+            raise ValueError("SDK_CODE_PATH not found in environment variables or .env file")
+        if not os.path.exists(self.sdk_code_path):
+            raise ValueError(f"SDK code file not found at: {self.sdk_code_path}")
+        if not os.path.isfile(self.sdk_code_path):
+            raise ValueError(f"SDK code path must be a file: {self.sdk_code_path}")
             
