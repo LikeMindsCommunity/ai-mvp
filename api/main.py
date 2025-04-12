@@ -76,9 +76,9 @@ async def websocket_endpoint(websocket: WebSocket):
     """
     await websocket_handler.handle_websocket(websocket)
 
-@app.get("/")
+@app.get("/status")
 async def root():
-    """Root endpoint for API health check."""
+    """Status endpoint for API health check."""
     return {
         "status": "online",
         "message": "Flutter Integration Assistant API is running",
