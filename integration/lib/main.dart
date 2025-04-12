@@ -25,12 +25,12 @@ class LMSampleChat extends StatelessWidget {
           onPressed: () async {
             // initiate user session with apiKey, uuid and userName
             // this is required to show the chat
-            // TODO: Replace with YOUR_API_KEY, YOUR_UUID, YOUR_USERNAME
+            // TODO: Replace with YOUR_API_KEY, YOUR_UUID, YOUR_USER_NAME
             LMResponse<void> response =
                 await LMChatCore.instance.showChatWithApiKey(
               apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8", // TODO: Replace with YOUR_API_KEY
               uuid: "abc", // TODO: Replace with YOUR_UUID
-              userName: "abc", // TODO: Replace with YOUR_USERNAME
+              userName: "abc", // TODO: Replace with YOUR_USER_NAME
             );
             if (response.success) {
               // create route with LMChatHomeScreen
@@ -41,9 +41,9 @@ class LMSampleChat extends StatelessWidget {
               Navigator.pushReplacement(context, route);
             } else {
               debugPrint("Error opening chat: ${response.errorMessage}");
-              // TODO: Handle error appropriately, e.g., show a snackbar
+              // Optionally show an error message to the user
               // ScaffoldMessenger.of(context).showSnackBar(
-              //   SnackBar(content: Text("Error: ${response.errorMessage}")),
+              //   SnackBar(content: Text("Error opening chat: ${response.errorMessage}")),
               // );
             }
           },

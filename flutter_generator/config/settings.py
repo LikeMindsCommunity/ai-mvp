@@ -25,11 +25,8 @@ class Settings:
         self.output_path = os.getenv("OUTPUT_PATH", "output")
         
         # Web server settings
-        self.web_host = os.getenv("WEB_HOST", "0.0.0.0")
+        self.web_host = os.getenv("WEB_HOST", "localhost")
         self.web_port = int(os.getenv("WEB_PORT", "8080"))
-        self.public_host = os.getenv("PUBLIC_HOST", "98.70.88.101")
-        self.ssl_port = int(os.getenv("SSL_PORT", "8443"))
-        self.enable_ssl = os.getenv("ENABLE_SSL", "true") == "true"
         
         # Command timeout settings
         self.command_timeout = int(os.getenv("COMMAND_TIMEOUT", "300"))

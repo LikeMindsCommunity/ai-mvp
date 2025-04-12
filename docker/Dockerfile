@@ -30,29 +30,16 @@ COPY *.py *.txt ./
 COPY api/ ./api/
 COPY flutter_generator/ ./flutter_generator/
 COPY integration/ ./integration/
-COPY ssl/ ./ssl/
 
-
-# Set environment variables
+# Set environment variables for Flutter
 ENV WEB_HOST=0.0.0.0
 ENV PUBLIC_HOST=98.70.88.101
 ENV FLUTTER_WEB_PORT=8080
-ENV API_PORT=8000
-ENV SSL_PORT=8443
-ENV GEMINI_MODEL=gemini-2.5-pro-exp-03-25
 
-# Set environment variables for SSL configuration
-ENV ENABLE_SSL=true
-ENV SSL_CERT_FILE=/app/ssl/cert.pem
-ENV SSL_KEY_FILE=/app/ssl/key.pem
+# Make sure .dockerignore excludes unnecessary files
 
-# Set environment variables for timeout settings
-ENV COMMAND_TIMEOUT=600
-ENV BUILD_TIMEOUT=6000
-
-
-# Expose ports
-EXPOSE 8000 8080 8443
+# Expose the API port
+EXPOSE 8000 8080
 
 # Command to run the server
 CMD ["python", "run_server.py"] 

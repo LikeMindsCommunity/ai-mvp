@@ -167,36 +167,14 @@ async def get_websocket_tester():
 
 def start(reload=True):
     """Start the FastAPI application with Uvicorn."""
-    # Check if SSL is enabled
-    enable_ssl = os.environ.get("ENABLE_SSL", "false").lower() == "true"
-    ssl_cert = os.environ.get("SSL_CERT_FILE", "/app/ssl/cert.pem")
-    ssl_key = os.environ.get("SSL_KEY_FILE", "/app/ssl/key.pem")
-    ssl_port = int(os.environ.get("SSL_PORT", 8443))
-    
-    if enable_ssl and os.path.exists(ssl_cert) and os.path.exists(ssl_key):
-        print(f"Starting server with SSL support on port {ssl_port}")
-        uvicorn.run(
-            "api.main:app", 
-            host="0.0.0.0", 
-            port=ssl_port,
-            reload=reload,
-            reload_dirs=["api"],
-            reload_excludes=["integration"],
-            ssl_keyfile=ssl_key,
-            ssl_certfile=ssl_cert
-        )
-    else:
-        # Standard non-SSL startup
-        port = int(os.environ.get("API_PORT", 8000))
-        print(f"Starting server without SSL on port {port}")
-        uvicorn.run(
-            "api.main:app", 
-            host="0.0.0.0", 
-            port=port, 
-            reload=reload,
-            reload_dirs=["api"],
-            reload_excludes=["integration"]
-        )
+    uvicorn.run(
+        "api.main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=reload,
+        reload_dirs=["api"],  # Only watch the api directory
+        reload_excludes=["integration"]  # Explicitly exclude integration directory
+    )
 
 if __name__ == "__main__":
     start() 
