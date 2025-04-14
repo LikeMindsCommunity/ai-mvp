@@ -6,7 +6,10 @@ Future<void> main() async {
   // Call setup function before the runApp() function
   await LMChatCore.instance.initialize();
   // run the app
-  runApp(const MaterialApp(home: LMSampleChat()));
+  runApp(const MaterialApp(
+    home: LMSampleChat(),
+    debugShowCheckedModeBanner: false,
+  ));
 }
 
 // A blank scaffold with a button that opens
@@ -23,28 +26,26 @@ class LMSampleChat extends StatelessWidget {
       body: Center(
         child: ElevatedButton(
           onPressed: () async {
+            // TODO: Replace with YOUR_API_KEY
             // initiate user session with apiKey, uuid and userName
             // this is required to show the chat
-            // TODO: Replace with YOUR_API_KEY, YOUR_UUID, YOUR_USER_NAME
             LMResponse<void> response =
                 await LMChatCore.instance.showChatWithApiKey(
-              apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8", // TODO: Replace with YOUR_API_KEY
-              uuid: "abc", // TODO: Replace with YOUR_UUID
-              userName: "abc", // TODO: Replace with YOUR_USER_NAME
+              apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8",
+              // TODO: Replace with YOUR_USER_ID
+              uuid: "abc",
+              // TODO: Replace with YOUR_USER_NAME
+              userName: "abc",
             );
             if (response.success) {
-              // create route with LMChatHomeScreen
+              // create route with LMChatSocialScreen
               MaterialPageRoute route = MaterialPageRoute(
                 builder: (context) => const LMChatHomeScreen(),
               );
-              // navigate to LMChatHomeScreen
+              // navigate to LMChatSocialScreen
               Navigator.pushReplacement(context, route);
             } else {
               debugPrint("Error opening chat: ${response.errorMessage}");
-              // Optionally show an error message to the user
-              // ScaffoldMessenger.of(context).showSnackBar(
-              //   SnackBar(content: Text("Error opening chat: ${response.errorMessage}")),
-              // );
             }
           },
           child: const Text('Open Chat'),

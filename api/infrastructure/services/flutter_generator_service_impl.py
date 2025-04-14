@@ -4,6 +4,7 @@ Implementation of the Flutter code generator service.
 Response Types:
 - Text: Status updates and progress messages
 - Code: Generated code content
+- Chat: Conversational explanations and plans
 - Error: Error messages
 - Success: Success notifications
 - AnalysisError: Flutter code analysis errors
@@ -21,6 +22,7 @@ from api.domain.interfaces.flutter_generator_service import FlutterGeneratorServ
 from flutter_generator.core.generator import FlutterCodeGenerator
 from flutter_generator.core.code_manager import FlutterCodeManager
 from flutter_generator.core.integration_manager import FlutterIntegrationManager
+from flutter_generator.core.conversation import FlutterConversationManager
 
 class FlutterGeneratorServiceImpl(FlutterGeneratorService):
     """Implementation of the Flutter code generator service."""
@@ -30,6 +32,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         self.code_generator = FlutterCodeGenerator()
         self.code_manager = FlutterCodeManager()
         self.integration_manager = FlutterIntegrationManager()
+        self.conversation_manager = FlutterConversationManager()
         self.root_dir = os.getcwd()
         # Dictionary to store conversation history by session ID
         self.conversation_history = {}
@@ -77,14 +80,17 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             Dict[str, Any]: Response containing the generation result
         """
         try:
+            # First, generate a conversation plan
+            await self.generate_conversation(user_query, on_chunk, session_id)
+            
+            # Update conversation history and get enhanced prompt
+            enhanced_prompt = self._update_conversation_history(session_id, user_query)
+            
             # Inform starting generation
             await on_chunk({
                 "type": "Text",
                 "value": "Generating Flutter code based on your request..."
             })
-            
-            # Update conversation history and get enhanced prompt
-            enhanced_prompt = self._update_conversation_history(session_id, user_query)
             
             # Generate code with the enhanced prompt
             generated_text = await self.code_generator.generate_code(enhanced_prompt, on_chunk)
@@ -219,6 +225,33 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 os.chdir(self.root_dir)
             return {"success": False, "error": str(e)}
     
+    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> str:
+        """
+        Generate conversational explanation and plan for Flutter code implementation.
+        
+        Args:
+            user_query (str): The user's input query
+            on_chunk (Callable): Callback function to handle streaming output chunks
+            session_id (str, optional): Unique identifier for the user session. Defaults to "default".
+            
+        Returns:
+            str: The generated conversation text
+        """
+        try:
+            # Use the conversation history for context if available
+            enhanced_prompt = self._update_conversation_history(session_id, user_query)
+            
+            # Generate conversation response
+            conversation_text = await self.conversation_manager.generate_conversation(enhanced_prompt, on_chunk)
+            return conversation_text
+            
+        except Exception as e:
+            await on_chunk({
+                "type": "Error",
+                "value": f"Error generating conversation: {str(e)}"
+            })
+            return ""
+    
     async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> Dict[str, Any]:
         """
         Fix Flutter code based on analysis errors.
@@ -236,6 +269,15 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             "type": "Text",
             "value": "Regenerating with error fixes..."
         })
+        
+        # Generate conversation plan for fixing the code
+        await on_chunk({
+            "type": "Chat",
+            "value": "Analyzing error and planning the fix..."
+        })
+        
+        error_context = f"{user_query}\n\nPlease fix these errors:\n{error_message}"
+        await self.generate_conversation(error_context, on_chunk, session_id)
         
         # Create enhanced prompt with error info
         fix_prompt = f"{user_query}\n\nPlease fix these errors:\n{error_message}"

@@ -70,7 +70,18 @@ To generate Flutter code, send a WebSocket message in this format:
 ```json
 {
   "type": "GenerateCode",
-  "user_query": "Create a Flutter chat screen using LikeMinds SDK"
+  "user_query": "Create a Flutter chat screen using LikeMinds SDK",
+  "session_id": "optional-session-identifier"
+}
+```
+
+To generate only a conversational explanation and plan:
+
+```json
+{
+  "type": "GenerateConversation",
+  "user_query": "Create a Flutter chat screen using LikeMinds SDK",
+  "session_id": "optional-session-identifier"
 }
 ```
 
@@ -80,9 +91,12 @@ To fix code with errors:
 {
   "type": "FixCode",
   "user_query": "Original query text",
-  "error_message": "Flutter analysis error message"
+  "error_message": "Flutter analysis error message",
+  "session_id": "optional-session-identifier"
 }
 ```
+
+The `session_id` is optional but recommended to maintain conversation history across requests.
 
 ### Response Format
 
@@ -90,7 +104,7 @@ The API will stream responses in this format:
 
 ```json
 {
-  "type": "Text|Code|Error|Success|AnalysisError|Result",
+  "type": "Text|Code|Chat|Error|Success|AnalysisError|Result",
   "value": "Message content or object"
 }
 ```
@@ -98,6 +112,7 @@ The API will stream responses in this format:
 Response types are used as follows:
 - `Text`: Status updates and progress messages
 - `Code`: Generated code content
+- `Chat`: Conversational explanations and generation plans
 - `Error`: Error messages
 - `Success`: Success notifications
 - `AnalysisError`: Flutter code analysis errors

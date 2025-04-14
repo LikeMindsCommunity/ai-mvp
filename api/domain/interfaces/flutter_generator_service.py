@@ -4,6 +4,7 @@ Interface for Flutter code generator service.
 Response Types:
 - Text: Status updates and progress messages
 - Code: Generated code content
+- Chat: Conversational explanations and plans
 - Error: Error messages
 - Success: Success notifications
 - AnalysisError: Flutter code analysis errors
@@ -26,6 +27,20 @@ class FlutterGeneratorService:
             
         Returns:
             Dict[str, Any]: Response containing the generation result
+        """
+        raise NotImplementedError
+    
+    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> str:
+        """
+        Generate conversational explanation and plan for Flutter code implementation.
+        
+        Args:
+            user_query (str): The user's input query
+            on_chunk (Callable): Callback function to handle streaming output chunks
+            session_id (str, optional): Unique identifier for the user session. Defaults to "default".
+            
+        Returns:
+            str: The generated conversation text
         """
         raise NotImplementedError
     

@@ -4,6 +4,7 @@ WebSocket handler for Flutter code generation.
 Response Types:
 - Text: Status updates and progress messages
 - Code: Generated code content
+- Chat: Conversational explanations and plans
 - Error: Error messages
 - Success: Success notifications
 - AnalysisError: Flutter code analysis errors
@@ -55,6 +56,8 @@ class WebSocketHandler:
                     # Small enough not to be noticeable but helps prevent buffering
                     if response.get("type") == "Text":
                         await asyncio.sleep(0.02)  # Slightly longer delay for text chunks
+                    elif response.get("type") == "Chat":
+                        await asyncio.sleep(0.02)  # Similar delay for chat chunks
                     else:
                         await asyncio.sleep(0.005)  # Minimal delay for other message types
                 
@@ -81,6 +84,30 @@ class WebSocketHandler:
                     await websocket.send_json({
                         "type": "Result",
                         "value": result
+                    })
+                
+                elif message["type"] == "GenerateConversation":
+                    if "user_query" not in message:
+                        await websocket.send_json({
+                            "type": "Error",
+                            "value": "Missing 'user_query' field in request"
+                        })
+                        continue
+                    
+                    # Generate only conversation/explanation
+                    conversation_text = await self.flutter_generator_service.generate_conversation(
+                        message["user_query"],
+                        on_chunk,
+                        session_id
+                    )
+                    
+                    # Send final result
+                    await websocket.send_json({
+                        "type": "Result",
+                        "value": {
+                            "success": True,
+                            "conversation": conversation_text
+                        }
                     })
                 
                 elif message["type"] == "FixCode":
