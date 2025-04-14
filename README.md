@@ -90,10 +90,18 @@ The API will stream responses in this format:
 
 ```json
 {
-  "type": "Text|Error|Success|AnalysisError|Result",
+  "type": "Text|Code|Error|Success|AnalysisError|Result",
   "value": "Message content or object"
 }
 ```
+
+Response types are used as follows:
+- `Text`: Status updates and progress messages
+- `Code`: Generated code content
+- `Error`: Error messages
+- `Success`: Success notifications
+- `AnalysisError`: Flutter code analysis errors
+- `Result`: Final result with URL and file path information
 
 ## Project Structure
 

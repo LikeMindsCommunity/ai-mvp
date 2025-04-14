@@ -1,5 +1,13 @@
 """
 Interface for Flutter code generator service.
+
+Response Types:
+- Text: Status updates and progress messages
+- Code: Generated code content
+- Error: Error messages
+- Success: Success notifications
+- AnalysisError: Flutter code analysis errors
+- Result: Final result with URL and file path information
 """
 
 from typing import Optional, Dict, Callable, Awaitable, Any

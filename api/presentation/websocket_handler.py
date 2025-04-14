@@ -1,5 +1,13 @@
 """
 WebSocket handler for Flutter code generation.
+
+Response Types:
+- Text: Status updates and progress messages
+- Code: Generated code content
+- Error: Error messages
+- Success: Success notifications
+- AnalysisError: Flutter code analysis errors
+- Result: Final result with URL and file path information
 """
 
 import json
@@ -52,8 +60,6 @@ class WebSocketHandler:
                 
                 # Extract session ID if available, otherwise use websocket ID as default
                 session_id = message.get("session_id", str(id(websocket)))
-                # TODO: Remove this print statement
-                print(f"Session ID: {session_id}")
                 
                 # Handle different message types
                 if message["type"] == "GenerateCode":

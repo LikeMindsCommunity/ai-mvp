@@ -1,5 +1,10 @@
 """
 Generates Flutter code using the Gemini model based on documentation.
+
+Response Types:
+- Text: Status updates and progress messages
+- Code: Generated code content
+- Error: Error messages
 """
 
 import os
@@ -111,7 +116,7 @@ class FlutterCodeGenerator:
                 
                 # Stream chunk to client
                 await on_chunk({
-                    "type": "Text",
+                    "type": "Code",
                     "value": chunk_text
                 })
                 
