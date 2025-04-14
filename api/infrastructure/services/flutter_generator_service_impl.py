@@ -23,14 +23,47 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         self.code_manager = FlutterCodeManager()
         self.integration_manager = FlutterIntegrationManager()
         self.root_dir = os.getcwd()
+        # Dictionary to store conversation history by session ID
+        self.conversation_history = {}
     
-    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]]) -> Dict[str, Any]:
+    def _update_conversation_history(self, session_id: str, user_query: str) -> str:
+        """
+        Update conversation history and return the enhanced prompt with history.
+        
+        Args:
+            session_id (str): Unique identifier for the user session
+            user_query (str): The current user query
+            
+        Returns:
+            str: Enhanced prompt with conversation history
+        """
+        # Initialize history for new sessions
+        if session_id not in self.conversation_history:
+            self.conversation_history[session_id] = []
+        
+        # Add current query to history
+        self.conversation_history[session_id].append(user_query)
+        
+        # Build enhanced prompt with history context
+        if len(self.conversation_history[session_id]) > 1:
+            # Format history as conversation context
+            history = "\n\n".join(
+                [f"Previous request {i+1}: {query}" for i, query in enumerate(self.conversation_history[session_id][:-1])]
+            )
+            enhanced_prompt = f"Previous requests for context:\n{history}\n\nCurrent request: {user_query}"
+            return enhanced_prompt
+        
+        # If this is the first request, return the original query
+        return user_query
+    
+    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> Dict[str, Any]:
         """
         Generate Flutter code based on user query.
         
         Args:
             user_query (str): The user's input query
             on_chunk (Callable): Callback function to handle streaming output chunks
+            session_id (str, optional): Unique identifier for the user session. Defaults to "default".
             
         Returns:
             Dict[str, Any]: Response containing the generation result
@@ -42,8 +75,11 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Generating Flutter code based on your request..."
             })
             
-            # Generate code
-            generated_text = await self.code_generator.generate_code(user_query, on_chunk)
+            # Update conversation history and get enhanced prompt
+            enhanced_prompt = self._update_conversation_history(session_id, user_query)
+            
+            # Generate code with the enhanced prompt
+            generated_text = await self.code_generator.generate_code(enhanced_prompt, on_chunk)
             if not generated_text:
                 await on_chunk({
                     "type": "Error",
@@ -175,7 +211,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 os.chdir(self.root_dir)
             return {"success": False, "error": str(e)}
     
-    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]]) -> Dict[str, Any]:
+    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> Dict[str, Any]:
         """
         Fix Flutter code based on analysis errors.
         
@@ -183,6 +219,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             user_query (str): The original user query
             error_message (str): The Flutter analysis error message
             on_chunk (Callable): Callback function to handle streaming output chunks
+            session_id (str, optional): Unique identifier for the user session. Defaults to "default".
             
         Returns:
             Dict[str, Any]: Response containing the fixed code generation result
@@ -193,7 +230,11 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         })
         
         # Create enhanced prompt with error info
-        enhanced_prompt = f"{user_query}\n\nPlease fix these errors:\n{error_message}"
+        fix_prompt = f"{user_query}\n\nPlease fix these errors:\n{error_message}"
+        
+        # Add this fix request to conversation history
+        if session_id in self.conversation_history:
+            self.conversation_history[session_id].append(fix_prompt)
         
         # Call the generate method with the enhanced prompt
-        return await self.generate_flutter_code(enhanced_prompt, on_chunk) 
+        return await self.generate_flutter_code(fix_prompt, on_chunk, session_id) 

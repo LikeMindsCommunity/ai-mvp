@@ -50,6 +50,11 @@ class WebSocketHandler:
                     else:
                         await asyncio.sleep(0.005)  # Minimal delay for other message types
                 
+                # Extract session ID if available, otherwise use websocket ID as default
+                session_id = message.get("session_id", str(id(websocket)))
+                # TODO: Remove this print statement
+                print(f"Session ID: {session_id}")
+                
                 # Handle different message types
                 if message["type"] == "GenerateCode":
                     if "user_query" not in message:
@@ -62,7 +67,8 @@ class WebSocketHandler:
                     # Generate code
                     result = await self.flutter_generator_service.generate_flutter_code(
                         message["user_query"],
-                        on_chunk
+                        on_chunk,
+                        session_id
                     )
                     
                     # Send final result
@@ -83,7 +89,8 @@ class WebSocketHandler:
                     result = await self.flutter_generator_service.fix_flutter_code(
                         message["user_query"],
                         message["error_message"],
-                        on_chunk
+                        on_chunk,
+                        session_id
                     )
                     
                     # Send final result
