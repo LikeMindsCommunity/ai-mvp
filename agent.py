@@ -24,7 +24,8 @@ from rich.prompt import Prompt
 console = Console()
 
 # Initialize Gemini client
-load_dotenv()
+load_dotenv(override=True)
+
 client = genai.Client(
     api_key=os.getenv("GOOGLE_API_KEY"),
 )
