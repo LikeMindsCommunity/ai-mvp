@@ -31,10 +31,12 @@ COPY api/ ./api/
 COPY flutter_generator/ ./flutter_generator/
 COPY integration/ ./integration/
 
-# Set environment variables for Flutter
-ENV WEB_HOST=0.0.0.0
-ENV PUBLIC_HOST=98.70.88.101
-ENV FLUTTER_WEB_PORT=8080
+# Environment variables will be loaded from .env file at runtime
+# These are just default values that can be overridden
+ENV WEB_HOST=${WEB_HOST:-0.0.0.0}
+ENV PUBLIC_HOST=${PUBLIC_HOST:-localhost}
+ENV FLUTTER_WEB_PORT=${FLUTTER_WEB_PORT:-8080}
+ENV GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
 
 # Make sure .dockerignore excludes unnecessary files
 

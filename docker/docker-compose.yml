@@ -11,13 +11,15 @@ services:
     volumes:
       - ../integration:/app/integration  # Mount integration directory
       - ../output:/app/output  # Mount output directory
+    env_file:
+      - .env
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - GEMINI_MODEL=gemini-2.5-pro-exp-03-25
-      - WEB_HOST=0.0.0.0  # Bind to all interfaces
-      - PUBLIC_HOST=98.70.88.101  # Public IP for URLs returned to clients
-      - FLUTTER_WEB_PORT=8080
-      - WEB_PORT=8080
-      - COMMAND_TIMEOUT=600
-      - BUILD_TIMEOUT=6000
+      - GEMINI_MODEL=${GEMINI_MODEL}
+      - WEB_HOST=${WEB_HOST}  # Bind to all interfaces
+      - PUBLIC_HOST=${PUBLIC_HOST}  # Public IP for URLs returned to clients
+      - FLUTTER_WEB_PORT=${FLUTTER_WEB_PORT}
+      - WEB_PORT=${WEB_PORT}
+      - COMMAND_TIMEOUT=${COMMAND_TIMEOUT}
+      - BUILD_TIMEOUT=${BUILD_TIMEOUT}
     restart: unless-stopped 
