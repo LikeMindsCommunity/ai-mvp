@@ -75,18 +75,18 @@ def filter_directories(repo_path, include_dirs=None, exclude_dirs=None):
                 else:
                     shutil.rmtree(exclude_dir)
 
-def ingest_repo(repo_url, is_private=False, include_dirs=None, exclude_dirs=None, repo_name=None):
+def ingest_repo(repo_url, is_private=False, include_dirs=None, exclude_dirs=None, private_repo_name=None):
     """Ingest a GitHub repository and save its summary, tree, and content"""
     # Create ingested directory if it doesn't exist
     os.makedirs('document_ingest/ingested', exist_ok=True)
     
     # Get repository name from argument or URL
-    if repo_name is None:
-        repo_name = get_repo_name(repo_url)
+    if private_repo_name is None:
+        private_repo_name = get_repo_name(repo_url)
     
     # Always clone if include/exclude directories are specified
     if include_dirs or exclude_dirs or is_private:
-        repo_path = clone_repo(repo_url, repo_name)
+        repo_path = clone_repo(repo_url, private_repo_name)
         if include_dirs or exclude_dirs:
             filter_directories(repo_path, include_dirs, exclude_dirs)
         summary, tree, content = gitingest.ingest(repo_path)
@@ -94,12 +94,12 @@ def ingest_repo(repo_url, is_private=False, include_dirs=None, exclude_dirs=None
         summary, tree, content = gitingest.ingest(repo_url)
     
     # Create output file
-    output_file = os.path.join('document_ingest/ingested', f'{repo_name}.md')
+    output_file = os.path.join('document_ingest/ingested', f'{private_repo_name}.md')
     
     # Write content to file
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write('---\n')
-        f.write(f'# SDK: {repo_name}\n\n')
+        f.write(f'# SDK: {private_repo_name}\n\n')
         
         f.write('# Summary\n')
         f.write(summary)
@@ -114,4 +114,4 @@ def ingest_repo(repo_url, is_private=False, include_dirs=None, exclude_dirs=None
         f.write('\n')
         f.write('---\n')
     
-    print(f"Repository {repo_name} has been successfully ingested to {output_file}") 
+    print(f"Repository {private_repo_name} has been successfully ingested to {output_file}") 

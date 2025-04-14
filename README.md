@@ -1,23 +1,19 @@
-# Document Parser
+# Document Ingest
 
-A Python package for processing and combining markdown documentation from Git repositories.
+A Python package for ingesting and processing documentation and SDK code for the LikeMinds Feed SDK.
 
 ## Environment Variables
 
 The package requires the following environment variables to be set in your `.env` file:
 
-- `REPO_URL` (Required): The URL of the Git repository containing the markdown documentation.
-- `INCLUDED_DIRS` (Required): Comma-separated list of directories to include in the documentation processing.
-- `EXCLUDED_DIRS` (Optional): Comma-separated list of directories to exclude from the documentation processing.
-- `OUTPUT_FILE` (Required): The path where the combined documentation will be saved.
+- `DOCS_PATH` (Required): The path to the documentation file that will be used for code generation.
+- `SDK_CODE_PATH` (Required): The path to the SDK code reference file.
 
 Example `.env` file:
 ```
-# Document Parser Configuration
-REPO_URL=https://github.com/LikeMindsCommunity/likeminds-docs
-INCLUDED_DIRS=feed/Android
-EXCLUDED_DIRS=feed/Android/Data
-OUTPUT_FILE=document_parser/single_file/feed_android_documentation.md
+# Document Ingest Configuration
+DOCS_PATH=document_ingest/ingested/likeminds-docs-feed-android.md
+SDK_CODE_PATH=document_ingest/ingested/likeminds-feed-android.md
 ```
 
 ## Package Usage
@@ -35,53 +31,63 @@ pip install -r requirements.txt
 
 3. Use the package in your Python code:
 ```python
-from document_parser.core import DocumentParser
-from document_parser.config import Settings
+from document_ingest.core import DocumentIngest
+from document_ingest.config import Settings
 
-# Initialize settings and parser
+# Initialize settings and ingest
 settings = Settings()
-parser = DocumentParser(settings)
+ingest = DocumentIngest(settings)
 
-# Generate combined documentation
-parser.generate_combined_document()
+# Process documentation and SDK code
+ingest.process()
 ```
 
-Or run it directly from the command line:
+Or run it directly from the command line with the following arguments:
 ```bash
-python -m document_parser
+python -m document_ingest https://github.com/LikeMindsCommunity/likeminds-docs --include feed/Android --exclude feed/Android/Data
+```
+
+Command-line Arguments:
+- `repo_url` (Required, positional): The URL of the Git repository containing the documentation
+- `--private` (Optional, flag): Indicates if the repository is private
+- `--include` (Optional): List of directories to include in the documentation processing
+- `--exclude` (Optional): List of directories to exclude from the documentation processing
+- `--private-repo-name` (Optional): Custom name for the private repository
+
+Example with all arguments:
+```bash
+python -m document_ingest https://github.com/LikeMindsCommunity/likeminds-docs \
+    --private \
+    --include feed/Android feed/iOS \
+    --exclude feed/Android/Data feed/iOS/Data \
+    --private-repo-name likeminds-docs
 ```
 
 ## Functionality
 
-The Document Parser package provides the following features:
+The Document Ingest package provides the following features:
 
-1. **Repository Cloning**: Automatically clones the specified Git repository.
-2. **Selective Processing**: Processes only the specified directories while excluding others.
-3. **Markdown Processing**:
-   - Extracts and organizes headings
-   - Converts relative links to proper references
-   - Handles GitHub links and fetches their content
-4. **Documentation Generation**:
-   - Creates a combined markdown document
-   - Preserves the original structure with proper heading levels
-   - Includes a summary of subheadings for each file
-   - Appends GitHub file contents at the end of the document
-5. **Cleanup**: Automatically removes the cloned repository after processing
+1. **Documentation Processing**: 
+   - Reads and processes LikeMinds Feed SDK documentation
+   - Extracts relevant information for code generation
+   - Maintains proper structure and formatting
 
-The generated documentation will include:
-- File paths as main headings
-- Subheadings summary for each file
-- Processed content with proper heading levels
-- GitHub file contents (if referenced)
-- Properly formatted links and references
+2. **SDK Code Processing**:
+   - Processes SDK code reference files
+   - Extracts method signatures and implementations
+   - Maintains proper code structure
+
+3. **Output Generation**:
+   - Creates processed documentation files
+   - Generates SDK code reference files
+   - Ensures proper file organization
 
 ## Error Handling
 
 The package includes comprehensive error handling for:
-- Repository cloning failures
-- File processing errors
-- GitHub content fetching issues
-- Environment variable validation
+- File path validation
+- File content processing
+- Output generation
 - File system operations
 
 All errors are logged with descriptive messages to help with debugging.
@@ -97,16 +103,19 @@ The package requires the following environment variables to be set in your `.env
 - `GEMINI_API_KEY` (Required): The API key for accessing the Gemini model.
 - `GEMINI_MODEL_NAME` (Required): The name of the Gemini model to use (currently only supports "gemini-2.5-pro-exp-03-25").
 - `TEMPLATE_REPO_URL` (Required): The URL of the template repository containing the base Android project structure.
-- `OUTPUT_FILE` (Required): The path to the documentation file that will be used for code generation.
 - `OUTPUT_DIR` (Required): The directory where generated projects will be saved.
+- `DOCS_PATH` (Required): The path to the documentation file that will be used for code generation.
+- `SDK_CODE_PATH` (Required): The path to the SDK code reference file.
 
 Example `.env` file:
 ```
 # Code Generator Configuration
-GEMINI_API_KEY=AIzaSyAwt6GCUzyXo0TBDSJZ53_KDUH4H3tOfxc
+GEMINI_API_KEY=your_api_key_here
 GEMINI_MODEL_NAME=gemini-2.5-pro-exp-03-25
 TEMPLATE_REPO_URL=https://github.com/LikeMindsCommunity/likeminds-feed-android-social-feed-theme
 OUTPUT_DIR=code_generator/generated_projects
+DOCS_PATH=document_ingest/ingested/likeminds-docs-feed-android.md
+SDK_CODE_PATH=document_ingest/ingested/likeminds-feed-android.md
 ```
 
 ## Package Usage
@@ -148,35 +157,25 @@ The Code Generator package provides the following features:
 2. **Template Management**: Uses a template repository to maintain consistent project structure.
 3. **Code Generation**:
    - Uses Gemini AI model to generate Android project code
-   - Creates complete project structure with all necessary files
-   - Includes build configuration files (build.gradle, settings.gradle, etc.)
-   - Generates proper Kotlin code following Android best practices
+   - Ensures proper method signatures and return types
+   - Handles callback implementations correctly
+   - Follows Android best practices
 4. **Project Creation**:
-   - Creates complete Android project directories
-   - Copies necessary Gradle wrapper files
-   - Generates all required source files
-   - Maintains proper project structure
-5. **Interactive Mode**: Provides a user-friendly command-line interface for project generation.
-
-The generated projects include:
-- Complete Android project structure
-- Build configuration files
-- Source code files
-- Proper package organization
-- Default configuration (username and API key)
+   - Creates complete Android projects
+   - Sets up proper package structure
+   - Configures build files
+   - Handles dependencies
 
 ## Error Handling
 
 The package includes comprehensive error handling for:
-- API key validation
-- Model name validation
-- Template repository access
-- Documentation file validation
-- Project creation errors
-- JSON parsing errors
+- Environment variable validation
+- API key verification
+- Model response parsing
 - File system operations
+- Project generation errors
 
-All errors are logged with descriptive messages to help with debugging.
+All errors are logged with descriptive messages to help with debugging. 
 
 # API
 
