@@ -22,8 +22,6 @@ class Settings:
         self.model_name = os.getenv("GEMINI_MODEL_NAME")
         # Template repository URL   
         self.template_repo_url = os.getenv("TEMPLATE_REPO_URL")  
-        # Documentation path
-        self.documentation_path = os.getenv("OUTPUT_FILE")
         # Output directory for generated projects
         self.output_dir = os.getenv("OUTPUT_DIR")
         # Documentation and SDK code paths
@@ -57,14 +55,6 @@ class Settings:
             raise ValueError("TEMPLATE_REPO_URL not found in environment variables or .env file")
         if not self.template_repo_url.startswith(("http://", "https://")):
             raise ValueError("TEMPLATE_REPO_URL must be a valid HTTP/HTTPS URL")
-            
-        # Validate Documentation Path
-        if not self.documentation_path:
-            raise ValueError("OUTPUT_FILE not found in environment variables or .env file")
-        if not os.path.exists(self.documentation_path):
-            raise ValueError(f"Documentation file not found at: {self.documentation_path}")
-        if not os.path.isfile(self.documentation_path):
-            raise ValueError(f"Documentation path must be a file: {self.documentation_path}")
 
         # Validate Output Directory
         if not self.output_dir:
