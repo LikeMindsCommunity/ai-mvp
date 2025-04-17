@@ -12,11 +12,13 @@ Response Types:
 """
 
 import json
-from typing import Dict, Any
+import os
+from typing import Dict, Any, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
 
 from api.infrastructure.services.flutter_generator_service_impl import FlutterGeneratorServiceImpl
+from api.infrastructure.database import SupabaseManager
 
 class WebSocketHandler:
     """Handler for WebSocket connections."""
@@ -24,17 +26,68 @@ class WebSocketHandler:
     def __init__(self):
         """Initialize the WebSocket handler."""
         self.flutter_generator_service = FlutterGeneratorServiceImpl()
+        self.supabase_manager = SupabaseManager()
     
-    async def handle_websocket(self, websocket: WebSocket):
+    async def handle_websocket(self, websocket: WebSocket, token: str, project_id: str):
         """
         Handle WebSocket connection and messages.
         
         Args:
             websocket (WebSocket): The WebSocket connection
+            token (str): JWT access token for authentication
+            project_id (str): Project ID to associate with this session
         """
         await websocket.accept()
         
         try:
+            # Verify the token and project access
+            try:
+                # Validate token
+                self.supabase_manager.client.auth.set_session(token)
+                user = self.supabase_manager.client.auth.get_user()
+                
+                if not user or not user.user:
+                    await websocket.send_json({
+                        "type": "Error",
+                        "value": "Invalid authentication token"
+                    })
+                    await websocket.close()
+                    return
+                
+                # Verify project access
+                project = await self.supabase_manager.get_project(project_id, token)
+                if not project or not project.data:
+                    await websocket.send_json({
+                        "type": "Error",
+                        "value": "Project not found or you don't have access"
+                    })
+                    await websocket.close()
+                    return
+                
+                # Create project output directory if it doesn't exist
+                project_output_dir = os.path.join("output", project_id)
+                os.makedirs(project_output_dir, exist_ok=True)
+                
+                # Send confirmation of connection
+                await websocket.send_json({
+                    "type": "Success",
+                    "value": {
+                        "message": "Connected successfully",
+                        "project": {
+                            "id": project_id,
+                            "name": project.data.get("name")
+                        }
+                    }
+                })
+                
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "Error",
+                    "value": f"Authentication error: {str(e)}"
+                })
+                await websocket.close()
+                return
+            
             # Process incoming messages
             while True:
                 # Receive message from client
@@ -61,8 +114,30 @@ class WebSocketHandler:
                     else:
                         await asyncio.sleep(0.005)  # Minimal delay for other message types
                 
-                # Extract session ID if available, otherwise use websocket ID as default
-                session_id = message.get("session_id", str(id(websocket)))
+                # Extract session ID if available, otherwise use project_id
+                session_id = message.get("session_id", project_id)
+                
+                # Create a code generation record in the database
+                if message["type"] in ["GenerateCode", "GenerateConversation", "FixCode"]:
+                    if "user_query" in message:
+                        try:
+                            # Create a code generation record
+                            generation_result = await self.supabase_manager.create_code_generation(
+                                project_id=project_id,
+                                prompt=message["user_query"],
+                                jwt=token
+                            )
+                            
+                            # Use the generation ID as part of the generation context
+                            generation_id = generation_result.data[0]["id"]
+                            output_path = os.path.join(project_output_dir, f"{generation_id}.dart")
+                            
+                            # Update the message with context
+                            message["generation_id"] = generation_id
+                            message["output_path"] = output_path
+                        except Exception as e:
+                            # Log the error but continue - this is not critical
+                            print(f"Failed to create code generation record: {str(e)}")
                 
                 # Handle different message types
                 if message["type"] == "GenerateCode":
@@ -79,6 +154,23 @@ class WebSocketHandler:
                         on_chunk,
                         session_id
                     )
+                    
+                    # Update the generation record with the result
+                    if "generation_id" in message:
+                        try:
+                            await self.supabase_manager.update_code_generation(
+                                message["generation_id"],
+                                {
+                                    "status": "completed" if result.get("success", False) else "error",
+                                    "code_content": result.get("code", ""),
+                                    "output_path": result.get("file_path", ""),
+                                    "analysis_results": result.get("analysis", {})
+                                },
+                                token
+                            )
+                        except Exception as e:
+                            # Log the error but continue - this is not critical
+                            print(f"Failed to update code generation record: {str(e)}")
                     
                     # Send final result
                     await websocket.send_json({
@@ -100,6 +192,21 @@ class WebSocketHandler:
                         on_chunk,
                         session_id
                     )
+                    
+                    # Update the generation record with the result
+                    if "generation_id" in message:
+                        try:
+                            await self.supabase_manager.update_code_generation(
+                                message["generation_id"],
+                                {
+                                    "status": "completed",
+                                    "code_content": conversation_text,
+                                },
+                                token
+                            )
+                        except Exception as e:
+                            # Log the error but continue - this is not critical
+                            print(f"Failed to update code generation record: {str(e)}")
                     
                     # Send final result
                     await websocket.send_json({
@@ -125,6 +232,23 @@ class WebSocketHandler:
                         on_chunk,
                         session_id
                     )
+                    
+                    # Update the generation record with the result
+                    if "generation_id" in message:
+                        try:
+                            await self.supabase_manager.update_code_generation(
+                                message["generation_id"],
+                                {
+                                    "status": "completed" if result.get("success", False) else "error",
+                                    "code_content": result.get("code", ""),
+                                    "output_path": result.get("file_path", ""),
+                                    "analysis_results": result.get("analysis", {})
+                                },
+                                token
+                            )
+                        except Exception as e:
+                            # Log the error but continue - this is not critical
+                            print(f"Failed to update code generation record: {str(e)}")
                     
                     # Send final result
                     await websocket.send_json({

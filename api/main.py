@@ -5,13 +5,17 @@ Main FastAPI application for Flutter Integration Assistant.
 import os
 import json
 import yaml
-from fastapi import FastAPI, WebSocket, HTTPException, Request
+from fastapi import FastAPI, WebSocket, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from api.presentation.websocket_handler import WebSocketHandler
+from api.presentation.auth import router as auth_router
+from api.presentation.users import router as users_router
+from api.presentation.projects import router as projects_router
+from api.infrastructure.auth import get_current_user
 
 # Create FastAPI app with custom OpenAPI URL
 app = FastAPI(
@@ -46,13 +50,22 @@ try:
 except Exception as e:
     print(f"Warning: Could not mount static files: {e}")
 
+# Include routers
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(projects_router)
+
 # Initialize WebSocket handler
 websocket_handler = WebSocketHandler()
 
 @app.websocket("/api/flutter")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str = Query(..., description="JWT access token"),
+    project_id: str = Query(..., description="Project ID to associate with this session")
+):
     """
-    WebSocket endpoint for Flutter code generation.
+    WebSocket endpoint for Flutter code generation, with authentication and project context.
     
     Expected message format:
     {
@@ -74,7 +87,8 @@ async def websocket_endpoint(websocket: WebSocket):
         "value": "string" | object
     }
     """
-    await websocket_handler.handle_websocket(websocket)
+    # Authentication verification happens in the handler
+    await websocket_handler.handle_websocket(websocket, token, project_id)
 
 @app.get("/status")
 async def root():
@@ -83,6 +97,7 @@ async def root():
         "status": "online",
         "message": "Flutter Integration Assistant API is running",
         "websocket_endpoint": "/api/flutter",
+        "authentication": "/api/auth/login",
         "documentation": "/docs",
         "websocket_tester": "/websocket-tester"
     }
@@ -164,6 +179,16 @@ async def get_websocket_tester():
             return HTMLResponse(content=html_content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading WebSocket tester: {str(e)}")
+
+# Protected route example to verify authentication works
+@app.get("/api/me", include_in_schema=False)
+async def get_me(user = Depends(get_current_user)):
+    """Simple endpoint to verify authentication."""
+    return {
+        "message": "Authentication successful",
+        "user_id": user.id,
+        "email": user.email
+    }
 
 def start(reload=True):
     """Start the FastAPI application with Uvicorn."""
