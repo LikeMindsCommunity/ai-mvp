@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from code_generator.config import Settings
 from .constants import BUILD_CONFIG_FILES
+from document_ingest.ingest import ingest_repo
 
 class ProjectCreator:
     """
@@ -23,9 +24,44 @@ class ProjectCreator:
             settings (Settings): Settings object containing configuration
         """
         self.settings = settings
-        self.output_dir = os.path.join(os.getcwd(), self.settings.output_dir)
+        # Set up project paths
+        self.output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), self.settings.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
     
+    def _compile_project(self, project_dir: str) -> tuple[bool, str]:
+        """
+        Compile the Android project to check for errors.
+        
+        Args:
+            project_dir (str): Path to the project directory
+            
+        Returns:
+            tuple[bool, str]: (success, error_message)
+        """
+        try:
+            # Get project name from directory path
+            project_name = os.path.basename(project_dir)
+            
+            # Compile the project
+            print(f"\nCompiling project: {project_dir}")
+            compile_cmd = [
+                "docker", "run", "--rm",                    # Run a container and remove it after completion
+                "-v", f"{project_dir}:/{project_name}",     # Mount the project directory to /[project_name]
+                "-w", f"/{project_name}",                   # Set working directory to /[project_name]
+                "likeminds-feed-builder",                   # Use the builder image
+                "./gradlew", "compileDebugJavaWithJavac"    # Run Gradle compile command
+            ]
+            
+            result = subprocess.run(compile_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                return False, result.stderr
+                
+            return True, ""
+            
+        except Exception as e:
+            return False, str(e)
+
     def _build_docker_image(self, project_dir: str) -> bool:
         """
         Build the Docker image for the project.
@@ -37,47 +73,26 @@ class ProjectCreator:
             bool: True if build was successful, False otherwise
         """
         try:
-            # Get the relative path from code_generator directory
-            rel_project_dir = os.path.relpath(project_dir, os.path.join(os.getcwd(), "code_generator"))
-            print(f"Relative project directory: {rel_project_dir}")  # Debugging output
+            # Get project name from directory path
+            project_name = os.path.basename(project_dir)
             
             # Build the Docker image
-            print(f"\nBuilding Docker image for project: {rel_project_dir}")
+            print(f"\nBuilding Docker image for project: {project_dir}")
             build_cmd = [
                 "docker", "build",
                 "-t", "likeminds-feed-builder",
-                "--build-arg", f"PROJECT_DIR={rel_project_dir}",
+                "--build-arg", f"PROJECT_NAME={project_name}",
+                "-v", f"{project_dir}:/{project_name}",
                 "."
             ]
             
-            result = subprocess.run(build_cmd, cwd=os.path.join(os.getcwd(), "code_generator"), capture_output=True, text=True)
+            result = subprocess.run(build_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
                 print(f"Error building Docker image: {result.stderr}")
                 return False
                 
             print("Docker image built successfully!")
-            
-            # Create output directory for APK
-            output_dir = os.path.join(os.getcwd(), "output")
-            os.makedirs(output_dir, exist_ok=True)
-            
-            # Copy the APK from the container
-            print("\nCopying APK to output directory...")
-            run_cmd = [
-                "docker", "run", "--rm",
-                "-v", f"{output_dir}:/output",
-                "likeminds-feed-builder",
-                "cp", "/app/app/build/outputs/apk/debug/app-debug.apk", "/output/"
-            ]
-            
-            result = subprocess.run(run_cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                print(f"Error copying APK: {result.stderr}")
-                return False
-                
-            print("APK copied successfully!")
             return True
             
         except Exception as e:
@@ -132,7 +147,7 @@ class ProjectCreator:
                 shutil.copy2(source_file, target_file)
                 print(f"Copied resource file: {rel_file_path}")
 
-    def create_project(self, project_data: Dict, on_chunk: Optional[Callable[[Dict], None]] = None) -> bool:
+    def create_project(self, project_data: Dict, on_chunk: Optional[Callable[[Dict], None]] = None) -> tuple[bool, str]:
         """
         Create a complete Android project from the generated data.
         
@@ -141,28 +156,23 @@ class ProjectCreator:
             on_chunk (Optional[Callable[[Dict], None]]): Optional callback function for progress updates
             
         Returns:
-            bool: True if project was created successfully, False otherwise
+            tuple[bool, str]: (success, error_message)
         """
         try:
             if not project_data:
-                print("Error: No project data provided")
-                return False
+                return False, "Error: No project data provided"
                 
             if "project_name" not in project_data:
-                print("Error: Project name not found in project data")
-                return False
+                return False, "Error: Project name not found in project data"
                 
             if "files" not in project_data:
-                print("Error: No files found in project data")
-                return False
+                return False, "Error: No files found in project data"
                 
             if "namespace" not in project_data:
-                print("Error: Namespace not found in project data")
-                return False
+                return False, "Error: Namespace not found in project data"
                 
             if "application_id" not in project_data:
-                print("Error: Application ID not found in project data")
-                return False
+                return False, "Error: Application ID not found in project data"
             
             # Create project directory
             project_name = project_data["project_name"]
@@ -171,7 +181,7 @@ class ProjectCreator:
             os.makedirs(project_dir, exist_ok=True)
             
             # Get template directory path
-            template_dir = os.path.join(os.getcwd(), "code_generator", "likeminds-feed-android-social-feed-theme")
+            template_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "code_generator", "likeminds-feed-android-social-feed-theme")
             
             # Copy all build configuration files from template
             for file in BUILD_CONFIG_FILES:
@@ -206,12 +216,6 @@ class ProjectCreator:
                         shutil.copy2(src_path, dst_path)
                         print(f"Copied build config file: {file}")
             
-            # # Get list of files to be generated by LLM
-            # llm_generated_files = [file_data["path"] for file_data in project_data["files"]]
-            
-            # # Copy template resources
-            # self._copy_template_resources(template_dir, project_dir, llm_generated_files)
-            
             # Create files from generated data
             print("Creating project files...")
             for file_data in project_data["files"]:
@@ -231,9 +235,17 @@ class ProjectCreator:
                         "value": file_path
                     })
             
+            # Compile project first
+            compile_success, compile_error = self._compile_project(project_dir)
+            if not compile_success:
+                return False, compile_error
+            
             # Build Docker image and get APK
-            return self._build_docker_image(project_dir)
+            build_success = self._build_docker_image(project_dir)
+            if not build_success:
+                return False, "Failed to build Docker image"
+            
+            return True, ""
             
         except Exception as e:
-            print(f"Error creating project: {str(e)}")
-            return False 
+            return False, str(e) 

@@ -26,14 +26,11 @@ RUN yes | sdkmanager --licenses \
     && sdkmanager "platforms;android-35" \
     && sdkmanager "build-tools;35.0.0"
 
+# Define build argument for project name
+ARG PROJECT_NAME
+
 # Set working directory
-WORKDIR /app
-
-# Define build argument for project directory
-ARG PROJECT_DIR
-
-# Copy project files
-COPY ${PROJECT_DIR} .
+WORKDIR /${PROJECT_NAME}
 
 # Build the APK
 RUN ./gradlew --refresh-dependencies
