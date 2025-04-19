@@ -96,25 +96,3 @@ async def update_profile(profile_data: Dict[str, Any], jwt: str) -> Dict[str, An
         raise ValueError(f"Profile update error: {str(e)}")
     except Exception as e:
         raise ValueError(f"Profile update failed: {str(e)}")
-
-async def select_user_ids_by_email(email: str) -> Dict[str, Any]:
-    """
-    Select user IDs by email from the user_profiles table.
-    
-    Args:
-        email: The email to search for
-        
-    Returns:
-        Dict containing user IDs
-        
-    Raises:
-        ValueError: If user IDs retrieval fails
-    """
-    client = get_supabase_client()
-    try:
-        data = client.from_('user_profiles').select('id').eq('email', email).execute()
-        return data
-    except httpx.HTTPStatusError as e:
-        raise ValueError(f"User IDs retrieval error: {str(e)}")
-    except Exception as e:
-        raise ValueError(f"User IDs retrieval failed: {str(e)}") 
