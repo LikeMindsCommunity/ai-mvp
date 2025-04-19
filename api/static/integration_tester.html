@@ -203,6 +203,34 @@
             font-size: 10px;
             padding: 3px 8px;
         }
+
+        .oauth-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .github-button {
+            background-color: #24292e;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+        }
+
+        .github-button:hover {
+            background-color: #2f363d;
+        }
+
+        .github-button img {
+            width: 20px;
+            height: 20px;
+        }
     </style>
 </head>
 
@@ -229,18 +257,26 @@
                 <div>
                     <h3>Register</h3>
                     <div class="form-group">
-                        <label for="registerEmail">Email:</label>
-                        <input type="email" id="registerEmail" />
+                        <label for="register-email">Email:</label>
+                        <input type="email" id="register-email" required>
                     </div>
                     <div class="form-group">
-                        <label for="registerPassword">Password:</label>
-                        <input type="password" id="registerPassword" />
+                        <label for="register-password">Password:</label>
+                        <input type="password" id="register-password" required>
                     </div>
                     <div class="form-group">
-                        <label for="registerFullName">Full Name:</label>
-                        <input type="text" id="registerFullName" />
+                        <label for="register-name">Full Name:</label>
+                        <input type="text" id="register-name" required>
                     </div>
-                    <button id="registerBtn">Register</button>
+                    <button onclick="register()">Register</button>
+
+                    <div class="oauth-buttons">
+                        <button class="github-button" onclick="signInWithGithub()">
+                            <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+                                alt="GitHub Logo">
+                            Sign in with GitHub
+                        </button>
+                    </div>
 
                     <h3>Login</h3>
                     <div class="form-group">
@@ -1113,6 +1149,70 @@
                 profileAuthStatus.style.backgroundColor = '#f8d7da';
             }
         }
+
+        // GitHub OAuth handling
+        async function signInWithGithub() {
+            try {
+                const response = await fetch('/api/auth/github', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get GitHub OAuth URL');
+                }
+
+                const data = await response.json();
+                // Store the current URL to return to after OAuth
+                localStorage.setItem('oauth_return_url', window.location.href);
+                // Redirect to GitHub
+                window.location.href = data.url;
+            } catch (error) {
+                console.error('GitHub sign in error:', error);
+                alert('Failed to initiate GitHub sign in: ' + error.message);
+            }
+        }
+
+        // Handle OAuth callback
+        function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const session = urlParams.get('session');
+
+            if (session) {
+                try {
+                    const sessionData = JSON.parse(session);
+                    // Store the session token
+                    state.accessToken = sessionData.access_token;
+                    localStorage.setItem('accessToken', sessionData.access_token);
+                    // Update UI
+                    updateTokenDisplay();
+                    updateAuthIndicators();
+                    // Clear the session parameter from URL
+                    const returnUrl = localStorage.getItem('oauth_return_url') || window.location.origin;
+                    localStorage.removeItem('oauth_return_url');
+                    window.history.replaceState({}, document.title, returnUrl);
+                    // Show success message
+                    appendResponse('authResponseLog', 'Successfully authenticated with GitHub!', true);
+                } catch (error) {
+                    console.error('Error handling OAuth callback:', error);
+                    appendResponse('authResponseLog', 'Failed to complete authentication: ' + error.message, false);
+                }
+            }
+        }
+
+        // Call handleOAuthCallback on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            handleOAuthCallback();
+            // Initialize UI based on stored token
+            const storedToken = localStorage.getItem('accessToken');
+            if (storedToken) {
+                state.accessToken = storedToken;
+                updateTokenDisplay();
+                updateAuthIndicators();
+            }
+        });
     </script>
 </body>
 
