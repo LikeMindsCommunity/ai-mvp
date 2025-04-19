@@ -99,7 +99,9 @@ async def root():
         "websocket_endpoint": "/api/flutter",
         "authentication": "/api/auth/login",
         "documentation": "/docs",
-        "websocket_tester": "/websocket-tester"
+        "websocket_tester": "/websocket-tester",
+        "api_tester": "/api-tester",
+        "integration_tester": "/integration-tester"
     }
 
 @app.get("/openapi.json", include_in_schema=False)
@@ -180,14 +182,43 @@ async def get_websocket_tester():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading WebSocket tester: {str(e)}")
 
+@app.get("/api-tester", response_class=HTMLResponse, include_in_schema=False)
+async def get_api_tester():
+    """Serve API tester HTML page."""
+    # Path to the API tester HTML file
+    tester_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                              "static", "api_tester.html")
+    
+    try:
+        with open(tester_path, "r") as f:
+            html_content = f.read()
+            return HTMLResponse(content=html_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading API tester: {str(e)}")
+
+@app.get("/integration-tester", response_class=HTMLResponse, include_in_schema=False)
+async def get_integration_tester():
+    """Serve Integration tester HTML page."""
+    # Path to the Integration tester HTML file
+    tester_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                              "static", "integration_tester.html")
+    
+    try:
+        with open(tester_path, "r") as f:
+            html_content = f.read()
+            return HTMLResponse(content=html_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading Integration tester: {str(e)}")
+
 # Protected route example to verify authentication works
 @app.get("/api/me", include_in_schema=False)
-async def get_me(user = Depends(get_current_user)):
+async def get_me(user: dict = Depends(get_current_user)):
     """Simple endpoint to verify authentication."""
+    # Access user data using dictionary keys
     return {
         "message": "Authentication successful",
-        "user_id": user.id,
-        "email": user.email
+        "user_id": user.get('id'),
+        "email": user.get('email')
     }
 
 def start(reload=True):

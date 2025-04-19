@@ -16,6 +16,28 @@ settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 supabase_manager = SupabaseManager()
 
+# Helper function to convert Supabase User to dict
+def user_to_dict(user) -> Dict[str, Any]:
+    """Convert Supabase User object to dictionary."""
+    if hasattr(user, 'model_dump'):
+        # Pydantic v2 model
+        return user.model_dump()
+    elif hasattr(user, 'dict'):
+        # Pydantic v1 model
+        return user.dict()
+    elif hasattr(user, '__dict__'):
+        # Regular Python object
+        return vars(user)
+    else:
+        # Fallback
+        return {
+            "id": getattr(user, "id", None),
+            "email": getattr(user, "email", None),
+            "app_metadata": getattr(user, "app_metadata", None),
+            "user_metadata": getattr(user, "user_metadata", None),
+            "created_at": getattr(user, "created_at", None),
+        }
+
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
     """
     Get the current authenticated user.
@@ -29,30 +51,33 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
     Raises:
         HTTPException: If authentication fails
     """
-    try:
-        # We're using Supabase's JWT, but we still validate it here for early error detection
-        payload = jwt.decode(
-            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
-        )
-        token_data = TokenPayload(**payload)
-        
-        # Check if the token is expired
-        if datetime.fromtimestamp(token_data.exp) < datetime.now():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    except (JWTError, ValidationError):
-        # JWT validation failed, but Supabase will handle this so we let it through
-        pass
+    # Removed the local JWT validation as Supabase handles it
+    # try:
+    #     payload = jwt.decode(...)
+    #     token_data = TokenPayload(**payload)
+    #     if datetime.fromtimestamp(token_data.exp) < datetime.now():
+    #         raise HTTPException(...)
+    # except (JWTError, ValidationError):
+    #     pass
     
     try:
-        # Use Supabase's authentication to get the current user
-        supabase_manager.client.auth.set_session(token)
-        user = supabase_manager.client.auth.get_user()
-        return user
+        # Use Supabase's authentication to get the current user using the access token
+        user_response = supabase_manager.client.auth.get_user(token)
+        
+        if not user_response or not hasattr(user_response, 'user') or not user_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Convert user object to dictionary
+        user_dict = user_to_dict(user_response.user)
+        return user_dict
     except Exception as e:
+        # Catch potential errors from Supabase client (e.g., invalid token)
+        # Log the error for debugging
+        # print(f"Supabase auth error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Could not validate credentials: {str(e)}",

@@ -48,8 +48,8 @@ class Settings:
             raise ValueError(f"Integration directory not found at: {self.integration_path}")
             
         # Validate model name
-        if self.gemini_model not in ["gemini-2.5-pro-exp-03-25"]:
-            raise ValueError("GEMINI_MODEL must be 'gemini-2.5-pro-exp-03-25'")
+        if self.gemini_model not in ["gemini-2.5-pro-preview-03-25"]:
+            raise ValueError("GEMINI_MODEL must be 'gemini-2.5-pro-preview-03-25'")
             
         # Validate port number
         if not (1024 <= self.web_port <= 65535):

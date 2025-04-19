@@ -45,9 +45,9 @@ async def create_project(
     """
     try:
         result = await supabase_manager.create_project(
+            user_id=user.get('id'),
             name=project_data.name,
-            description=project_data.description,
-            jwt=user.session.access_token
+            description=project_data.description
         )
         return result.data
     except ValueError as e:
@@ -73,7 +73,7 @@ async def get_projects(user: Dict[str, Any] = Depends(get_current_user)):
         List of projects
     """
     try:
-        result = await supabase_manager.get_projects(user.session.access_token)
+        result = await supabase_manager.get_projects(user_id=user.get('id'))
         return result.data
     except ValueError as e:
         raise HTTPException(
@@ -102,7 +102,10 @@ async def get_project(
         Dict containing project data
     """
     try:
-        result = await supabase_manager.get_project(str(project_id), user.session.access_token)
+        result = await supabase_manager.get_project(
+            project_id=str(project_id), 
+            user_id=user.get('id')
+        )
         if not result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -148,9 +151,9 @@ async def update_project(
             )
             
         result = await supabase_manager.update_project(
-            str(project_id), 
-            update_data, 
-            user.session.access_token
+            project_id=str(project_id), 
+            data=update_data, 
+            user_id=user.get('id')
         )
         
         if not result.data:
@@ -184,7 +187,10 @@ async def delete_project(
         user: Current authenticated user (from dependency)
     """
     try:
-        result = await supabase_manager.delete_project(str(project_id), user.session.access_token)
+        result = await supabase_manager.delete_project(
+            project_id=str(project_id), 
+            user_id=user.get('id')
+        )
         
         if not result.data:
             raise HTTPException(
@@ -220,20 +226,18 @@ async def share_project(
         Dict containing sharing result data
     """
     try:
-        # Call the RPC function to share the project
-        result = await supabase_manager.client.rpc(
-            'share_project',
-            {
-                'project_id': str(project_id),
-                'user_email': share_data.user_email,
-                'role': share_data.role
-            }
-        ).execute()
+        # Call the project sharing method
+        result = await supabase_manager.share_project(
+            project_id=str(project_id),
+            user_email=share_data.user_email,
+            role=share_data.role,
+            owner_id=user.get('id')
+        )
         
         if not result.data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to share the project"
+                detail="Failed to share the project. Either you don't own the project or the user doesn't exist."
             )
             
         return result.data

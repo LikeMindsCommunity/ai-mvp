@@ -1,14 +1,14 @@
 """
 Authentication API endpoints.
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 
 from api.infrastructure.database import SupabaseManager
-from api.infrastructure.auth import get_current_user
+from api.infrastructure.auth import get_current_user, create_access_token
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 supabase_manager = SupabaseManager()
@@ -30,6 +30,29 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: Dict[str, Any]
+    email_confirmation_required: Optional[bool] = False
+
+# Helper function to convert Supabase User to dict
+def user_to_dict(user) -> Dict[str, Any]:
+    """Convert Supabase User object to dictionary."""
+    if hasattr(user, 'model_dump'):
+        # Pydantic v2 model
+        return user.model_dump()
+    elif hasattr(user, 'dict'):
+        # Pydantic v1 model
+        return user.dict()
+    elif hasattr(user, '__dict__'):
+        # Regular Python object
+        return vars(user)
+    else:
+        # Fallback
+        return {
+            "id": getattr(user, "id", None),
+            "email": getattr(user, "email", None),
+            "app_metadata": getattr(user, "app_metadata", None),
+            "user_metadata": getattr(user, "user_metadata", None),
+            "created_at": getattr(user, "created_at", None),
+        }
 
 # Routes
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -57,10 +80,22 @@ async def register(user_data: UserCreate) -> Token:
                 detail="Registration failed"
             )
         
-        # Get the session data
+        # Convert user object to dictionary
+        user_dict = user_to_dict(result.user)
+        
+        # Check if session exists (it won't if email confirmation is required)
+        if result.session is None:
+            # Return a special response indicating email confirmation is needed
+            return Token(
+                access_token="",  # Empty token since we don't have a session yet
+                user=user_dict,
+                email_confirmation_required=True
+            )
+        
+        # Get the session data (when email confirmation is not required)
         return Token(
             access_token=result.session.access_token,
-            user=result.user
+            user=user_dict
         )
     
     except ValueError as e:
@@ -98,9 +133,12 @@ async def login(user_data: UserLogin) -> Token:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
+        # Convert user object to dictionary
+        user_dict = user_to_dict(result.user)
+        
         return Token(
             access_token=result.session.access_token,
-            user=result.user
+            user=user_dict
         )
     except ValueError as e:
         raise HTTPException(

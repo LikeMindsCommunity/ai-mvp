@@ -3,6 +3,8 @@ Supabase database client module.
 """
 from functools import lru_cache
 from typing import Optional, Dict, Any
+import json
+import os
 
 import httpx
 from supabase import create_client, Client
@@ -13,14 +15,36 @@ settings = get_settings()
 
 @lru_cache()
 def get_supabase_client() -> Client:
-    """
-    Get a Supabase client instance.
+    """Create and return a Supabase client instance.
     
     Returns:
-        Client: Supabase client
+        Client: The Supabase client instance.
     """
-    return create_client(settings.supabase_url, settings.supabase_anon_key)
+    url = os.environ.get("SUPABASE_URL")
+    # Use the anon key for most operations to respect RLS policies
+    key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    if not url or not key:
+        raise ValueError("Supabase URL and key must be set in environment variables")
+        
+    return create_client(url, key)
 
+@lru_cache()
+def get_supabase_admin_client() -> Client:
+    """Create and return a Supabase admin client instance with service role key.
+    
+    This client bypasses RLS and should only be used for admin operations.
+    
+    Returns:
+        Client: The Supabase admin client instance.
+    """
+    url = os.environ.get("SUPABASE_URL")
+    service_key = os.environ.get("SUPABASE_SERVICE_KEY")
+    
+    if not url or not service_key:
+        raise ValueError("Supabase URL and service key must be set in environment variables")
+        
+    return create_client(url, service_key)
 
 class SupabaseManager:
     """
@@ -91,106 +115,174 @@ class SupabaseManager:
             raise ValueError(f"Authentication error: {str(e)}")
 
     # Project management methods
-    async def create_project(self, name: str, description: Optional[str] = None, jwt: str = None) -> Dict[str, Any]:
+    async def create_project(self, user_id: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
         """
         Create a new project.
         
         Args:
+            user_id: User ID
             name: Project name
             description: Project description
-            jwt: User JWT token
             
         Returns:
             Dict containing project data
         """
         try:
-            if jwt:
-                self.client.auth.set_session(jwt)
-            
-            data = self.client.rpc('create_project', {
+            # Create new project
+            data = self.client.from_('projects').insert({
+                'owner_id': user_id,
                 'name': name,
                 'description': description
             }).execute()
             
             return data
-        except httpx.HTTPStatusError as e:
+        except Exception as e:
             raise ValueError(f"Project creation error: {str(e)}")
     
-    async def get_projects(self, jwt: str) -> Dict[str, Any]:
+    async def get_projects(self, user_id: str) -> Dict[str, Any]:
         """
-        Get all projects for the authenticated user.
+        Get all projects for the specified user.
         
         Args:
-            jwt: User JWT token
+            user_id: User ID
             
         Returns:
             Dict containing projects data
         """
         try:
-            self.client.auth.set_session(jwt)
-            
-            data = self.client.from_('projects').select('*').execute()
-            return data
-        except httpx.HTTPStatusError as e:
+            # Fallback to regular client with RLS
+            query = self.client.from_('projects').select('*').eq('owner_id', user_id)
+            result = query.execute()
+            return result
+        except Exception as e:
             raise ValueError(f"Project retrieval error: {str(e)}")
     
-    async def get_project(self, project_id: str, jwt: str) -> Dict[str, Any]:
+    async def get_project(self, project_id: str, user_id: str) -> Dict[str, Any]:
         """
         Get a project by ID.
         
         Args:
             project_id: Project ID
-            jwt: User JWT token
+            user_id: User ID
             
         Returns:
             Dict containing project data
         """
         try:
-            self.client.auth.set_session(jwt)
+            # First try to get the project as an owner
+            query = self.client.from_('projects').select('*').eq('id', project_id).eq('owner_id', user_id)
+            result = query.execute()
             
-            data = self.client.from_('projects').select('*').eq('id', project_id).single().execute()
-            return data
-        except httpx.HTTPStatusError as e:
+            # If found as owner, return the project
+            if result.data:
+                return result
+            
+            # For now, return empty result
+            return result
+        except Exception as e:
             raise ValueError(f"Project retrieval error: {str(e)}")
     
-    async def update_project(self, project_id: str, project_data: Dict[str, Any], jwt: str) -> Dict[str, Any]:
+    async def update_project(self, project_id: str, data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """
         Update a project.
         
         Args:
             project_id: Project ID
-            project_data: Project data to update
-            jwt: User JWT token
+            data: Project data to update
+            user_id: User ID
             
         Returns:
             Dict containing updated project data
         """
         try:
-            self.client.auth.set_session(jwt)
+            # First check if user is owner
+            owner_check = self.client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
             
-            data = self.client.from_('projects').update(project_data).eq('id', project_id).execute()
-            return data
-        except httpx.HTTPStatusError as e:
+            if not owner_check.data:
+                # User is not the owner
+                return {"data": None}
+            
+            # User is owner, proceed with update
+            result = self.client.from_('projects').update(data).eq('id', project_id).execute()
+            return result
+        except Exception as e:
             raise ValueError(f"Project update error: {str(e)}")
     
-    async def delete_project(self, project_id: str, jwt: str) -> Dict[str, Any]:
+    async def delete_project(self, project_id: str, user_id: str) -> Dict[str, Any]:
         """
         Delete a project.
         
         Args:
             project_id: Project ID
-            jwt: User JWT token
+            user_id: User ID
             
         Returns:
             Dict containing deletion result
         """
         try:
-            self.client.auth.set_session(jwt)
+            # First check if user is owner
+            owner_check = self.client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
             
-            data = self.client.from_('projects').delete().eq('id', project_id).execute()
-            return data
-        except httpx.HTTPStatusError as e:
+            if not owner_check.data:
+                # User is not the owner
+                return {"data": None}
+            
+            # User is owner, proceed with deletion
+            result = self.client.from_('projects').delete().eq('id', project_id).execute()
+            return result
+        except Exception as e:
             raise ValueError(f"Project deletion error: {str(e)}")
+            
+    # Update share_project method too
+    async def share_project(self, project_id: str, user_email: str, role: str, owner_id: str) -> Dict[str, Any]:
+        """
+        Share a project with another user.
+        
+        Args:
+            project_id: Project ID
+            user_email: Email of user to share with
+            role: Role to assign (viewer, editor, admin)
+            owner_id: ID of the current user (owner)
+            
+        Returns:
+            Dict containing sharing result
+        """
+        try:
+            # Check if current user is owner
+            owner_check = self.client.from_('projects').select('id').eq('id', project_id).eq('owner_id', owner_id).execute()
+            
+            if not owner_check.data:
+                # User is not the owner
+                return {"data": None}
+            
+            # Get user ID from email
+            user_result = self.client.from_('profiles').select('id').eq('email', user_email).execute()
+            
+            if not user_result.data:
+                raise ValueError(f"User with email {user_email} not found")
+            
+            target_user_id = user_result.data[0]['id']
+            
+            # Check if already shared
+            existing_check = self.client.from_('project_members').select('*').eq('project_id', project_id).eq('user_id', target_user_id).execute()
+            
+            if existing_check.data:
+                # Update existing share
+                result = self.client.from_('project_members').update({
+                    'role': role, 
+                    'updated_at': 'now()'
+                }).eq('project_id', project_id).eq('user_id', target_user_id).execute()
+            else:
+                # Add new share
+                result = self.client.from_('project_members').insert({
+                    'project_id': project_id,
+                    'user_id': target_user_id,
+                    'role': role
+                }).execute()
+            
+            return result
+        except Exception as e:
+            raise ValueError(f"Project sharing error: {str(e)}")
 
     # Profile management methods
     async def get_profile(self, jwt: str) -> Dict[str, Any]:
@@ -244,8 +336,6 @@ class SupabaseManager:
             Dict containing code generation data
         """
         try:
-            self.client.auth.set_session(jwt)
-            
             user = self.client.auth.get_user()
             
             data = self.client.from_('code_generations').insert({
@@ -272,8 +362,6 @@ class SupabaseManager:
             Dict containing updated code generation data
         """
         try:
-            self.client.auth.set_session(jwt)
-            
             data = self.client.from_('code_generations').update(update_data).eq('id', generation_id).execute()
             return data
         except httpx.HTTPStatusError as e:
