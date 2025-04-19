@@ -4,12 +4,16 @@ Authentication API endpoints.
 from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.params import Query
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
+from fastapi.responses import RedirectResponse
+import json
 
 from api.infrastructure.auth import get_current_user, create_access_token, user_to_dict
 from api.domain.auth.models import UserCreate, UserLogin, Token
-from api.infrastructure.auth.service import sign_up, sign_in, sign_out
+from api.infrastructure.auth.service import sign_up, sign_in, sign_out, sign_in_with_github, handle_github_callback
+from api.config import get_settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -175,4 +179,47 @@ async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Logout error: {str(e)}"
+        )
+
+@router.post("/github", response_model=Dict[str, Any])
+async def github_sign_in():
+    """
+    Get the GitHub OAuth URL for sign in.
+    """
+    try:
+        result = await sign_in_with_github()
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub sign in error: {str(e)}"
+        )
+
+@router.get("/github/callback")
+async def github_callback(code: str = Query(...)):
+    """
+    Handle the GitHub OAuth callback.
+    """
+    settings = get_settings()
+    try:
+        result = await handle_github_callback(code)
+        # Redirect to frontend with the session data
+        callback_url = f"{settings.frontend_url}{settings.frontend_callback_path}"
+        return RedirectResponse(
+            url=f"{callback_url}?session={json.dumps(result)}"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub callback error: {str(e)}"
         ) 

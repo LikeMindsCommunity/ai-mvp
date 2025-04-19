@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from api.infrastructure.database import get_supabase_client
 import httpx
 from fastapi import HTTPException
+from api.config import get_settings
 
 def user_to_dict(user) -> Dict[str, Any]:
     """Convert Supabase User object to dictionary."""
@@ -105,4 +106,53 @@ async def sign_out(jwt: str) -> None:
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Authentication error: {str(e)}")
     except Exception as e:
-        raise ValueError(f"Sign out error: {str(e)}") 
+        raise ValueError(f"Sign out error: {str(e)}")
+
+async def sign_in_with_github() -> Dict[str, Any]:
+    """
+    Get the GitHub OAuth sign in URL.
+    
+    Returns:
+        Dict containing the GitHub OAuth URL
+        
+    Raises:
+        ValueError: If getting the URL fails
+    """
+    client = get_supabase_client()
+    settings = get_settings()
+    try:
+        # Get the GitHub OAuth URL from Supabase
+        data = client.auth.sign_in_with_oauth({
+            "provider": "github",
+            "options": {
+                "redirect_to": settings.frontend_url  # Use configured frontend URL
+            }
+        })
+        return data
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"GitHub authentication error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"GitHub sign in failed: {str(e)}")
+
+async def handle_github_callback(code: str) -> Dict[str, Any]:
+    """
+    Handle the GitHub OAuth callback.
+    
+    Args:
+        code: The authorization code from GitHub
+        
+    Returns:
+        Dict containing user and session data
+        
+    Raises:
+        ValueError: If authentication fails
+    """
+    client = get_supabase_client()
+    try:
+        # Exchange the code for a session
+        data = client.auth.exchange_code_for_session(code)
+        return data
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"GitHub callback error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"GitHub callback failed: {str(e)}") 

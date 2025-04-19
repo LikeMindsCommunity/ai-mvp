@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     supabase_anon_key: str = Field(default=os.getenv("SUPABASE_ANON_KEY", ""))
     supabase_service_key: str = Field(default=os.getenv("SUPABASE_SERVICE_KEY", ""))
     
+    # Frontend settings
+    frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:8080"))
+    frontend_callback_path: str = Field(default=os.getenv("FRONTEND_CALLBACK_PATH", "/auth/callback"))
+    
     # JWT settings
     jwt_secret: str = Field(default=os.getenv("JWT_SECRET", "your-secret-key-for-jwt-signing"))
     jwt_algorithm: str = "HS256"
@@ -43,10 +47,7 @@ class Settings(BaseSettings):
     # Timeout settings
     command_timeout: int = Field(default=int(os.getenv("COMMAND_TIMEOUT", "600")))
     build_timeout: int = Field(default=int(os.getenv("BUILD_TIMEOUT", "6000")))
-    
-    # AI API keys
-    anthropic_api_key: str = Field(default=os.getenv("ANTHROPIC_API_KEY", ""))
-    openai_api_key: str = Field(default=os.getenv("OPENAI_API_KEY", ""))
+
 
     class Config:
         env_file = ".env"
