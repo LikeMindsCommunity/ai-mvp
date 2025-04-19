@@ -35,6 +35,8 @@ This document outlines a detailed plan to add robust authentication, user manage
 - `POST   /api/auth/refresh`          — Refresh access token
 - `POST   /api/auth/reset-password`   — Request password reset
 - `POST   /api/auth/change-password`  — Change password (authenticated)
+- `POST   /api/auth/github`           — GitHub OAuth authentication
+- `POST   /api/auth/github/callback`  — GitHub OAuth callback
 
 ### **2.2. User Endpoints**
 - `GET    /api/users/me`              — Get current user profile
@@ -177,6 +179,10 @@ Content-Type: application/json
 |           | /api/auth/login                       | POST   | No            | Login                        |
 |           | /api/auth/logout                      | POST   | Yes           | Logout (invalidate session)   |
 |           | /api/auth/refresh                     | POST   | No            | Refresh token                |
+|           | /api/auth/reset-password              | POST   | No            | Request password reset       |
+|           | /api/auth/change-password             | POST   | Yes           | Change password (authenticated) |
+|           | /api/auth/github                      | POST   | No            | GitHub OAuth authentication   |
+|           | /api/auth/github/callback             | POST   | No            | GitHub OAuth callback        |
 | User      | /api/users/me                         | GET    | Yes           | Get own profile              |
 |           | /api/users/me                         | PUT    | Yes           | Update own profile           |
 |           | /api/users/{user_id}                  | GET    | Admin         | Get user by ID               |
@@ -206,16 +212,22 @@ This plan will enable secure, multi-user, multi-project workflows, laying the fo
     *   Supabase credentials configured (`.env`).
     *   `SupabaseManager` implemented for DB interactions (`api/infrastructure/database.py`).
     *   Basic authentication helpers (`get_current_user`, `create_access_token`) added (`api/infrastructure/auth.py`).
+    *   GitHub OAuth authentication implemented.
 *   **API Endpoints:**
-    *   Auth: `/register`, `/login`, `/logout`.
+    *   Auth: `/register`, `/login`, `/logout`, `/github`, `/github/callback`.
     *   Users: `/users/me` (GET/PUT).
     *   Projects: `/projects/` (POST/GET), `/projects/{id}` (GET/PUT/DELETE), `/projects/{id}/share` (basic structure).
 *   **Integration:**
     *   Routers for Auth, Users, Projects added to `main.py`.
     *   Authentication dependency (`get_current_user`) implemented and refined.
     *   WebSocket endpoint requires `token` and `project_id` parameters.
-*   **Frontend Tester:**
+    *   OAuth flow with GitHub implemented and tested.
+    **Frontend Tester:**
     *   `integration_tester.html` updated for auth flow, token handling, project selection, and WebSocket connection.
+*   **Frontend Configuration:**
+    *   Frontend URL and callback path configuration added.
+    *   OAuth callback handling implemented.
+    *   Environment variables documented.
 
 ### **14.2. Remaining Work & Critical Next Steps**
 
@@ -224,6 +236,7 @@ This plan will enable secure, multi-user, multi-project workflows, laying the fo
 *   **WebSocket Authorization:** Enhance `WebSocketHandler` to validate that the authenticated user has appropriate access rights to the specified `project_id` before allowing operations.
 *   **Project Sharing:** Fully implement the `/api/projects/{project_id}/share` endpoint logic to manage the `project_members` table.
 *   **Password Management:** Implement `/api/auth/reset-password` and `/api/auth/change-password` flows.
+*   **Additional OAuth Providers:** Consider adding more OAuth providers (Google, Microsoft, etc.).
 *   **(Optional) Admin Features:** Implement admin endpoints for user management if required.
 *   **(Optional) Session Endpoints:** Decide if explicit session management endpoints are needed beyond Supabase token handling.
 *   **Security:** Implement rate limiting and perform a thorough security review of all authorization logic.

@@ -98,6 +98,112 @@ To fix code with errors:
 
 The `session_id` is optional but recommended to maintain conversation history across requests.
 
+### Authentication APIs
+
+The service provides the following authentication endpoints:
+
+#### User Registration and Authentication
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secure_password",
+  "full_name": "User Name"
+}
+
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secure_password"
+}
+
+POST /api/auth/logout
+Authorization: Bearer <access_token>
+```
+
+#### OAuth Authentication (GitHub)
+```http
+POST /api/auth/github
+# Returns GitHub OAuth URL for sign-in
+
+GET /api/auth/github/callback?code=<code>
+# GitHub OAuth callback endpoint
+```
+
+#### User Profile Management
+```http
+GET /api/users/me
+Authorization: Bearer <access_token>
+
+PUT /api/users/me
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "full_name": "Updated Name",
+  "avatar_url": "https://..."
+}
+```
+
+#### Project Management
+```http
+POST /api/projects/
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "name": "Project Name",
+  "description": "Project Description"
+}
+
+GET /api/projects/
+Authorization: Bearer <access_token>
+
+GET /api/projects/{project_id}
+Authorization: Bearer <access_token>
+
+PUT /api/projects/{project_id}
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "description": "Updated Description"
+}
+
+DELETE /api/projects/{project_id}
+Authorization: Bearer <access_token>
+
+POST /api/projects/{project_id}/share
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "user_email": "collaborator@example.com",
+  "role": "viewer"
+}
+```
+
+### Environment Variables
+
+In addition to the Google API key, you'll need these environment variables for authentication:
+
+```bash
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+
+# Frontend Configuration
+FRONTEND_URL=http://localhost:8080
+FRONTEND_CALLBACK_PATH=/auth/callback
+```
+
+
 ### Response Format
 
 The API will stream responses in this format:
