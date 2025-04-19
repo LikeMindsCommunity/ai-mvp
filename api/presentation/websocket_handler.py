@@ -14,11 +14,14 @@ Response Types:
 import json
 import os
 from typing import Dict, Any, Optional
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 import asyncio
 
 from api.infrastructure.services.flutter_generator_service_impl import FlutterGeneratorServiceImpl
 from api.infrastructure.database import SupabaseManager
+from api.infrastructure.auth import get_current_user
+from api.infrastructure.projects.service import get_project
+from api.infrastructure.code_generations.service import create_code_generation, update_code_generation
 
 class WebSocketHandler:
     """Handler for WebSocket connections."""
@@ -26,7 +29,7 @@ class WebSocketHandler:
     def __init__(self):
         """Initialize the WebSocket handler."""
         self.flutter_generator_service = FlutterGeneratorServiceImpl()
-        self.supabase_manager = SupabaseManager()
+        self.supabase_manager = SupabaseManager()  # Eventually this can be removed once all methods are migrated to services
     
     async def handle_websocket(self, websocket: WebSocket, token: str, project_id: str):
         """
@@ -42,11 +45,10 @@ class WebSocketHandler:
         try:
             # Verify the token and project access
             try:
-                # Validate token
-                self.supabase_manager.client.auth.set_session(token)
-                user = self.supabase_manager.client.auth.get_user()
+                # Use the centralized auth validation
+                user = await get_current_user(token)
                 
-                if not user or not user.user:
+                if not user:
                     await websocket.send_json({
                         "type": "Error",
                         "value": "Invalid authentication token"
@@ -54,8 +56,18 @@ class WebSocketHandler:
                     await websocket.close()
                     return
                 
+                # Extract the access token
+                access_token = user.get('access_token')
+                if not access_token:
+                    await websocket.send_json({
+                        "type": "Error",
+                        "value": "Invalid or missing access token"
+                    })
+                    await websocket.close()
+                    return
+                
                 # Verify project access
-                project = await self.supabase_manager.get_project(project_id, token)
+                project = await get_project(project_id, access_token)
                 if not project or not project.data:
                     await websocket.send_json({
                         "type": "Error",
@@ -80,6 +92,13 @@ class WebSocketHandler:
                     }
                 })
                 
+            except HTTPException as e:
+                await websocket.send_json({
+                    "type": "Error",
+                    "value": e.detail
+                })
+                await websocket.close()
+                return
             except Exception as e:
                 await websocket.send_json({
                     "type": "Error",
@@ -122,10 +141,10 @@ class WebSocketHandler:
                     if "user_query" in message:
                         try:
                             # Create a code generation record
-                            generation_result = await self.supabase_manager.create_code_generation(
+                            generation_result = await create_code_generation(
                                 project_id=project_id,
                                 prompt=message["user_query"],
-                                jwt=token
+                                jwt=access_token
                             )
                             
                             # Use the generation ID as part of the generation context
@@ -158,7 +177,7 @@ class WebSocketHandler:
                     # Update the generation record with the result
                     if "generation_id" in message:
                         try:
-                            await self.supabase_manager.update_code_generation(
+                            await update_code_generation(
                                 message["generation_id"],
                                 {
                                     "status": "completed" if result.get("success", False) else "error",
@@ -166,7 +185,7 @@ class WebSocketHandler:
                                     "output_path": result.get("file_path", ""),
                                     "analysis_results": result.get("analysis", {})
                                 },
-                                token
+                                access_token
                             )
                         except Exception as e:
                             # Log the error but continue - this is not critical
@@ -196,13 +215,13 @@ class WebSocketHandler:
                     # Update the generation record with the result
                     if "generation_id" in message:
                         try:
-                            await self.supabase_manager.update_code_generation(
+                            await update_code_generation(
                                 message["generation_id"],
                                 {
                                     "status": "completed",
                                     "code_content": conversation_text,
                                 },
-                                token
+                                access_token
                             )
                         except Exception as e:
                             # Log the error but continue - this is not critical
@@ -236,7 +255,7 @@ class WebSocketHandler:
                     # Update the generation record with the result
                     if "generation_id" in message:
                         try:
-                            await self.supabase_manager.update_code_generation(
+                            await update_code_generation(
                                 message["generation_id"],
                                 {
                                     "status": "completed" if result.get("success", False) else "error",
@@ -244,7 +263,7 @@ class WebSocketHandler:
                                     "output_path": result.get("file_path", ""),
                                     "analysis_results": result.get("analysis", {})
                                 },
-                                token
+                                access_token
                             )
                         except Exception as e:
                             # Log the error but continue - this is not critical

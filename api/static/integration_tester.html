@@ -538,10 +538,24 @@
                 const response = await fetch(url, {
                     method,
                     headers,
-                    body: data ? JSON.stringify(data) : undefined
+                    body: data ? JSON.stringify(data) : undefined,
+                    credentials: 'include'  // Include cookies if any
                 });
 
-                const responseData = await response.json();
+                // Try to parse as JSON, but handle text response if needed
+                let responseData;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    responseData = await response.json();
+                } else {
+                    responseData = await response.text();
+                    try {
+                        // Try to parse as JSON anyway in case content-type is wrong
+                        responseData = JSON.parse(responseData);
+                    } catch (e) {
+                        // Keep as text if not valid JSON
+                    }
+                }
 
                 return {
                     status: response.status,
@@ -661,14 +675,20 @@
 
             const response = await apiRequest(`${baseUrl}/api/auth/login`, 'POST', userData);
 
-            if (response.success && response.data && response.data.access_token) {
-                state.accessToken = response.data.access_token;
-                localStorage.setItem('accessToken', state.accessToken);
-                updateTokenDisplay();
-                updateAuthIndicators();
+            if (response.success && response.data) {
+                // Store the token, checking both possible response formats
+                if (response.data.access_token) {
+                    state.accessToken = response.data.access_token;
+                    localStorage.setItem('accessToken', state.accessToken);
+                    updateTokenDisplay();
+                    updateAuthIndicators();
+                    appendResponse('authResponseLog', { ...response, data: { ...response.data, access_token: "***TRUNCATED***" } }, true);
+                } else {
+                    appendResponse('authResponseLog', 'Login successful but no token received', false);
+                }
+            } else {
+                appendResponse('authResponseLog', response, false);
             }
-
-            appendResponse('authResponseLog', response, response.success);
         });
 
         document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -704,7 +724,7 @@
                 return;
             }
 
-            const response = await apiRequest(`${baseUrl}/api/me`, 'GET', null, state.accessToken);
+            const response = await apiRequest(`${baseUrl}/api/users/me`, 'GET', null, state.accessToken);
             appendResponse('profileResponseLog', response, response.success);
         });
 
@@ -737,7 +757,7 @@
                 return;
             }
 
-            const response = await apiRequest(`${baseUrl}/api/me`, 'PUT', updateData, state.accessToken);
+            const response = await apiRequest(`${baseUrl}/api/users/me`, 'PUT', updateData, state.accessToken);
             appendResponse('profileResponseLog', response, response.success);
         });
 

@@ -156,8 +156,16 @@ async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
         user: Current authenticated user (from dependency)
     """
     try:
-        # The token is already in the client from the dependency
-        await sign_out(None)
+        # Extract the access token from the user dictionary
+        access_token = user.get('access_token')
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No access token available"
+            )
+            
+        # Sign out with the token
+        await sign_out(access_token)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

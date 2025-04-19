@@ -7,9 +7,8 @@ from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from pydantic import ValidationError
 
-from api.config import get_settings, TokenPayload
+from api.config import get_settings
 from api.infrastructure.database import SupabaseManager
 
 settings = get_settings()
@@ -39,41 +38,47 @@ def user_to_dict(user) -> Dict[str, Any]:
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
     """
-    Get the current authenticated user.
+    Get the current authenticated user using Supabase authentication.
     
     Args:
-        token: JWT token
+        token: Supabase JWT token
     
     Returns:
-        Dict containing user data
+        Dict containing user data with access_token
     
     Raises:
         HTTPException: If authentication fails
     """
     try:
+        # Let Supabase client handle token validation
         user_response = supabase_manager.client.auth.get_user(token)
-        if not user_response or not hasattr(user_response, 'user') or not user_response.user:
+        
+        if not user_response or not user_response.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
+                detail="Invalid or expired session",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        # Use the local user_to_dict function to avoid circular imports
+            
+        # Convert user object to dictionary
         user_dict = user_to_dict(user_response.user)
+        
+        # Add the access token to the user data
+        user_dict["access_token"] = token
+        
         return user_dict
+            
     except Exception as e:
-        # Catch potential errors from Supabase client (e.g., invalid token)
-        # Log the error for debugging
-        # print(f"Supabase auth error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
+            detail=f"Authentication failed: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create a new JWT access token.
+    Note: This is only used for custom tokens, not Supabase authentication.
     
     Args:
         subject: Token subject (usually user ID)
@@ -92,4 +97,4 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
     encoded_jwt = jwt.encode(
         to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
     )
-    return encoded_jwt 
+    return encoded_jwt

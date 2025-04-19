@@ -12,26 +12,21 @@ from api.domain.users.models import ProfileUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
-class ProfileUpdate(BaseModel):
-    """Profile update model."""
-    full_name: str = None
-    avatar_url: HttpUrl = None
-    preferences: Dict[str, Any] = None
 
 @router.get("/me", response_model=Dict[str, Any])
-async def get_my_profile(user: Dict[str, Any] = Depends(get_current_user)):
+async def get_my_profile(token: Dict[str, Any] = Depends(get_current_user)):
     """
     Get the current user's profile.
     
     Args:
-        user: Current authenticated user (from dependency)
+        token: User data with access token from the auth dependency
     
     Returns:
         Dict containing profile data
     """
     try:
-        result = await service.get_profile(user.session.access_token)
-        if not result:
+        result = await service.get_profile(token.get('access_token'))
+        if not result or not result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
@@ -51,21 +46,21 @@ async def get_my_profile(user: Dict[str, Any] = Depends(get_current_user)):
 @router.put("/me", response_model=Dict[str, Any])
 async def update_my_profile(
     profile_data: ProfileUpdate,
-    user: Dict[str, Any] = Depends(get_current_user)
+    token: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Update the current user's profile.
     
     Args:
         profile_data: Profile data to update
-        user: Current authenticated user (from dependency)
+        token: User data with access token from the auth dependency
     
     Returns:
         Dict containing updated profile data
     """
     try:
         # Filter out None values
-        update_data = {k: v for k, v in profile_data.dict().items() if v is not None}
+        update_data = {k: v for k, v in profile_data.model_dump().items() if v is not None}
         
         if not update_data:
             raise HTTPException(
@@ -73,8 +68,13 @@ async def update_my_profile(
                 detail="No data provided for update"
             )
             
-        result = await service.update_profile(update_data, user.session.access_token)
-        return result.data
+        result = await service.update_profile(update_data, token.get('access_token'))
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Profile not found or update failed"
+            )
+        return result
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

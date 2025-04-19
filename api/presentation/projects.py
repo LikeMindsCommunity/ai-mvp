@@ -29,9 +29,9 @@ async def create_project(
     """
     try:
         result = await service.create_project(
-            user_id=user.get('id'),
             name=project_data.name,
-            description=project_data.description
+            description=project_data.description,
+            jwt=user.get('access_token')
         )
         return result.data
     except ValueError as e:
@@ -57,7 +57,7 @@ async def get_projects(user: Dict[str, Any] = Depends(get_current_user)):
         List of projects
     """
     try:
-        result = await service.get_projects(user_id=user.get('id'))
+        result = await service.get_projects(jwt=user.get('access_token'))
         return result.data
     except ValueError as e:
         raise HTTPException(
@@ -88,7 +88,7 @@ async def get_project(
     try:
         result = await service.get_project(
             project_id=str(project_id), 
-            user_id=user.get('id')
+            jwt=user.get('access_token')
         )
         if not result.data:
             raise HTTPException(
@@ -133,20 +133,20 @@ async def update_project(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No data provided for update"
             )
-            
+        
         result = await service.update_project(
             project_id=str(project_id), 
-            data=update_data, 
-            user_id=user.get('id')
+            project_data=update_data, 
+            jwt=user.get('access_token')
         )
         
         if not result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found or you don't have permission to update it"
+                detail="Project not found or you don't have access"
             )
             
-        return result.data[0]  # Return the first (and only) updated project
+        return result.data
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -158,7 +158,7 @@ async def update_project(
             detail=f"Project update error: {str(e)}"
         )
 
-@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{project_id}", response_model=Dict[str, Any])
 async def delete_project(
     project_id: UUID4 = Path(..., description="The ID of the project to delete"),
     user: Dict[str, Any] = Depends(get_current_user)
@@ -169,18 +169,23 @@ async def delete_project(
     Args:
         project_id: Project ID
         user: Current authenticated user (from dependency)
+    
+    Returns:
+        Dict containing deletion result
     """
     try:
         result = await service.delete_project(
             project_id=str(project_id), 
-            user_id=user.get('id')
+            jwt=user.get('access_token')
         )
         
         if not result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found or you don't have permission to delete it"
+                detail="Project not found or you don't have access"
             )
+            
+        return {"success": True, "message": "Project deleted"}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -202,29 +207,28 @@ async def share_project(
     Share a project with another user.
     
     Args:
-        share_data: Project sharing data
+        share_data: Sharing details (user email and role)
         project_id: Project ID
         user: Current authenticated user (from dependency)
     
     Returns:
-        Dict containing sharing result data
+        Dict containing sharing result
     """
     try:
-        # Call the project sharing method
         result = await service.share_project(
-            project_id=str(project_id),
+            project_id=str(project_id), 
             user_email=share_data.user_email,
             role=share_data.role,
-            owner_id=user.get('id')
+            jwt=user.get('access_token')
         )
         
         if not result.data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to share the project. Either you don't own the project or the user doesn't exist."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found or you don't have access"
             )
             
-        return result.data
+        return {"success": True, "message": f"Project shared with {share_data.user_email}"}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
