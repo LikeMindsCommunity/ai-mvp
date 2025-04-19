@@ -6,11 +6,11 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, HttpUrl
 
-from api.infrastructure.database import SupabaseManager
+from api.infrastructure.users import service
 from api.infrastructure.auth import get_current_user
+from api.domain.users.models import ProfileUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
-supabase_manager = SupabaseManager()
 
 class ProfileUpdate(BaseModel):
     """Profile update model."""
@@ -30,7 +30,7 @@ async def get_my_profile(user: Dict[str, Any] = Depends(get_current_user)):
         Dict containing profile data
     """
     try:
-        result = await supabase_manager.get_profile(user.session.access_token)
+        result = await service.get_profile(user.session.access_token)
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -73,7 +73,7 @@ async def update_my_profile(
                 detail="No data provided for update"
             )
             
-        result = await supabase_manager.update_profile(update_data, user.session.access_token)
+        result = await service.update_profile(update_data, user.session.access_token)
         return result.data
     except ValueError as e:
         raise HTTPException(

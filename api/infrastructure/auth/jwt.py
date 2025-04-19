@@ -1,5 +1,5 @@
 """
-Authentication helper functions.
+JWT token and authentication helper functions.
 """
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -16,7 +16,6 @@ settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 supabase_manager = SupabaseManager()
 
-# Helper function to convert Supabase User to dict
 def user_to_dict(user) -> Dict[str, Any]:
     """Convert Supabase User object to dictionary."""
     if hasattr(user, 'model_dump'):
@@ -51,27 +50,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
     Raises:
         HTTPException: If authentication fails
     """
-    # Removed the local JWT validation as Supabase handles it
-    # try:
-    #     payload = jwt.decode(...)
-    #     token_data = TokenPayload(**payload)
-    #     if datetime.fromtimestamp(token_data.exp) < datetime.now():
-    #         raise HTTPException(...)
-    # except (JWTError, ValidationError):
-    #     pass
-    
     try:
-        # Use Supabase's authentication to get the current user using the access token
         user_response = supabase_manager.client.auth.get_user(token)
-        
         if not user_response or not hasattr(user_response, 'user') or not user_response.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        # Convert user object to dictionary
+        # Use the local user_to_dict function to avoid circular imports
         user_dict = user_to_dict(user_response.user)
         return user_dict
     except Exception as e:
@@ -101,10 +88,8 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
         expire = datetime.utcnow() + timedelta(
             minutes=settings.access_token_expire_minutes
         )
-    
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(
         to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
     )
-    
     return encoded_jwt 

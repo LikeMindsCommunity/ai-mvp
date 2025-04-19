@@ -2,9 +2,12 @@ import os
 import random
 from supabase import create_client, Client
 
-# Supabase credentials - defined directly
-supabase_url = "https://ubgsvyxwgukbtnlueqqa.supabase.co"
-supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InViZ3N2eXh3Z3VrYnRubHVlcXFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3MjQwNTEsImV4cCI6MjA2MDMwMDA1MX0.YompvqgzsJUFCWXt3sBl2v67CpXnQBWmD5jxTJxGbIQ"
+# Supabase credentials - use environment variables
+supabase_url = os.getenv("SUPABASE_URL", "")
+supabase_key = os.getenv("SUPABASE_ANON_KEY", "")
+
+if not supabase_url or not supabase_key:
+    print("Warning: SUPABASE_URL and/or SUPABASE_ANON_KEY environment variables are not set.")
 
 print(f"Using Supabase URL: {supabase_url}")
 print(f"Using Supabase Key: {supabase_key[:10]}...{supabase_key[-10:]}")

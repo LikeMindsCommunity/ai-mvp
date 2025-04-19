@@ -6,27 +6,11 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 from pydantic import BaseModel, UUID4
 
-from api.infrastructure.database import SupabaseManager
+from api.infrastructure.projects import service
 from api.infrastructure.auth import get_current_user
+from api.domain.projects.models import ProjectCreate, ProjectUpdate, ProjectShare
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
-supabase_manager = SupabaseManager()
-
-class ProjectCreate(BaseModel):
-    """Project creation model."""
-    name: str
-    description: str = None
-
-class ProjectUpdate(BaseModel):
-    """Project update model."""
-    name: str = None
-    description: str = None
-    settings: Dict[str, Any] = None
-
-class ProjectShare(BaseModel):
-    """Project sharing model."""
-    user_email: str
-    role: str = "viewer"  # Default role is viewer
 
 @router.post("/", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -44,7 +28,7 @@ async def create_project(
         Dict containing created project data
     """
     try:
-        result = await supabase_manager.create_project(
+        result = await service.create_project(
             user_id=user.get('id'),
             name=project_data.name,
             description=project_data.description
@@ -73,7 +57,7 @@ async def get_projects(user: Dict[str, Any] = Depends(get_current_user)):
         List of projects
     """
     try:
-        result = await supabase_manager.get_projects(user_id=user.get('id'))
+        result = await service.get_projects(user_id=user.get('id'))
         return result.data
     except ValueError as e:
         raise HTTPException(
@@ -102,7 +86,7 @@ async def get_project(
         Dict containing project data
     """
     try:
-        result = await supabase_manager.get_project(
+        result = await service.get_project(
             project_id=str(project_id), 
             user_id=user.get('id')
         )
@@ -150,7 +134,7 @@ async def update_project(
                 detail="No data provided for update"
             )
             
-        result = await supabase_manager.update_project(
+        result = await service.update_project(
             project_id=str(project_id), 
             data=update_data, 
             user_id=user.get('id')
@@ -187,7 +171,7 @@ async def delete_project(
         user: Current authenticated user (from dependency)
     """
     try:
-        result = await supabase_manager.delete_project(
+        result = await service.delete_project(
             project_id=str(project_id), 
             user_id=user.get('id')
         )
@@ -227,7 +211,7 @@ async def share_project(
     """
     try:
         # Call the project sharing method
-        result = await supabase_manager.share_project(
+        result = await service.share_project(
             project_id=str(project_id),
             user_email=share_data.user_email,
             role=share_data.role,

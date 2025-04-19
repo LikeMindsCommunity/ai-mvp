@@ -7,52 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 
-from api.infrastructure.database import SupabaseManager
-from api.infrastructure.auth import get_current_user, create_access_token
+from api.infrastructure.auth import get_current_user, create_access_token, user_to_dict
+from api.domain.auth.models import UserCreate, UserLogin, Token
+from api.infrastructure.auth.service import sign_up, sign_in, sign_out
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-supabase_manager = SupabaseManager()
-
-# Models
-class UserCreate(BaseModel):
-    """User creation model."""
-    email: EmailStr
-    password: str = Field(..., min_length=8)
-    full_name: str = Field(..., min_length=1)
-
-class UserLogin(BaseModel):
-    """User login model."""
-    email: EmailStr
-    password: str
-
-class Token(BaseModel):
-    """Token response model."""
-    access_token: str
-    token_type: str = "bearer"
-    user: Dict[str, Any]
-    email_confirmation_required: Optional[bool] = False
-
-# Helper function to convert Supabase User to dict
-def user_to_dict(user) -> Dict[str, Any]:
-    """Convert Supabase User object to dictionary."""
-    if hasattr(user, 'model_dump'):
-        # Pydantic v2 model
-        return user.model_dump()
-    elif hasattr(user, 'dict'):
-        # Pydantic v1 model
-        return user.dict()
-    elif hasattr(user, '__dict__'):
-        # Regular Python object
-        return vars(user)
-    else:
-        # Fallback
-        return {
-            "id": getattr(user, "id", None),
-            "email": getattr(user, "email", None),
-            "app_metadata": getattr(user, "app_metadata", None),
-            "user_metadata": getattr(user, "user_metadata", None),
-            "created_at": getattr(user, "created_at", None),
-        }
 
 # Routes
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -68,7 +27,7 @@ async def register(user_data: UserCreate) -> Token:
     """
     try:
         # Create a new user in Supabase Auth
-        result = await supabase_manager.sign_up(
+        result = await sign_up(
             email=user_data.email, 
             password=user_data.password,
             user_metadata={"full_name": user_data.full_name}
@@ -121,7 +80,7 @@ async def login(user_data: UserLogin) -> Token:
         Token: Authentication token and user data
     """
     try:
-        result = await supabase_manager.sign_in(
+        result = await sign_in(
             email=user_data.email,
             password=user_data.password
         )
@@ -165,7 +124,7 @@ async def login_with_oauth_form(form_data: OAuth2PasswordRequestForm = Depends()
         Dict with access token and token type
     """
     try:
-        result = await supabase_manager.sign_in(
+        result = await sign_in(
             email=form_data.username,  # OAuth2 uses username field for email
             password=form_data.password
         )
@@ -198,7 +157,7 @@ async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
     """
     try:
         # The token is already in the client from the dependency
-        await supabase_manager.sign_out(None)
+        await sign_out(None)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

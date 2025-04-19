@@ -20,14 +20,10 @@ def get_supabase_client() -> Client:
     Returns:
         Client: The Supabase client instance.
     """
-    url = os.environ.get("SUPABASE_URL")
-    # Use the anon key for most operations to respect RLS policies
-    key = os.environ.get("SUPABASE_ANON_KEY")
-    
-    if not url or not key:
-        raise ValueError("Supabase URL and key must be set in environment variables")
+    if not settings.supabase_url or not settings.supabase_anon_key:
+        raise ValueError("Supabase URL and anon key must be set in environment variables")
         
-    return create_client(url, key)
+    return create_client(settings.supabase_url, settings.supabase_anon_key)
 
 @lru_cache()
 def get_supabase_admin_client() -> Client:
@@ -38,13 +34,10 @@ def get_supabase_admin_client() -> Client:
     Returns:
         Client: The Supabase admin client instance.
     """
-    url = os.environ.get("SUPABASE_URL")
-    service_key = os.environ.get("SUPABASE_SERVICE_KEY")
-    
-    if not url or not service_key:
+    if not settings.supabase_url or not settings.supabase_service_key:
         raise ValueError("Supabase URL and service key must be set in environment variables")
         
-    return create_client(url, service_key)
+    return create_client(settings.supabase_url, settings.supabase_service_key)
 
 class SupabaseManager:
     """
@@ -52,8 +45,16 @@ class SupabaseManager:
     """
     
     def __init__(self):
-        """Initialize the manager."""
+        """Initialize the manager with a cached client."""
         self.client = get_supabase_client()
+        self._admin_client = None  # Lazy load admin client only when needed
+    
+    @property
+    def admin_client(self) -> Client:
+        """Get the admin client, creating it if needed."""
+        if self._admin_client is None:
+            self._admin_client = get_supabase_admin_client()
+        return self._admin_client
     
     # User management methods
     async def sign_up(self, email: str, password: str, user_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
