@@ -2,6 +2,7 @@
 Authentication API endpoints.
 """
 from typing import Dict, Any, Optional
+import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.params import Query
@@ -14,6 +15,13 @@ from api.infrastructure.auth import get_current_user, create_access_token, user_
 from api.domain.auth.models import UserCreate, UserLogin, Token
 from api.infrastructure.auth.service import sign_up, sign_in, sign_out, sign_in_with_github, handle_github_callback
 from api.config import get_settings
+
+# Custom JSON encoder to handle datetime objects
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -208,10 +216,17 @@ async def github_callback(code: str = Query(...)):
     settings = get_settings()
     try:
         result = await handle_github_callback(code)
-        # Redirect to frontend with the session data
-        callback_url = f"{settings.frontend_url}{settings.frontend_callback_path}"
+        
+        # Properly format the redirect URL with the session data
+        # Integration tester is configured as the frontend for OAuth callback
+        callback_url = settings.frontend_url  # This already points to integration-tester
+        
+        # JSON stringify the session data for the frontend using custom encoder
+        session_json = json.dumps(result, cls=DateTimeEncoder)
+        
+        # Redirect to frontend with session data
         return RedirectResponse(
-            url=f"{callback_url}?session={json.dumps(result)}"
+            url=f"{callback_url}?session={session_json}"
         )
     except ValueError as e:
         raise HTTPException(

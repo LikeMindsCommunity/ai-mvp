@@ -268,7 +268,7 @@
                         <label for="register-name">Full Name:</label>
                         <input type="text" id="register-name" required>
                     </div>
-                    <button onclick="register()">Register</button>
+                    <button id="registerBtn">Register</button>
 
                     <div class="oauth-buttons">
                         <button class="github-button" onclick="signInWithGithub()">
@@ -665,9 +665,9 @@
         // Authentication tab
         document.getElementById('registerBtn').addEventListener('click', async () => {
             const baseUrl = document.getElementById('authBaseUrl').value;
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const fullName = document.getElementById('registerFullName').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const fullName = document.getElementById('register-name').value;
 
             if (!email || !password) {
                 appendResponse('authResponseLog', 'Email and password are required', false);
@@ -1153,7 +1153,8 @@
         // GitHub OAuth handling
         async function signInWithGithub() {
             try {
-                const response = await fetch('/api/auth/github', {
+                const baseUrl = document.getElementById('authBaseUrl').value;
+                const response = await fetch(`${baseUrl}/api/auth/github`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1165,13 +1166,16 @@
                 }
 
                 const data = await response.json();
+                console.log('GitHub OAuth URL:', data);  // Add logging
+
                 // Store the current URL to return to after OAuth
                 localStorage.setItem('oauth_return_url', window.location.href);
+
                 // Redirect to GitHub
                 window.location.href = data.url;
             } catch (error) {
                 console.error('GitHub sign in error:', error);
-                alert('Failed to initiate GitHub sign in: ' + error.message);
+                appendResponse('authResponseLog', `Failed to initiate GitHub sign in: ${error.message}`, false);
             }
         }
 
@@ -1179,25 +1183,55 @@
         function handleOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
             const session = urlParams.get('session');
+            console.log('URL Parameters:', Object.fromEntries(urlParams.entries()));
 
             if (session) {
+                console.log('Raw session data:', session);
                 try {
-                    const sessionData = JSON.parse(session);
+                    // Parse the session data
+                    const sessionData = JSON.parse(decodeURIComponent(session));
+                    console.log('Parsed session data:', sessionData);
+
                     // Store the session token
-                    state.accessToken = sessionData.access_token;
-                    localStorage.setItem('accessToken', sessionData.access_token);
-                    // Update UI
-                    updateTokenDisplay();
-                    updateAuthIndicators();
-                    // Clear the session parameter from URL
-                    const returnUrl = localStorage.getItem('oauth_return_url') || window.location.origin;
-                    localStorage.removeItem('oauth_return_url');
-                    window.history.replaceState({}, document.title, returnUrl);
-                    // Show success message
-                    appendResponse('authResponseLog', 'Successfully authenticated with GitHub!', true);
+                    if (sessionData.access_token) {
+                        state.accessToken = sessionData.access_token;
+                        localStorage.setItem('accessToken', sessionData.access_token);
+
+                        // Store user data if available
+                        if (sessionData.user) {
+                            localStorage.setItem('userData', JSON.stringify(sessionData.user));
+                        }
+
+                        // Update UI
+                        updateTokenDisplay();
+                        updateAuthIndicators();
+
+                        // Clear the session parameter from URL
+                        const returnUrl = localStorage.getItem('oauth_return_url') || window.location.origin;
+                        localStorage.removeItem('oauth_return_url');
+                        window.history.replaceState({}, document.title, returnUrl);
+
+                        // Show success message with user info
+                        let successMessage = 'Successfully authenticated with GitHub!';
+                        if (sessionData.user && sessionData.user.email) {
+                            successMessage += ` Logged in as: ${sessionData.user.email}`;
+                        }
+                        appendResponse('authResponseLog', successMessage, true);
+                    } else {
+                        throw new Error('No access token in session data');
+                    }
                 } catch (error) {
                     console.error('Error handling OAuth callback:', error);
-                    appendResponse('authResponseLog', 'Failed to complete authentication: ' + error.message, false);
+                    console.error('Session string:', session);
+                    appendResponse('authResponseLog', `Failed to complete authentication: ${error.message}`, false);
+                }
+            } else {
+                // Check for error parameters
+                const error = urlParams.get('error');
+                const errorDescription = urlParams.get('error_description');
+                if (error || errorDescription) {
+                    console.error('OAuth Error:', error, errorDescription);
+                    appendResponse('authResponseLog', `Authentication error: ${errorDescription || error}`, false);
                 }
             }
         }

@@ -27,13 +27,14 @@ class Settings(BaseSettings):
     # Frontend settings
     frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:8080"))
     frontend_callback_path: str = Field(default=os.getenv("FRONTEND_CALLBACK_PATH", "/auth/callback"))
-    
-    # JWT settings
+
+        # JWT settings
     jwt_secret: str = Field(default=os.getenv("JWT_SECRET", "your-secret-key-for-jwt-signing"))
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 1 day
     
     # API settings
+    api_url: str = Field(default=os.getenv("API_URL", "http://localhost:8000"))
     google_api_key: str = Field(default=os.getenv("GOOGLE_API_KEY", ""))
     gemini_model: str = Field(default=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-03-25"))
     
