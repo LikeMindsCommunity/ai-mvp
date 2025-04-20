@@ -14,12 +14,38 @@ services:
     env_file:
       - .env
     environment:
+      # API Configuration
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL}
-      - WEB_HOST=${WEB_HOST}  # Bind to all interfaces
-      - PUBLIC_HOST=${PUBLIC_HOST}  # Public IP for URLs returned to clients
-      - FLUTTER_WEB_PORT=${FLUTTER_WEB_PORT}
+      
+      # Server Configuration
+      - WEB_HOST=${WEB_HOST}
       - WEB_PORT=${WEB_PORT}
+      - FLUTTER_WEB_PORT=${FLUTTER_WEB_PORT}
       - COMMAND_TIMEOUT=${COMMAND_TIMEOUT}
       - BUILD_TIMEOUT=${BUILD_TIMEOUT}
+      - PUBLIC_HOST=${PUBLIC_HOST}
+      
+      # Frontend Configuration
+      - FRONTEND_URL=${FRONTEND_URL}
+      - FRONTEND_CALLBACK_PATH=${FRONTEND_CALLBACK_PATH}
+      
+      # Supabase Configuration
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      
+      # GitHub OAuth Configuration
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_CALLBACK_URL=${GITHUB_CALLBACK_URL}
+      
+      # Security Configuration
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
+      
+      # CORS Configuration
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     restart: unless-stopped 
