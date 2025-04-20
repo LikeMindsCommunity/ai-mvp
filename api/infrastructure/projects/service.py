@@ -27,6 +27,9 @@ async def create_project(name: str, description: Optional[str] = None, jwt: str 
         # Get user ID from the authenticated user
         user_id = user_response.user.id
         
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
         # Create the project
         data = client.from_('projects').insert({
             'owner_id': user_id,
@@ -43,6 +46,9 @@ async def create_project(name: str, description: Optional[str] = None, jwt: str 
 async def get_projects(jwt: str) -> Dict[str, Any]:
     """
     Get all projects for the authenticated user.
+    This includes:
+    - Projects owned by the user
+    - Projects where the user is a member
     
     Args:
         jwt: Supabase JWT token
@@ -63,8 +69,17 @@ async def get_projects(jwt: str) -> Dict[str, Any]:
         # Get user ID from the authenticated user
         user_id = user_response.user.id
         
-        # Query the projects for this user
-        result = client.from_('projects').select('*').eq('owner_id', user_id).execute()
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Get all projects the user has access to (RLS will handle access control)
+        result = client.from_('projects').select('*').execute()
+        
+        # Add is_owner flag to each project
+        if result.data:
+            for project in result.data:
+                project['is_owner'] = project['owner_id'] == user_id
+        
         return result
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Project retrieval error: {str(e)}")
@@ -73,14 +88,14 @@ async def get_projects(jwt: str) -> Dict[str, Any]:
 
 async def get_project(project_id: str, jwt: str) -> Dict[str, Any]:
     """
-    Get a project by ID.
+    Get a project by ID with member details.
     
     Args:
         project_id: Project ID
         jwt: Supabase JWT token
         
     Returns:
-        Dict containing project data
+        Dict containing project data with member details
         
     Raises:
         ValueError: If project retrieval fails
@@ -95,9 +110,41 @@ async def get_project(project_id: str, jwt: str) -> Dict[str, Any]:
         # Get user ID from the authenticated user
         user_id = user_response.user.id
         
-        # Query the project
-        result = client.from_('projects').select('*').eq('id', project_id).eq('owner_id', user_id).execute()
-        return result
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Get the project
+        project_response = client.from_('projects').select('*').eq('id', project_id).execute()
+        if not project_response.data or len(project_response.data) == 0:
+            return {"data": None}
+            
+        project = project_response.data[0]
+        
+        # Get project members with user details
+        members_response = client.from_('project_members').select(
+            '*, user:user_profiles(id, full_name, email, avatar_url)'
+        ).eq('project_id', project_id).execute()
+        
+        # Add member details to project
+        project['members'] = []
+        if members_response.data:
+            project['members'] = [{
+                'user_id': member['user_id'],
+                'role': member['role'],
+                'user': member['user']
+            } for member in members_response.data]
+            
+        # Add flags for user's relationship to project
+        project['is_owner'] = project['owner_id'] == user_id
+        if not project['is_owner']:
+            for member in project['members']:
+                if member['user_id'] == user_id:
+                    project['user_role'] = member['role']
+                    break
+        else:
+            project['user_role'] = 'owner'
+            
+        return {"data": project}
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Project retrieval error: {str(e)}")
     except Exception as e:
@@ -127,6 +174,9 @@ async def update_project(project_id: str, project_data: Dict[str, Any], jwt: str
             
         # Get user ID from the authenticated user
         user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
         
         # Check if user is owner
         owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
@@ -164,6 +214,9 @@ async def delete_project(project_id: str, jwt: str) -> Dict[str, Any]:
             
         # Get user ID from the authenticated user
         user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
         
         # Check if user is owner
         owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
@@ -204,36 +257,51 @@ async def share_project(project_id: str, user_email: str, role: str, jwt: str) -
         # Get user ID from the authenticated user
         owner_id = user_response.user.id
         
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
         # Check if current user is owner
-        owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', owner_id).execute()
-        if not owner_check.data:
-            return {"data": None}
+        project_response = client.from_('projects').select('*').eq('id', project_id).execute()
+        if not project_response.data or len(project_response.data) == 0:
+            raise ValueError("Project not found")
+            
+        project = project_response.data[0]
+        if project['owner_id'] != owner_id:
+            raise ValueError("Only project owners can share projects")
         
         # Get user ID from email
-        user_result = client.from_('user_profiles').select('id').eq('email', user_email).execute()
-        if not user_result.data:
+        user_response = client.from_('user_profiles').select('id').eq('email', user_email).execute()
+        if not user_response.data or len(user_response.data) == 0:
             raise ValueError(f"User with email {user_email} not found")
         
-        target_user_id = user_result.data[0]['id']
+        target_user_id = user_response.data[0]['id']
+        
+        # Don't allow sharing with self
+        if target_user_id == owner_id:
+            raise ValueError("Cannot share project with yourself")
         
         # Check if already shared
-        existing_check = client.from_('project_members').select('*').eq('project_id', project_id).eq('user_id', target_user_id).execute()
+        existing_response = client.from_('project_members').select('*').eq('project_id', project_id).eq('user_id', target_user_id).execute()
         
-        if existing_check.data:
-            # Update existing share
-            result = client.from_('project_members').update({
-                'role': role, 
-                'updated_at': 'now()'
-            }).eq('project_id', project_id).eq('user_id', target_user_id).execute()
-        else:
-            # Add new share
-            result = client.from_('project_members').insert({
-                'project_id': project_id,
-                'user_id': target_user_id,
-                'role': role
-            }).execute()
-        
-        return result
+        try:
+            if existing_response.data and len(existing_response.data) > 0:
+                # Update existing share
+                result = client.from_('project_members').update({
+                    'role': role,
+                    'updated_at': 'now()'
+                }).eq('project_id', project_id).eq('user_id', target_user_id).execute()
+            else:
+                # Add new share
+                result = client.from_('project_members').insert({
+                    'project_id': project_id,
+                    'user_id': target_user_id,
+                    'role': role,
+                    'created_by': owner_id
+                }).execute()
+            return result
+        except Exception as e:
+            raise ValueError(f"Failed to update project members: {str(e)}")
+            
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Project sharing error: {str(e)}")
     except Exception as e:

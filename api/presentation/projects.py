@@ -33,7 +33,8 @@ async def create_project(
             description=project_data.description,
             jwt=user.get('access_token')
         )
-        return result.data
+        # Return the first item from the data array since Supabase returns an array
+        return result.data[0] if result.data else None
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -95,7 +96,8 @@ async def get_project(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        return result.data
+        # Return the first item from the data array
+        return result.data[0] if result.data else None
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
