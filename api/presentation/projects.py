@@ -9,6 +9,7 @@ from pydantic import BaseModel, UUID4
 from api.infrastructure.projects import service
 from api.infrastructure.auth import get_current_user
 from api.domain.projects.models import ProjectCreate, ProjectUpdate, ProjectShare
+from api.presentation.exceptions import APIException
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -33,18 +34,13 @@ async def create_project(
             description=project_data.description,
             jwt=user.get('access_token')
         )
-        # Return the first item from the data array since Supabase returns an array
-        return result.data[0] if result.data else None
+        return APIException.format_response(result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project creation error: {str(e)}"
-        )
+        APIException.raise_server_error("Project creation", e)
 
 @router.get("/", response_model=List[Dict[str, Any]])
 async def get_projects(user: Dict[str, Any] = Depends(get_current_user)):
@@ -59,17 +55,13 @@ async def get_projects(user: Dict[str, Any] = Depends(get_current_user)):
     """
     try:
         result = await service.get_projects(jwt=user.get('access_token'))
-        return result.data
+        return APIException.format_list_response(result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project retrieval error: {str(e)}"
-        )
+        APIException.raise_server_error("Project retrieval", e)
 
 @router.get("/{project_id}", response_model=Dict[str, Any])
 async def get_project(
@@ -91,23 +83,14 @@ async def get_project(
             project_id=str(project_id), 
             jwt=user.get('access_token')
         )
-        if not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
-            )
-        # Return the first item from the data array
-        return result.data[0] if result.data else None
+        APIException.check_result(result, "Project retrieval")
+        return APIException.format_response(result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project retrieval error: {str(e)}"
-        )
+        APIException.raise_server_error("Project retrieval", e)
 
 @router.put("/{project_id}", response_model=Dict[str, Any])
 async def update_project(
@@ -126,39 +109,26 @@ async def update_project(
     Returns:
         Dict containing updated project data
     """
+    # Filter out None values
+    update_data = {k: v for k, v in project_data.dict().items() if v is not None}
+    
+    if not update_data:
+        APIException.raise_bad_request("No data provided for update")
+    
     try:
-        # Filter out None values
-        update_data = {k: v for k, v in project_data.dict().items() if v is not None}
-        
-        if not update_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No data provided for update"
-            )
-        
         result = await service.update_project(
             project_id=str(project_id), 
             project_data=update_data, 
             jwt=user.get('access_token')
         )
-        
-        if not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found or you don't have access"
-            )
-            
-        return result.data
+        APIException.check_result(result, "Project update")
+        return APIException.format_response(result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project update error: {str(e)}"
-        )
+        APIException.raise_server_error("Project update", e)
 
 @router.delete("/{project_id}", response_model=Dict[str, Any])
 async def delete_project(
@@ -180,24 +150,14 @@ async def delete_project(
             project_id=str(project_id), 
             jwt=user.get('access_token')
         )
-        
-        if not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found or you don't have access"
-            )
-            
-        return {"success": True, "message": "Project deleted"}
+        APIException.check_result(result, "Project deletion")
+        return APIException.format_response(result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project deletion error: {str(e)}"
-        )
+        APIException.raise_server_error("Project deletion", e)
 
 @router.post("/{project_id}/share", response_model=Dict[str, Any])
 async def share_project(
@@ -223,21 +183,11 @@ async def share_project(
             role=share_data.role,
             jwt=user.get('access_token')
         )
-        
-        if not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found or you don't have access"
-            )
-            
-        return {"success": True, "message": f"Project shared with {share_data.user_email}"}
+        APIException.check_result(result, "Project sharing")
+        return APIException.format_response(result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project sharing error: {str(e)}"
-        ) 
+        APIException.raise_server_error("Project sharing", e) 

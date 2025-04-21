@@ -75,7 +75,7 @@ class WebSocketHandler:
                     })
                     await websocket.close()
                     return
-                
+
                 # Create project output directory if it doesn't exist
                 project_output_dir = os.path.join("output", project_id)
                 os.makedirs(project_output_dir, exist_ok=True)

@@ -95,7 +95,7 @@ async def get_project(project_id: str, jwt: str) -> Dict[str, Any]:
         jwt: Supabase JWT token
         
     Returns:
-        Dict containing project data with member details
+        Dict containing project data with member details or None if not found/no access
         
     Raises:
         ValueError: If project retrieval fails
@@ -114,37 +114,12 @@ async def get_project(project_id: str, jwt: str) -> Dict[str, Any]:
         client.postgrest.auth(jwt)
         
         # Get the project
-        project_response = client.from_('projects').select('*').eq('id', project_id).execute()
-        if not project_response.data or len(project_response.data) == 0:
-            return {"data": None}
+        project_response = client.from_('projects').select('*').eq('id', project_id).single().execute()
+        if not project_response.data:
+            return None
             
-        project = project_response.data[0]
-        
-        # Get project members with user details
-        members_response = client.from_('project_members').select(
-            '*, user:user_profiles(id, full_name, email, avatar_url)'
-        ).eq('project_id', project_id).execute()
-        
-        # Add member details to project
-        project['members'] = []
-        if members_response.data:
-            project['members'] = [{
-                'user_id': member['user_id'],
-                'role': member['role'],
-                'user': member['user']
-            } for member in members_response.data]
-            
-        # Add flags for user's relationship to project
-        project['is_owner'] = project['owner_id'] == user_id
-        if not project['is_owner']:
-            for member in project['members']:
-                if member['user_id'] == user_id:
-                    project['user_role'] = member['role']
-                    break
-        else:
-            project['user_role'] = 'owner'
-            
-        return {"data": project}
+        project_response.data['is_owner'] = project_response.data['owner_id'] == user_id
+        return project_response
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Project retrieval error: {str(e)}")
     except Exception as e:
@@ -160,7 +135,7 @@ async def update_project(project_id: str, project_data: Dict[str, Any], jwt: str
         jwt: Supabase JWT token
         
     Returns:
-        Dict containing updated project data
+        Dict containing updated project data or None if not found/no access
         
     Raises:
         ValueError: If project update fails
@@ -181,7 +156,7 @@ async def update_project(project_id: str, project_data: Dict[str, Any], jwt: str
         # Check if user is owner
         owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
         if not owner_check.data:
-            return {"data": None}
+            return None
         
         # Update the project
         result = client.from_('projects').update(project_data).eq('id', project_id).execute()
@@ -200,7 +175,7 @@ async def delete_project(project_id: str, jwt: str) -> Dict[str, Any]:
         jwt: Supabase JWT token
         
     Returns:
-        Dict containing deletion result
+        Dict containing deletion result or None if not found/no access
         
     Raises:
         ValueError: If project deletion fails
@@ -221,7 +196,7 @@ async def delete_project(project_id: str, jwt: str) -> Dict[str, Any]:
         # Check if user is owner
         owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
         if not owner_check.data:
-            return {"data": None}
+            return None
         
         # Delete the project
         result = client.from_('projects').delete().eq('id', project_id).execute()
@@ -242,7 +217,7 @@ async def share_project(project_id: str, user_email: str, role: str, jwt: str) -
         jwt: Supabase JWT token
         
     Returns:
-        Dict containing sharing result
+        Dict containing sharing result or None if not found/no access
         
     Raises:
         ValueError: If project sharing fails
@@ -263,11 +238,11 @@ async def share_project(project_id: str, user_email: str, role: str, jwt: str) -
         # Check if current user is owner
         project_response = client.from_('projects').select('*').eq('id', project_id).execute()
         if not project_response.data or len(project_response.data) == 0:
-            raise ValueError("Project not found")
+            return None
             
         project = project_response.data[0]
         if project['owner_id'] != owner_id:
-            raise ValueError("Only project owners can share projects")
+            return None
         
         # Get user ID from email
         user_response = client.from_('user_profiles').select('id').eq('email', user_email).execute()
