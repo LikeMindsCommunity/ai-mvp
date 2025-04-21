@@ -14,6 +14,7 @@ Response Types:
 import os
 import re
 import time
+import uuid
 import subprocess
 import threading
 from typing import Dict, Optional, Callable, Awaitable, Any, List, Tuple
@@ -30,12 +31,61 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
     def __init__(self):
         """Initialize the Flutter generator service."""
         self.code_generator = FlutterCodeGenerator()
-        self.code_manager = FlutterCodeManager()
-        self.integration_manager = FlutterIntegrationManager()
-        self.conversation_manager = FlutterConversationManager()
         self.root_dir = os.getcwd()
         # Dictionary to store conversation history by session ID
         self.conversation_history = {}
+        # Dictionary to store code managers by generation ID
+        self.code_managers = {}
+        # Dictionary to store integration managers by generation ID
+        self.integration_managers = {}
+        # Dictionary to store conversation managers by session ID
+        self.conversation_managers = {}
+    
+    def _get_code_manager(self, generation_id: str) -> FlutterCodeManager:
+        """
+        Get or create a code manager for the given generation ID.
+        
+        Args:
+            generation_id (str): Unique identifier for this generation
+            
+        Returns:
+            FlutterCodeManager: A code manager for this generation
+        """
+        if generation_id not in self.code_managers:
+            self.code_managers[generation_id] = FlutterCodeManager(generation_id=generation_id)
+        return self.code_managers[generation_id]
+    
+    def _get_integration_manager(self, generation_id: str) -> FlutterIntegrationManager:
+        """
+        Get or create an integration manager for the given generation ID.
+        
+        Args:
+            generation_id (str): Unique identifier for this generation
+            
+        Returns:
+            FlutterIntegrationManager: An integration manager for this generation
+        """
+        if generation_id not in self.integration_managers:
+            code_manager = self._get_code_manager(generation_id)
+            self.integration_managers[generation_id] = FlutterIntegrationManager(
+                generation_id=generation_id,
+                integration_path=code_manager.integration_path
+            )
+        return self.integration_managers[generation_id]
+    
+    def _get_conversation_manager(self, session_id: str) -> FlutterConversationManager:
+        """
+        Get or create a conversation manager for the given session ID.
+        
+        Args:
+            session_id (str): Unique identifier for the user session
+            
+        Returns:
+            FlutterConversationManager: A conversation manager for this session
+        """
+        if session_id not in self.conversation_managers:
+            self.conversation_managers[session_id] = FlutterConversationManager()
+        return self.conversation_managers[session_id]
     
     def _update_conversation_history(self, session_id: str, user_query: str) -> str:
         """
@@ -67,7 +117,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         # If this is the first request, return the original query
         return user_query
     
-    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> Dict[str, Any]:
+    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None) -> Dict[str, Any]:
         """
         Generate Flutter code based on user query.
         
@@ -75,13 +125,22 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             user_query (str): The user's input query
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
+            db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this instead of generating a UUID.
             
         Returns:
             Dict[str, Any]: Response containing the generation result
         """
         try:
+            # Use provided database generation ID or generate a new UUID
+            generation_id = db_generation_id or str(uuid.uuid4())
+            
+            # Get managers for this generation
+            code_manager = self._get_code_manager(generation_id)
+            integration_manager = self._get_integration_manager(generation_id)
+            conversation_manager = self._get_conversation_manager(session_id)
+            
             # First, generate a conversation plan
-            await self.generate_conversation(user_query, on_chunk, session_id)
+            await conversation_manager.generate_conversation(user_query, on_chunk)
             
             # Update conversation history and get enhanced prompt
             enhanced_prompt = self._update_conversation_history(session_id, user_query)
@@ -107,7 +166,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Processing generated code..."
             })
             
-            dart_codes = self.code_manager.extract_dart_code(generated_text)
+            dart_codes = code_manager.extract_dart_code(generated_text)
             if not dart_codes:
                 await on_chunk({
                     "type": "Error",
@@ -116,23 +175,20 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 return {"success": False, "error": "No valid Dart code found"}
             
             # Save the first code block
-            latest_file = self.code_manager.save_dart_code(dart_codes[0])
+            latest_file = code_manager.save_dart_code(dart_codes[0])
             
             # Copy to integration project
             await on_chunk({
                 "type": "Text",
-                "value": "Setting up integration..."
+                "value": "Setting up integration environment..."
             })
             
-            if not self.code_manager.copy_to_integration(latest_file):
+            if not code_manager.copy_to_integration(latest_file):
                 await on_chunk({
                     "type": "Error",
                     "value": "Failed to copy code to integration project"
                 })
                 return {"success": False, "error": "Failed to copy code"}
-            
-            # Change to integration directory
-            os.chdir(os.path.join(self.root_dir, "integration"))
             
             # Run Flutter pub get
             await on_chunk({
@@ -140,14 +196,17 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Running flutter pub get..."
             })
             
-            exit_code, output = self.integration_manager.run_command_with_timeout('flutter pub get', timeout=300)
+            exit_code, output = integration_manager.run_command_with_timeout(
+                'flutter pub get', 
+                timeout=300,
+                working_dir=code_manager.integration_path
+            )
+            
             if exit_code != 0:
                 await on_chunk({
                     "type": "Error",
                     "value": f"Error running flutter pub get:\n{output}"
                 })
-                # Return to root directory
-                os.chdir(self.root_dir)
                 return {"success": False, "error": f"Flutter pub get failed: {output}"}
             
             # Analyze code
@@ -156,20 +215,19 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Analyzing Flutter code..."
             })
             
-            success, error_message = self.code_manager.analyze_flutter_code()
+            success, error_message = code_manager.analyze_flutter_code()
             
             if not success:
                 await on_chunk({
                     "type": "AnalysisError",
                     "value": error_message
                 })
-                # Return to root directory
-                os.chdir(self.root_dir)
                 return {
                     "success": False, 
                     "error": "Flutter code analysis found errors",
                     "analysis_error": error_message,
-                    "needs_fix": True
+                    "needs_fix": True,
+                    "generation_id": generation_id
                 }
             
             # Start Flutter development server
@@ -179,18 +237,17 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             
             # Start the Flutter app with hot reload
-            web_url = self.integration_manager.start_flutter_app()
+            web_url = integration_manager.start_flutter_app()
             
             if not web_url:
                 await on_chunk({
                     "type": "Error",
                     "value": "Failed to start Flutter development server"
                 })
-                # Return to root directory
-                os.chdir(self.root_dir)
                 return {
                     "success": False,
-                    "error": "Failed to start Flutter development server"
+                    "error": "Failed to start Flutter development server",
+                    "generation_id": generation_id
                 }
             
             # Get the public host for client-facing URLs
@@ -206,13 +263,11 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Integration completed successfully!"
             })
             
-            # Return to root directory
-            os.chdir(self.root_dir)
-            
             return {
                 "success": True,
                 "web_url": web_url,
-                "code_path": latest_file
+                "code_path": latest_file,
+                "generation_id": generation_id
             }
             
         except Exception as e:
@@ -220,9 +275,6 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "type": "Error",
                 "value": f"An error occurred: {str(e)}"
             })
-            # Return to root directory if needed
-            if os.getcwd() != self.root_dir:
-                os.chdir(self.root_dir)
             return {"success": False, "error": str(e)}
     
     async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> str:
@@ -238,11 +290,14 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             str: The generated conversation text
         """
         try:
+            # Get conversation manager for this session
+            conversation_manager = self._get_conversation_manager(session_id)
+            
             # Use the conversation history for context if available
             enhanced_prompt = self._update_conversation_history(session_id, user_query)
             
             # Generate conversation response
-            conversation_text = await self.conversation_manager.generate_conversation(enhanced_prompt, on_chunk)
+            conversation_text = await conversation_manager.generate_conversation(enhanced_prompt, on_chunk)
             return conversation_text
             
         except Exception as e:
@@ -252,39 +307,228 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             return ""
     
-    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> Dict[str, Any]:
+    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None) -> Dict[str, Any]:
         """
         Fix Flutter code based on analysis errors.
         
         Args:
-            user_query (str): The original user query
-            error_message (str): The Flutter analysis error message
+            user_query (str): The user's input query
+            error_message (str): The error message from the Flutter analyzer
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
+            generation_id (str, optional): Unique identifier for the generation to fix. If not provided, a new one will be created.
             
         Returns:
-            Dict[str, Any]: Response containing the fixed code generation result
+            Dict[str, Any]: Response containing the fixed code result
         """
-        await on_chunk({
-            "type": "Text",
-            "value": "Regenerating with error fixes..."
-        })
+        try:
+            # Use existing generation ID or create a new one
+            if not generation_id:
+                generation_id = str(uuid.uuid4())
+                
+            # Get managers for this generation
+            code_manager = self._get_code_manager(generation_id)
+            integration_manager = self._get_integration_manager(generation_id)
+            conversation_manager = self._get_conversation_manager(session_id)
+                
+            # Update conversation history with error context
+            error_prompt = f"{user_query}\n\nI'm getting these Flutter errors:\n{error_message}\n\nPlease fix them."
+            enhanced_prompt = self._update_conversation_history(session_id, error_prompt)
+            
+            # Inform the user about the fix attempt
+            await on_chunk({
+                "type": "Text",
+                "value": "Analyzing errors and generating fixes..."
+            })
+            
+            # Generate fixed code with the enhanced prompt
+            generated_text = await self.code_generator.generate_code(enhanced_prompt, on_chunk)
+            if not generated_text:
+                await on_chunk({
+                    "type": "Error",
+                    "value": "Failed to generate fixed code. Please try again."
+                })
+                return {"success": False, "error": "Failed to generate fixed code"}
+            
+            # Extract and save the fixed code
+            await on_chunk({
+                "type": "Text",
+                "value": "Processing fixed code..."
+            })
+            
+            dart_codes = code_manager.extract_dart_code(generated_text)
+            if not dart_codes:
+                await on_chunk({
+                    "type": "Error",
+                    "value": "No valid Dart code found in the response"
+                })
+                return {"success": False, "error": "No valid Dart code found"}
+            
+            # Save the fixed code
+            latest_file = code_manager.save_dart_code(dart_codes[0], index=1)  # Use index 1 to avoid overwriting
+            
+            # Copy to integration project
+            await on_chunk({
+                "type": "Text",
+                "value": "Updating integration with fixed code..."
+            })
+            
+            if not code_manager.copy_to_integration(latest_file):
+                await on_chunk({
+                    "type": "Error",
+                    "value": "Failed to copy fixed code to integration project"
+                })
+                return {"success": False, "error": "Failed to copy fixed code"}
+            
+            # Analyze the fixed code
+            await on_chunk({
+                "type": "Text",
+                "value": "Analyzing fixed Flutter code..."
+            })
+            
+            success, error_message = code_manager.analyze_flutter_code()
+            
+            if not success:
+                await on_chunk({
+                    "type": "AnalysisError",
+                    "value": error_message
+                })
+                return {
+                    "success": False,
+                    "error": "Flutter code analysis still found errors",
+                    "analysis_error": error_message,
+                    "needs_fix": True,
+                    "generation_id": generation_id
+                }
+            
+            # Hot restart the Flutter app if it's running
+            await on_chunk({
+                "type": "Text",
+                "value": "Applying code changes..."
+            })
+            
+            if integration_manager.is_running:
+                if integration_manager.hot_restart():
+                    await on_chunk({
+                        "type": "Success",
+                        "value": "Hot restarted Flutter app with fixed code"
+                    })
+                else:
+                    await on_chunk({
+                        "type": "Text",
+                        "value": "Hot restart failed, attempting to restart the server..."
+                    })
+                    
+                    # Stop the current app
+                    integration_manager.stop_flutter_app()
+                    
+                    # Start a new Flutter app
+                    web_url = integration_manager.start_flutter_app()
+                    
+                    if not web_url:
+                        await on_chunk({
+                            "type": "Error",
+                            "value": "Failed to restart Flutter development server"
+                        })
+                        return {
+                            "success": False,
+                            "error": "Failed to restart Flutter development server",
+                            "generation_id": generation_id
+                        }
+                    
+                    # Get the public host for client-facing URLs
+                    public_host = os.environ.get("PUBLIC_HOST", "0.0.0.0")
+                    
+                    # Ensure the returned URL uses the public host
+                    if "localhost" in web_url:
+                        # Replace localhost with public host if needed
+                        web_url = web_url.replace("localhost", public_host)
+                    
+                    await on_chunk({
+                        "type": "Success",
+                        "value": "Flutter server restarted with fixed code"
+                    })
+                    
+                    return {
+                        "success": True,
+                        "web_url": web_url,
+                        "code_path": latest_file,
+                        "generation_id": generation_id
+                    }
+            else:
+                # Start a new Flutter app
+                await on_chunk({
+                    "type": "Text",
+                    "value": "Starting Flutter development server..."
+                })
+                
+                web_url = integration_manager.start_flutter_app()
+                
+                if not web_url:
+                    await on_chunk({
+                        "type": "Error",
+                        "value": "Failed to start Flutter development server"
+                    })
+                    return {
+                        "success": False,
+                        "error": "Failed to start Flutter development server",
+                        "generation_id": generation_id
+                    }
+                
+                # Get the public host for client-facing URLs
+                public_host = os.environ.get("PUBLIC_HOST", "0.0.0.0")
+                
+                # Ensure the returned URL uses the public host
+                if "localhost" in web_url:
+                    # Replace localhost with public host if needed
+                    web_url = web_url.replace("localhost", public_host)
+            
+            await on_chunk({
+                "type": "Success",
+                "value": "Code fixes applied successfully!"
+            })
+            
+            return {
+                "success": True,
+                "web_url": web_url if 'web_url' in locals() else None,
+                "code_path": latest_file,
+                "generation_id": generation_id
+            }
+            
+        except Exception as e:
+            await on_chunk({
+                "type": "Error",
+                "value": f"An error occurred while fixing code: {str(e)}"
+            })
+            return {"success": False, "error": str(e)}
+            
+    def cleanup_generation(self, generation_id: str) -> bool:
+        """
+        Clean up resources for a specific generation.
         
-        # Generate conversation plan for fixing the code
-        await on_chunk({
-            "type": "Chat",
-            "value": "Analyzing error and planning the fix..."
-        })
-        
-        error_context = f"{user_query}\n\nPlease fix these errors:\n{error_message}"
-        await self.generate_conversation(error_context, on_chunk, session_id)
-        
-        # Create enhanced prompt with error info
-        fix_prompt = f"{user_query}\n\nPlease fix these errors:\n{error_message}"
-        
-        # Add this fix request to conversation history
-        if session_id in self.conversation_history:
-            self.conversation_history[session_id].append(fix_prompt)
-        
-        # Call the generate method with the enhanced prompt
-        return await self.generate_flutter_code(fix_prompt, on_chunk, session_id) 
+        Args:
+            generation_id (str): Unique identifier for the generation to clean up
+            
+        Returns:
+            bool: True if cleanup was successful, False otherwise
+        """
+        try:
+            # Stop the Flutter app if it's running
+            if generation_id in self.integration_managers:
+                self.integration_managers[generation_id].stop_flutter_app()
+                
+            # Clean up code manager resources
+            if generation_id in self.code_managers:
+                self.code_managers[generation_id].cleanup()
+                
+            # Remove managers from dictionaries
+            if generation_id in self.integration_managers:
+                del self.integration_managers[generation_id]
+                
+            if generation_id in self.code_managers:
+                del self.code_managers[generation_id]
+                
+            return True
+        except Exception as e:
+            print(f"Error cleaning up generation {generation_id}: {str(e)}")
+            return False 

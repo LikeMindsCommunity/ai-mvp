@@ -23,63 +23,93 @@ class FlutterIntegrationManager:
     Manager for Flutter integration and deployment.
     """
     
-    def __init__(self, settings: Settings = None):
+    def __init__(self, settings: Settings = None, generation_id: str = None, integration_path: str = None):
         """
         Initialize the integration manager.
         
         Args:
             settings (Settings, optional): Settings for configuration
+            generation_id (str, optional): Unique ID for this generation
+            integration_path (str, optional): Path to the integration directory for this generation
         """
         self.settings = settings or Settings()
         self.root_dir = os.getcwd()
+        self.generation_id = generation_id
+        self.integration_path = integration_path
         self.flutter_process = None
         self.process_fd = None
         self.process_pid = None
         self.process_thread = None
         self.is_running = False
+        self.log_path = None
+        
+        # Set up log directory
+        self._setup_log_directory()
     
-    def run_command_with_timeout(self, cmd: str, timeout: int = None) -> Tuple[int, str]:
+    def _setup_log_directory(self):
+        """Set up the log directory for this integration."""
+        if self.generation_id:
+            log_dir = os.path.join(self.root_dir, "logs", self.generation_id)
+        else:
+            log_dir = os.path.join(self.root_dir, "logs")
+            
+        os.makedirs(log_dir, exist_ok=True)
+        self.log_path = log_dir
+    
+    def run_command_with_timeout(self, cmd: str, timeout: int = None, working_dir: str = None) -> Tuple[int, str]:
         """
         Run a command with timeout and capture output.
         
         Args:
             cmd (str): Command to run
             timeout (int, optional): Timeout in seconds
+            working_dir (str, optional): Directory to run command in
             
         Returns:
             Tuple[int, str]: Exit code and command output
         """
         if timeout is None:
             timeout = self.settings.command_timeout
-        
-        process = subprocess.Popen(
-            cmd, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT,
-            text=True
-        )
-        
-        output = []
-        def collect_output():
-            for line in process.stdout:
-                output.append(line)
-        
-        thread = threading.Thread(target=collect_output)
-        thread.daemon = True
-        thread.start()
+            
+        # Save current directory
+        current_dir = os.getcwd()
         
         try:
-            exit_code = process.wait(timeout=timeout)
-            thread.join(timeout=1)
-            return exit_code, ''.join(output)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            return -1, f"Command timed out after {timeout} seconds: {cmd}"
+            # Change to working directory if specified
+            if working_dir:
+                os.chdir(working_dir)
+                
+            process = subprocess.Popen(
+                cmd, 
+                shell=True, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            
+            output = []
+            def collect_output():
+                for line in process.stdout:
+                    output.append(line)
+            
+            thread = threading.Thread(target=collect_output)
+            thread.daemon = True
+            thread.start()
+            
+            try:
+                exit_code = process.wait(timeout=timeout)
+                thread.join(timeout=1)
+                return exit_code, ''.join(output)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                return -1, f"Command timed out after {timeout} seconds: {cmd}"
+        finally:
+            # Return to original directory
+            os.chdir(current_dir)
     
     def _read_process_output(self, fd):
         """Read and handle output from the interactive Flutter process."""
-        log_file = os.path.join(self.root_dir, "logs", "flutter.log")
+        log_file = os.path.join(self.log_path, "flutter.log")
         
         with open(log_file, 'w') as log:
             while self.is_running:
@@ -138,16 +168,17 @@ class FlutterIntegrationManager:
             # First stop any existing Flutter web server processes
             self.stop_flutter_app()
             
+            # Determine integration directory to use
+            integration_dir = self.integration_path
+            if not integration_dir:
+                integration_dir = os.path.join(self.root_dir, self.settings.integration_path)
+            
             # Ensure we're in the integration directory
-            os.chdir(os.path.join(self.root_dir, self.settings.integration_path))
+            os.chdir(integration_dir)
             
             # Run flutter pub get to update dependencies
             print("Running flutter pub get...")
             subprocess.run('flutter pub get', shell=True, check=True)
-            
-            # Create logs directory if it doesn't exist
-            log_dir = os.path.join(self.root_dir, "logs")
-            os.makedirs(log_dir, exist_ok=True)
             
             # Get host and port from environment
             host = os.environ.get("WEB_HOST", "0.0.0.0") 
@@ -259,86 +290,49 @@ class FlutterIntegrationManager:
         return self.send_command_to_flutter('r')
     
     def stop_flutter_app(self):
-        """Stop Flutter web server processes and clean up resources."""
-        # First try to gracefully quit if we have an interactive process
-        if self.is_running and self.process_fd is not None:
+        """Stop the running Flutter app and clean up resources."""
+        # Check if we have a running process
+        if self.flutter_process is not None:
             try:
-                # Send 'q' to quit the Flutter process gracefully
-                os.write(self.process_fd, b'q')
-                # Give it a moment to quit
-                time.sleep(1)
+                # Try to gracefully terminate first
+                if self.process_pid:
+                    print(f"Stopping Flutter process with PID {self.process_pid}...")
+                    os.killpg(os.getpgid(self.process_pid), signal.SIGTERM)
+                    
+                    # Give it a moment to terminate
+                    time.sleep(2)
+                    
+                    # If still running, force kill
+                    if self.flutter_process.poll() is None:
+                        os.killpg(os.getpgid(self.process_pid), signal.SIGKILL)
+                        
             except Exception as e:
-                print(f"Error sending quit command: {str(e)}")
-        
-        # Try to kill the specific process if we have a reference
-        if self.flutter_process and self.flutter_process.poll() is None:
-            try:
-                # First try with SIGTERM for clean shutdown
-                os.killpg(os.getpgid(self.flutter_process.pid), signal.SIGTERM)
-                time.sleep(1)
-                # If still running, use SIGKILL
-                if self.flutter_process.poll() is None:
-                    os.killpg(os.getpgid(self.flutter_process.pid), signal.SIGKILL)
-                print("Terminated Flutter process group")
-            except Exception as e:
-                print(f"Error terminating process group: {str(e)}")
-        
-        # Target any remaining Flutter web server processes
-        if os.name == 'posix':
-            try:
-                # First check if any Flutter web server processes exist
-                check_cmd = "ps aux | grep 'flutter.*run.*web-server' | grep -v grep"
-                result = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
+                print(f"Error stopping Flutter process: {str(e)}")
                 
-                if result.returncode == 0 and result.stdout.strip():
-                    print("Found Flutter web server processes:")
-                    for line in result.stdout.strip().split('\n'):
-                        print(f"  {line.strip()}")
-                    
-                    # Kill only Flutter web server processes
-                    kill_cmd = "pkill -f 'flutter.*run.*web-server'"
-                    subprocess.run(kill_cmd, shell=True)
-                    
-                    # Double check if they're gone
-                    time.sleep(1)
-                    check_again = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
-                    if check_again.returncode == 0 and check_again.stdout.strip():
-                        print("Web server processes still running, using stronger kill...")
-                        subprocess.run("pkill -9 -f 'flutter.*run.*web-server'", shell=True)
-                    
-                    print("Flutter web server processes terminated")
-
-                    # Additional cleanup: check for Chrome processes serving Flutter content
-                    chrome_check_cmd = "ps aux | grep 'Chrome.*flutter' | grep -v grep"
-                    chrome_result = subprocess.run(chrome_check_cmd, shell=True, capture_output=True, text=True)
-                    if chrome_result.returncode == 0 and chrome_result.stdout.strip():
-                        print("Found Chrome processes with Flutter content:")
-                        # We don't kill Chrome, but log for diagnostic purposes
-                        for line in chrome_result.stdout.strip().split('\n'):
-                            print(f"  {line.strip()}")
-                else:
-                    print("No Flutter web server processes found running")
-                    
-                # Attempt to clear port if it's still bound
-                if os.environ.get("FLUTTER_WEB_PORT"):
-                    port = os.environ.get("FLUTTER_WEB_PORT", "8080")
-                    port_check_cmd = f"lsof -i :{port}"
-                    port_result = subprocess.run(port_check_cmd, shell=True, capture_output=True, text=True)
-                    if port_result.returncode == 0 and port_result.stdout.strip():
-                        print(f"Port {port} is still in use. Attempting to free it...")
-                        subprocess.run(f"kill -9 $(lsof -t -i:{port})", shell=True)
-            except Exception as e:
-                print(f"Error in process management: {str(e)}")
-        
-        # Close file descriptor if open
-        if self.process_fd is not None:
-            try:
-                os.close(self.process_fd)
-            except Exception as e:
-                print(f"Error closing file descriptor: {str(e)}")
-        
-        # Reset all process-related attributes
-        self.flutter_process = None
-        self.process_fd = None
-        self.process_pid = None
-        self.is_running = False 
+            # Clean up resources
+            self.flutter_process = None
+            self.process_pid = None
+            
+            # Close file descriptor if open
+            if self.process_fd is not None:
+                try:
+                    os.close(self.process_fd)
+                except:
+                    pass
+                self.process_fd = None
+                
+            # Reset flag
+            self.is_running = False
+            
+            print("Flutter process stopped")
+            
+        # Also attempt to kill any stray flutter processes
+        try:
+            if os.name == 'posix':
+                # For Unix-like systems (Linux, macOS)
+                os.system("pkill -f 'flutter run -d web-server'")
+            else:
+                # For Windows
+                os.system("taskkill /F /IM flutter.exe")
+        except:
+            pass 

@@ -32,6 +32,9 @@ class Settings:
         self.command_timeout = int(os.getenv("COMMAND_TIMEOUT", "300"))
         self.build_timeout = int(os.getenv("BUILD_TIMEOUT", "6000"))
         
+        # Cleanup settings
+        self.auto_cleanup = os.getenv("AUTO_CLEANUP", "false").lower() in ("true", "1", "yes")
+        
         # Validate required settings
         self._validate_settings()
     
