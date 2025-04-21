@@ -25,6 +25,7 @@ services:
       - COMMAND_TIMEOUT=${COMMAND_TIMEOUT}
       - BUILD_TIMEOUT=${BUILD_TIMEOUT}
       - PUBLIC_HOST=${PUBLIC_HOST}
+      - API_URL=${API_URL}
       
       # Frontend Configuration
       - FRONTEND_URL=${FRONTEND_URL}

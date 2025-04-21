@@ -37,6 +37,7 @@ ENV WEB_HOST=${WEB_HOST:-0.0.0.0}
 ENV PUBLIC_HOST=${PUBLIC_HOST:-localhost}
 ENV FLUTTER_WEB_PORT=${FLUTTER_WEB_PORT:-8080}
 ENV GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+ENV API_URL=${API_URL:-http://localhost:8000}
 
 # Make sure .dockerignore excludes unnecessary files
 
