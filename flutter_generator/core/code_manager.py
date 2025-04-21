@@ -17,41 +17,56 @@ class FlutterCodeManager:
     Manager for Flutter code file operations.
     """
     
-    def __init__(self, settings: Settings = None, generation_id: str = None):
+    def __init__(self, settings: Settings = None, project_id: str = None, generation_id: str = None):
         """
         Initialize the code manager.
         
         Args:
             settings (Settings, optional): Settings for configuration
+            project_id (str, optional): Project ID this generation belongs to
             generation_id (str, optional): Unique ID for this generation
         """
         self.settings = settings or Settings()
         self.latest_code = None
         self.root_dir = os.getcwd()
+        self.project_id = project_id or str(uuid.uuid4())
         self.generation_id = generation_id or str(uuid.uuid4())
-        self.generation_dir = self._create_generation_dir()
-        self.integration_path = os.path.join(self.settings.output_path, self.generation_id, "integration")
+        self.project_dir = self._create_project_dir()
+        self.generations_dir = self._create_generations_dir()
+        self.integration_path = os.path.join(self.project_dir, "integration")
     
-    def _create_generation_dir(self) -> str:
+    def _create_project_dir(self) -> str:
         """
-        Create a unique directory for this generation.
+        Create a directory for this project.
         
         Returns:
-            str: Path to the generation directory
+            str: Path to the project directory
         """
-        generation_dir = os.path.join(self.settings.output_path, self.generation_id)
-        os.makedirs(generation_dir, exist_ok=True)
-        return generation_dir
+        project_dir = os.path.join(self.settings.output_path, self.project_id)
+        os.makedirs(project_dir, exist_ok=True)
+        return project_dir
+    
+    def _create_generations_dir(self) -> str:
+        """
+        Create a directory to store all generations for this project.
+        
+        Returns:
+            str: Path to the generations directory
+        """
+        generations_dir = os.path.join(self.project_dir, "generations")
+        os.makedirs(generations_dir, exist_ok=True)
+        return generations_dir
         
     def _setup_integration_dir(self) -> str:
         """
-        Set up the integration directory for this generation by copying from the template.
+        Set up the integration directory for this project by copying from the template.
+        Only creates the integration directory once per project.
         
         Returns:
             str: Path to the integration directory
         """
-        # Create integration directory within generation directory
-        integration_dir = os.path.join(self.generation_dir, "integration")
+        # Create integration directory within project directory
+        integration_dir = os.path.join(self.project_dir, "integration")
         
         # Skip if already set up
         if os.path.exists(integration_dir):
@@ -101,7 +116,7 @@ class FlutterCodeManager:
     
     def save_dart_code(self, code: str, index: int = 0) -> str:
         """
-        Save Dart code to a file.
+        Save Dart code to a file in the generations directory.
         
         Args:
             code (str): The Dart code to save
@@ -113,14 +128,11 @@ class FlutterCodeManager:
         # Make sure we're in the root directory
         os.chdir(self.root_dir)
         
-        # Create generation output directory if it doesn't exist
-        os.makedirs(self.generation_dir, exist_ok=True)
-        
-        # Generate filename
-        filename = os.path.join(
-            self.generation_dir, 
-            f'flutter_code_{index + 1}.dart'
-        )
+        # Generate filename using generation_id
+        if index == 0:
+            filename = os.path.join(self.generations_dir, f'{self.generation_id}.dart')
+        else:
+            filename = os.path.join(self.generations_dir, f'{self.generation_id}_{index + 1}.dart')
         
         # Write the code to file
         with open(filename, 'w') as f:
@@ -133,7 +145,7 @@ class FlutterCodeManager:
     
     def copy_to_integration(self, source_file: str) -> bool:
         """
-        Copy generated code to the integration project.
+        Copy generated code to the integration project's main.dart file.
         
         Args:
             source_file (str): Path to the source code file
@@ -145,7 +157,7 @@ class FlutterCodeManager:
             # Make sure we're in the root directory
             os.chdir(self.root_dir)
             
-            # Set up the integration directory for this generation
+            # Set up the integration directory for this project (only once)
             integration_dir = self._setup_integration_dir()
             
             # Read the source code
@@ -230,9 +242,7 @@ class FlutterCodeManager:
         Only removes the generation directory if needed.
         """
         try:
-            if os.path.exists(self.generation_dir):
-                # Only remove if explicitly configured to do so
-                if self.settings.auto_cleanup:
-                    shutil.rmtree(self.generation_dir)
+            if self.settings.auto_cleanup and os.path.exists(self.project_dir):
+                shutil.rmtree(self.project_dir)
         except Exception as e:
-            print(f"Error cleaning up generation files: {str(e)}") 
+            print(f"Error cleaning up project files: {str(e)}") 

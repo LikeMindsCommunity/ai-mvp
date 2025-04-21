@@ -32,8 +32,8 @@ class WebSocketHandler:
         """Initialize the WebSocket handler."""
         self.flutter_generator_service = FlutterGeneratorServiceImpl()
         self.supabase_manager = SupabaseManager()  # Eventually this can be removed once all methods are migrated to services
-        # Track active generation IDs for cleanup on disconnect
-        self.active_generation_ids = {}
+        # Track active project IDs for cleanup on disconnect
+        self.active_projects = {}
     
     async def send_error(self, websocket: WebSocket, message: str) -> None:
         """Send an error message and close the connection."""
@@ -68,7 +68,7 @@ class WebSocketHandler:
             
             # Initialize session tracking
             websocket_id = str(id(websocket))
-            self.active_generation_ids[websocket_id] = set()
+            self.active_projects[websocket_id] = project_id
             
             # Verify the token and project access
             try:
@@ -97,7 +97,7 @@ class WebSocketHandler:
                 
                 # Send confirmation of connection
                 await websocket.send_json({
-                    "type": "Success",
+                    "type": "Text",
                     "value": {
                         "message": "Connected successfully",
                         "project": {
@@ -169,29 +169,16 @@ class WebSocketHandler:
                         await self.send_error(websocket, f"Token refresh failed: {str(e)}")
                         return
                 
-                # Handle cleanup for a specific generation
-                if message["type"] == "CleanupGeneration":
-                    if "generation_id" not in message:
-                        await websocket.send_json({
-                            "type": "Error",
-                            "value": "Missing 'generation_id' field in request"
-                        })
-                        continue
-                    
-                    generation_id = message["generation_id"]
-                    
+                # Handle cleanup for a specific project
+                if message["type"] == "CleanupProject":
                     try:
-                        # Clean up resources for this generation
-                        success = self.flutter_generator_service.cleanup_generation(generation_id)
-                        
-                        # Remove from tracking
-                        if websocket_id in self.active_generation_ids:
-                            self.active_generation_ids[websocket_id].discard(generation_id)
+                        # Clean up resources for this project
+                        success = self.flutter_generator_service.cleanup_generation(project_id)
                         
                         # Notify client of result
                         await websocket.send_json({
                             "type": "Success" if success else "Error",
-                            "value": f"Generation {generation_id} cleanup {'completed' if success else 'failed'}"
+                            "value": f"Project {project_id} cleanup {'completed' if success else 'failed'}"
                         })
                         
                         continue
@@ -238,11 +225,12 @@ class WebSocketHandler:
                                 
                                 # Use the generation ID as part of the generation context
                                 generation_id = generation_result.data[0]["id"]
-                                output_path = os.path.join(project_output_dir, f"{generation_id}.dart")
+                                
+                                # We only track projects now, not individual generations
+                                # since we're using project-based cleanup
                                 
                                 # Update the message with context
                                 message["generation_id"] = generation_id
-                                message["output_path"] = output_path
                             except HTTPException as e:
                                 if e.status_code == 401:
                                     # Token expired during operation
@@ -251,110 +239,112 @@ class WebSocketHandler:
                                 else:
                                     await websocket.send_json({
                                         "type": "Error",
-                                        "value": e.detail
+                                        "value": f"Failed to create generation record: {e.detail}"
                                     })
                                     continue
                             except Exception as e:
                                 await websocket.send_json({
                                     "type": "Error",
-                                    "value": f"Failed to create code generation record: {str(e)}"
+                                    "value": f"Failed to create generation record: {str(e)}"
                                 })
                                 continue
-                    
+                                
                     # Handle different message types
                     if message["type"] == "GenerateCode":
                         if "user_query" not in message:
                             await websocket.send_json({
                                 "type": "Error",
-                                "value": "Missing 'user_query' field in request"
+                                "value": "Missing 'user_query' field in GenerateCode request"
                             })
                             continue
                         
-                        # Generate code - pass the database generation_id to ensure we use the same ID
+                        # Generate code
                         result = await self.flutter_generator_service.generate_flutter_code(
-                            message["user_query"],
-                            on_chunk,
-                            session_id,
-                            message.get("generation_id"),  # Pass the database ID
-                            access_token  # Pass the access token
+                            user_query=message["user_query"],
+                            on_chunk=on_chunk,
+                            session_id=session_id,
+                            db_generation_id=message.get("generation_id"),
+                            project_id=project_id,  # Pass project_id to the service
+                            access_token=access_token
                         )
                         
-                        # Track the generation ID for cleanup on disconnect
-                        if result.get("generation_id") and websocket_id in self.active_generation_ids:
-                            self.active_generation_ids[websocket_id].add(result["generation_id"])
-                        
-                        # Send final result
-                        await websocket.send_json({
-                            "type": "Result",
-                            "value": result
-                        })
+                        # Send final result to the frontend
+                        if result.get("success", False):
+                            await websocket.send_json({
+                                "type": "Result",
+                                "value": result
+                            })
+                        else:
+                            error_message = result.get("error", "Unknown error")
+                            await websocket.send_json({
+                                "type": "Error",
+                                "value": f"Code generation failed: {error_message}"
+                            })
                     
                     elif message["type"] == "GenerateConversation":
                         if "user_query" not in message:
                             await websocket.send_json({
                                 "type": "Error",
-                                "value": "Missing 'user_query' field in request"
+                                "value": "Missing 'user_query' field in GenerateConversation request"
                             })
                             continue
                         
                         # Generate conversation
                         result = await self.flutter_generator_service.generate_conversation(
-                            message["user_query"],
-                            on_chunk,
-                            session_id,
-                            message.get("generation_id"),  # Pass the database ID
-                            access_token  # Pass the access token
+                            user_query=message["user_query"],
+                            on_chunk=on_chunk,
+                            session_id=session_id,
+                            db_generation_id=message.get("generation_id"),
+                            project_id=project_id,  # Pass project_id to the service
+                            access_token=access_token
                         )
                         
-                        # Send final result
-                        await websocket.send_json({
-                            "type": "Result",
-                            "value": result
-                        })
+                        # Send final result to the frontend
+                        if result.get("success", False):
+                            await websocket.send_json({
+                                "type": "Result",
+                                "value": result
+                            })
+                        else:
+                            error_message = result.get("error", "Unknown error")
+                            await websocket.send_json({
+                                "type": "Error",
+                                "value": f"Conversation generation failed: {error_message}"
+                            })
                     
                     elif message["type"] == "FixCode":
                         if "user_query" not in message or "error_message" not in message:
                             await websocket.send_json({
                                 "type": "Error",
-                                "value": "Missing required fields in request"
-                            })
-                            continue
-                        
-                        # Get generation ID that should already exist in the database
-                        existing_generation_id = message.get("generation_id")
-                        
-                        if not existing_generation_id:
-                            await websocket.send_json({
-                                "type": "Error",
-                                "value": "Missing 'generation_id' field in request, which is required for fixing code"
+                                "value": "Missing 'user_query' or 'error_message' field in FixCode request"
                             })
                             continue
                         
                         # Fix code
                         result = await self.flutter_generator_service.fix_flutter_code(
-                            message["user_query"],
-                            message["error_message"],
-                            on_chunk,
-                            session_id,
-                            existing_generation_id,
-                            access_token  # Pass the access token
+                            user_query=message["user_query"],
+                            error_message=message["error_message"],
+                            on_chunk=on_chunk,
+                            session_id=session_id,
+                            generation_id=message.get("generation_id"),
+                            project_id=project_id,  # Pass project_id to the service
+                            access_token=access_token
                         )
                         
-                        # Track the generation ID for cleanup on disconnect
-                        if result.get("generation_id") and websocket_id in self.active_generation_ids:
-                            self.active_generation_ids[websocket_id].add(result["generation_id"])
-                        
-                        # Send final result
-                        await websocket.send_json({
-                            "type": "Result",
-                            "value": result
-                        })
+                        # Send final result to the frontend
+                        if result.get("success", False):
+                            await websocket.send_json({
+                                "type": "Result",
+                                "value": result
+                            })
+                        else:
+                            error_message = result.get("error", "Unknown error")
+                            await websocket.send_json({
+                                "type": "Error",
+                                "value": f"Code fixing failed: {error_message}"
+                            })
                     
-                    else:
-                        await websocket.send_json({
-                            "type": "Error",
-                            "value": f"Unsupported message type: {message['type']}"
-                        })
+                    # Handle other message types if needed
                 
                 except HTTPException as e:
                     if e.status_code == 401:
@@ -374,27 +364,27 @@ class WebSocketHandler:
         
         except WebSocketDisconnect:
             # Client disconnected, clean up resources
-            if websocket_id in self.active_generation_ids:
-                for generation_id in self.active_generation_ids[websocket_id]:
-                    try:
-                        self.flutter_generator_service.cleanup_generation(generation_id)
-                    except Exception as e:
-                        print(f"Error cleaning up generation {generation_id} on disconnect: {str(e)}")
+            if websocket_id in self.active_projects:
+                try:
+                    project_id = self.active_projects[websocket_id]
+                    self.flutter_generator_service.cleanup_generation(project_id)
+                except Exception as cleanup_error:
+                    print(f"Error during disconnect cleanup: {str(cleanup_error)}")
                 
                 # Remove tracking for this websocket
-                del self.active_generation_ids[websocket_id]
+                del self.active_projects[websocket_id]
         except Exception as e:
             # Unexpected error
             await self.send_error(websocket, f"Unexpected error: {str(e)}")
             
             # Clean up resources even on error
-            if websocket_id in self.active_generation_ids:
-                for generation_id in self.active_generation_ids[websocket_id]:
-                    try:
-                        self.flutter_generator_service.cleanup_generation(generation_id)
-                    except:
-                        pass
+            if websocket_id in self.active_projects:
+                try:
+                    project_id = self.active_projects[websocket_id]
+                    self.flutter_generator_service.cleanup_generation(project_id)
+                except Exception as cleanup_error:
+                    print(f"Error during error cleanup: {str(cleanup_error)}")
                 
                 # Remove tracking for this websocket
-                del self.active_generation_ids[websocket_id]
+                del self.active_projects[websocket_id]
             return 

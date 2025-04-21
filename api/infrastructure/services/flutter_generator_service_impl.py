@@ -35,44 +35,60 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         self.root_dir = os.getcwd()
         # Dictionary to store conversation history by session ID
         self.conversation_history = {}
-        # Dictionary to store code managers by generation ID
+        # Dictionary to store code managers by project ID
         self.code_managers = {}
-        # Dictionary to store integration managers by generation ID
+        # Dictionary to store integration managers by project ID
         self.integration_managers = {}
         # Dictionary to store conversation managers by session ID
         self.conversation_managers = {}
     
-    def _get_code_manager(self, generation_id: str) -> FlutterCodeManager:
+    def _get_code_manager(self, project_id: str, generation_id: str = None) -> FlutterCodeManager:
         """
-        Get or create a code manager for the given generation ID.
+        Get or create a code manager for the given project ID.
         
         Args:
-            generation_id (str): Unique identifier for this generation
+            project_id (str): Project identifier
+            generation_id (str, optional): Unique identifier for this generation
             
         Returns:
-            FlutterCodeManager: A code manager for this generation
+            FlutterCodeManager: A code manager for this project
         """
-        if generation_id not in self.code_managers:
-            self.code_managers[generation_id] = FlutterCodeManager(generation_id=generation_id)
-        return self.code_managers[generation_id]
+        if project_id not in self.code_managers:
+            self.code_managers[project_id] = FlutterCodeManager(
+                project_id=project_id,
+                generation_id=generation_id
+            )
+        else:
+            # Update generation ID if provided
+            if generation_id:
+                self.code_managers[project_id].generation_id = generation_id
+                
+        return self.code_managers[project_id]
     
-    def _get_integration_manager(self, generation_id: str) -> FlutterIntegrationManager:
+    def _get_integration_manager(self, project_id: str, generation_id: str = None) -> FlutterIntegrationManager:
         """
-        Get or create an integration manager for the given generation ID.
+        Get or create an integration manager for the given project ID.
         
         Args:
-            generation_id (str): Unique identifier for this generation
+            project_id (str): Project identifier
+            generation_id (str, optional): Unique identifier for this generation
             
         Returns:
-            FlutterIntegrationManager: An integration manager for this generation
+            FlutterIntegrationManager: An integration manager for this project
         """
-        if generation_id not in self.integration_managers:
-            code_manager = self._get_code_manager(generation_id)
-            self.integration_managers[generation_id] = FlutterIntegrationManager(
+        if project_id not in self.integration_managers:
+            code_manager = self._get_code_manager(project_id, generation_id)
+            self.integration_managers[project_id] = FlutterIntegrationManager(
+                project_id=project_id,
                 generation_id=generation_id,
                 integration_path=code_manager.integration_path
             )
-        return self.integration_managers[generation_id]
+        else:
+            # Update generation ID if provided
+            if generation_id:
+                self.integration_managers[project_id].generation_id = generation_id
+                
+        return self.integration_managers[project_id]
     
     def _get_conversation_manager(self, session_id: str) -> FlutterConversationManager:
         """
@@ -118,7 +134,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         # If this is the first request, return the original query
         return user_query
     
-    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, access_token: str = None) -> Dict[str, Any]:
+    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, project_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """
         Generate Flutter code based on user query.
         
@@ -127,6 +143,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
             db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this instead of generating a UUID.
+            project_id (str, optional): Project ID this generation belongs to.
             access_token (str, optional): User's JWT access token for database operations.
             
         Returns:
@@ -136,9 +153,17 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Use provided database generation ID or generate a new UUID
             generation_id = db_generation_id or str(uuid.uuid4())
             
+            # Require project_id for organization
+            if not project_id:
+                await on_chunk({
+                    "type": "Error",
+                    "value": "Project ID is required for code generation"
+                })
+                return {"success": False, "error": "Project ID is required"}
+            
             # Get managers for this generation
-            code_manager = self._get_code_manager(generation_id)
-            integration_manager = self._get_integration_manager(generation_id)
+            code_manager = self._get_code_manager(project_id, generation_id)
+            integration_manager = self._get_integration_manager(project_id, generation_id)
             conversation_manager = self._get_conversation_manager(session_id)
             
             # Store the complete AI response
@@ -367,7 +392,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             
             return {"success": False, "error": str(e)}
     
-    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, access_token: str = None) -> Dict[str, Any]:
+    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, project_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """
         Generate conversational explanation and plan for Flutter code implementation.
         
@@ -376,6 +401,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
             db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this to update the record.
+            project_id (str, optional): Project ID this generation belongs to.
             access_token (str, optional): User's JWT access token for database operations.
             
         Returns:
@@ -454,7 +480,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             
             return {"success": False, "error": str(e)}
     
-    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None, access_token: str = None) -> Dict[str, Any]:
+    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None, project_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """
         Fix Flutter code based on analysis errors.
         
@@ -463,7 +489,8 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             error_message (str): The error message from the Flutter analyzer
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
-            generation_id (str, optional): Unique identifier for the generation to fix. If not provided, a new one will be created.
+            generation_id (str, optional): Generation ID to fix. If not provided, uses the latest generation.
+            project_id (str, optional): Project ID this generation belongs to.
             access_token (str, optional): User's JWT access token for database operations.
             
         Returns:
@@ -475,8 +502,8 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 generation_id = str(uuid.uuid4())
                 
             # Get managers for this generation
-            code_manager = self._get_code_manager(generation_id)
-            integration_manager = self._get_integration_manager(generation_id)
+            code_manager = self._get_code_manager(project_id, generation_id)
+            integration_manager = self._get_integration_manager(project_id, generation_id)
             conversation_manager = self._get_conversation_manager(session_id)
             
             # Store the complete AI response
@@ -797,33 +824,30 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             
             return {"success": False, "error": str(e)}
             
-    def cleanup_generation(self, generation_id: str) -> bool:
+    def cleanup_generation(self, project_id: str) -> bool:
         """
-        Clean up resources for a specific generation.
+        Clean up resources for a project.
         
         Args:
-            generation_id (str): Unique identifier for the generation to clean up
+            project_id (str): Project ID to clean up
             
         Returns:
-            bool: True if cleanup was successful, False otherwise
+            bool: True if cleanup was successful
         """
         try:
-            # Stop the Flutter app if it's running
-            if generation_id in self.integration_managers:
-                self.integration_managers[generation_id].stop_flutter_app()
-        
             # Clean up code manager resources
-            if generation_id in self.code_managers:
-                self.code_managers[generation_id].cleanup()
-                
-            # Remove managers from dictionaries
-            if generation_id in self.integration_managers:
-                del self.integration_managers[generation_id]
-                
-            if generation_id in self.code_managers:
-                del self.code_managers[generation_id]
-                
+            if project_id in self.code_managers:
+                self.code_managers[project_id].cleanup()
+                del self.code_managers[project_id]
+            
+            # Clean up integration manager resources
+            if project_id in self.integration_managers:
+                # Stop any running processes
+                integration_manager = self.integration_managers[project_id]
+                integration_manager.stop_flutter_app()
+                del self.integration_managers[project_id]
+            
             return True
         except Exception as e:
-            print(f"Error cleaning up generation {generation_id}: {str(e)}")
+            print(f"Error cleaning up project {project_id}: {str(e)}")
             return False 

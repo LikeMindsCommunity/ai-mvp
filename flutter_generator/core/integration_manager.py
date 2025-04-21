@@ -23,17 +23,19 @@ class FlutterIntegrationManager:
     Manager for Flutter integration and deployment.
     """
     
-    def __init__(self, settings: Settings = None, generation_id: str = None, integration_path: str = None):
+    def __init__(self, settings: Settings = None, project_id: str = None, generation_id: str = None, integration_path: str = None):
         """
         Initialize the integration manager.
         
         Args:
             settings (Settings, optional): Settings for configuration
+            project_id (str, optional): Project ID this generation belongs to
             generation_id (str, optional): Unique ID for this generation
-            integration_path (str, optional): Path to the integration directory for this generation
+            integration_path (str, optional): Path to the integration directory for this project
         """
         self.settings = settings or Settings()
         self.root_dir = os.getcwd()
+        self.project_id = project_id
         self.generation_id = generation_id
         self.integration_path = integration_path
         self.flutter_process = None
@@ -47,9 +49,9 @@ class FlutterIntegrationManager:
         self._setup_log_directory()
     
     def _setup_log_directory(self):
-        """Set up the log directory for this integration."""
-        if self.generation_id:
-            log_dir = os.path.join(self.root_dir, "logs", self.generation_id)
+        """Set up the log directory for this project."""
+        if self.project_id:
+            log_dir = os.path.join(self.root_dir, "logs", self.project_id)
         else:
             log_dir = os.path.join(self.root_dir, "logs")
             
