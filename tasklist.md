@@ -143,7 +143,21 @@
   - [x] Add cleanup methods
   - [x] Implement directory tracking
 
-### 3.2 Offload Long-Running Tasks [High]
+### 3.2 Optimize Project Directory Structure [High]
+- [x] Implement project-based organization
+  - [x] Create separate directory for each project
+  - [x] Store all generations for a project in one location
+  - [x] Reuse integration environment for each project
+- [x] Update WebSocket handler
+  - [x] Track projects instead of individual generations
+  - [x] Update cleanup logic for project-based structure
+  - [x] Ensure proper "Result" response formatting for frontend compatibility
+- [x] Update service implementation
+  - [x] Modify managers to work with project IDs
+  - [x] Update interface to include project_id parameter
+  - [x] Implement cleanup at project level instead of generation level
+
+### 3.3 Offload Long-Running Tasks [High]
 - [ ] Research and select background task queue
   - [ ] Evaluate Celery + Redis/RabbitMQ
   - [ ] Evaluate Arq
@@ -168,7 +182,7 @@
   - [ ] Set up PubSub with Supabase Realtime
   - [ ] Update client-side code to handle updates
 
-### 3.3 Implement WebSocket Cleanup [High]
+### 3.4 Implement WebSocket Cleanup [High]
 - [ ] Enhance disconnect handler
   - [ ] Modify `WebSocketHandler` exception block
   - [ ] Add cancellation signal to background tasks
@@ -182,7 +196,7 @@
   - [ ] Add safety checks for path validation
   - [ ] Test cleanup process thoroughly
 
-### 3.4 Optimize Command Output Handling [Medium]
+### 3.5 Optimize Command Output Handling [Medium]
 - [ ] Refactor output handling methods
   - [ ] Update `run_command_with_timeout` function
   - [ ] Modify `_read_process_output` function
@@ -195,7 +209,7 @@
   - [ ] Add logic to maintain recent output for error reporting
   - [ ] Test memory usage under load
 
-### 3.5 Persist Conversation History [Medium]
+### 3.6 Persist Conversation History [Medium]
 - [ ] Remove in-memory conversation history
   - [ ] Identify all uses of `self.conversation_history`
   - [ ] Plan replacement strategy
@@ -345,4 +359,4 @@
   - [ ] Create model for `Chat` messages
   - [ ] Create model for `Error` messages
   - [ ] Create model for `AnalysisError` messages
-  - [ ] Create model for `
+  - [ ] Create model for `Result` messages

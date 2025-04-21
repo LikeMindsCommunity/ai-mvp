@@ -34,6 +34,10 @@ This project uses the Gemini 2.5 Pro API to generate Flutter integration code ba
    │   └── utils/
    ├── integration/
    ├── output/
+   │   └── {project_id}/
+   │       ├── integration/
+   │       └── generations/
+   │           └── {generation_id}.dart
    └── run_server.py
 
 ## Installation
@@ -236,8 +240,20 @@ The project follows a clean architecture pattern with these main components:
   - `core/` - Core generator functionality
   - `config/` - Configuration settings
   - `utils/` - Utility functions
-- `integration/` - Flutter test project for code deployment
-- `output/` - Directory for saving generated code
+- `integration/` - Template Flutter project used as a base for code deployment
+- `output/` - Directory for projects and generated code
+  - `{project_id}/` - One directory per project
+    - `integration/` - Flutter test project specific to this project
+    - `generations/` - All code generations for this project
+
+## Code Generation Flow
+
+The service follows an efficient project-based generation model:
+
+1. Each project gets its own directory and Flutter integration environment
+2. Multiple generations within the same project reuse the same Flutter environment
+3. Each generation is stored as a separate file but deployed to the same integration environment
+4. This approach optimizes resource usage while maintaining isolation between different projects
 
 ## License
 
