@@ -292,6 +292,26 @@
                     <h3>Logout</h3>
                     <button id="logoutBtn">Logout</button>
 
+                    <h3>Token Management</h3>
+                    <button id="refreshTokenBtn">Refresh Token</button>
+
+                    <h3>Password Management</h3>
+                    <div class="form-group">
+                        <label for="resetPasswordEmail">Email for password reset:</label>
+                        <input type="email" id="resetPasswordEmail" />
+                    </div>
+                    <button id="resetPasswordBtn">Request Password Reset</button>
+
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password:</label>
+                        <input type="password" id="currentPassword" />
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" />
+                    </div>
+                    <button id="changePasswordBtn">Change Password</button>
+
                     <h3>Current Token</h3>
                     <div id="tokenDisplayContainer">
                         <div id="tokenDisplay" onclick="toggleTokenDisplay(this)" class="token-display">No token
@@ -526,8 +546,17 @@
 
                 tokenDisplay.textContent = truncatedToken;
                 copyTokenBtn.disabled = false;
+
+                // Also update the token metadata if refresh token is available
+                const refreshToken = localStorage.getItem('refreshToken');
+                if (refreshToken) {
+                    tokenDisplay.title = `Access Token: ${state.accessToken}\nRefresh Token Available: Yes`;
+                } else {
+                    tokenDisplay.title = `Access Token: ${state.accessToken}\nRefresh Token Available: No`;
+                }
             } else {
                 tokenDisplay.textContent = 'No token available';
+                tokenDisplay.title = '';
                 copyTokenBtn.disabled = true;
             }
         }
@@ -555,9 +584,10 @@
         document.getElementById('clearTokenBtn').addEventListener('click', function () {
             state.accessToken = null;
             localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken'); // Also clear refresh token
             updateTokenDisplay();
             updateAuthIndicators();
-            alert('Token cleared!');
+            alert('Tokens cleared!');
         });
 
         // Helper function for API requests
@@ -716,6 +746,12 @@
                 if (response.data.access_token) {
                     state.accessToken = response.data.access_token;
                     localStorage.setItem('accessToken', state.accessToken);
+
+                    // Also store refresh token if available
+                    if (response.data.refresh_token) {
+                        localStorage.setItem('refreshToken', response.data.refresh_token);
+                    }
+
                     updateTokenDisplay();
                     updateAuthIndicators();
                     appendResponse('authResponseLog', { ...response, data: { ...response.data, access_token: "***TRUNCATED***" } }, true);
@@ -740,9 +776,126 @@
             if (response.success) {
                 state.accessToken = null;
                 localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken'); // Also clear refresh token
                 updateTokenDisplay();
                 updateAuthIndicators();
             }
+
+            appendResponse('authResponseLog', response, response.success);
+        });
+
+        document.getElementById('refreshTokenBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+
+            // Get refresh token from localStorage or cookies
+            const refreshToken = localStorage.getItem('refreshToken');
+
+            if (!refreshToken) {
+                appendResponse('authResponseLog', 'No refresh token available', false);
+                return;
+            }
+
+            try {
+                // Use the fetch API directly to ensure proper request format
+                const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ refresh_token: refreshToken })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data) {
+                    // Update tokens in storage
+                    if (data.access_token) {
+                        state.accessToken = data.access_token;
+                        localStorage.setItem('accessToken', state.accessToken);
+
+                        if (data.refresh_token) {
+                            localStorage.setItem('refreshToken', data.refresh_token);
+                        }
+
+                        updateTokenDisplay();
+                        updateAuthIndicators();
+
+                        // Create a sanitized version for display
+                        const sanitizedData = {
+                            ...data,
+                            access_token: "***TRUNCATED***",
+                            refresh_token: "***TRUNCATED***"
+                        };
+
+                        appendResponse('authResponseLog', {
+                            status: response.status,
+                            statusText: response.statusText,
+                            ok: response.ok,
+                            success: true,
+                            data: sanitizedData
+                        }, true);
+                    } else {
+                        appendResponse('authResponseLog', 'Token refresh successful but no token received', false);
+                    }
+                } else {
+                    appendResponse('authResponseLog', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: false,
+                        success: false,
+                        data: data
+                    }, false);
+                }
+            } catch (error) {
+                appendResponse('authResponseLog', {
+                    success: false,
+                    error: error.message
+                }, false);
+            }
+        });
+
+        document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+            const email = document.getElementById('resetPasswordEmail').value;
+
+            if (!email) {
+                appendResponse('authResponseLog', 'Email is required', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/auth/reset-password`,
+                'POST',
+                { email }
+            );
+
+            appendResponse('authResponseLog', response, response.success);
+        });
+
+        document.getElementById('changePasswordBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+
+            if (!state.accessToken) {
+                appendResponse('authResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!currentPassword || !newPassword) {
+                appendResponse('authResponseLog', 'Current and new passwords are required', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/auth/change-password`,
+                'POST',
+                {
+                    current_password: currentPassword,
+                    new_password: newPassword
+                },
+                state.accessToken
+            );
 
             appendResponse('authResponseLog', response, response.success);
         });

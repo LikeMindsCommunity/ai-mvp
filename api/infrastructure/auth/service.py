@@ -203,4 +203,94 @@ async def handle_github_callback(code: str) -> Dict[str, Any]:
     except Exception as e:
         error_msg = f"GitHub callback failed: {str(e)}"
         print(error_msg)
-        raise ValueError(error_msg) 
+        raise ValueError(error_msg)
+
+async def refresh_token(refresh_token: str) -> Dict[str, Any]:
+    """
+    Refresh an authentication token.
+    
+    Args:
+        refresh_token: The refresh token from previous authentication
+        
+    Returns:
+        Dict containing new access token, refresh token, and user data
+        
+    Raises:
+        ValueError: If token refresh fails
+    """
+    client = get_supabase_client()
+    try:
+        # Refresh the session
+        data = client.auth.refresh_session(refresh_token)
+        
+        if not data or not data.session:
+            raise ValueError("Failed to refresh token")
+            
+        # Convert user object to dictionary
+        user_data = user_to_dict(data.user)
+        
+        return {
+            "access_token": data.session.access_token,
+            "refresh_token": data.session.refresh_token,
+            "token_type": "bearer",
+            "user": user_data
+        }
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Token refresh error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Token refresh failed: {str(e)}")
+
+async def request_password_reset(email: str) -> Dict[str, Any]:
+    """
+    Request a password reset email.
+    
+    Args:
+        email: The user's email address
+        
+    Returns:
+        Dict with a success message
+        
+    Raises:
+        ValueError: If the password reset request fails
+    """
+    client = get_supabase_client()
+    try:
+        result = client.auth.reset_password_email(email)
+        return {"message": "Password reset email sent successfully"}
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Password reset error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Password reset request failed: {str(e)}")
+
+async def change_password(access_token: str, current_password: str, new_password: str) -> Dict[str, Any]:
+    """
+    Change a user's password.
+    
+    Args:
+        access_token: The current access token
+        current_password: The current password
+        new_password: The new password
+        
+    Returns:
+        Dict with a success message
+        
+    Raises:
+        ValueError: If the password change fails
+    """
+    client = get_supabase_client()
+    try:
+        # First verify the token by getting the user
+        user_response = client.auth.get_user(access_token)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+        
+        # Update the password
+        client.auth.update_user(
+            {"password": new_password},
+        )
+        
+        return {"message": "Password changed successfully"}
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Password change error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Password change failed: {str(e)}") 

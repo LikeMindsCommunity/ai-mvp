@@ -12,8 +12,8 @@ from fastapi.responses import RedirectResponse
 import json
 
 from api.infrastructure.auth import get_current_user, create_access_token, user_to_dict
-from api.domain.auth.models import UserCreate, UserLogin, Token
-from api.infrastructure.auth.service import sign_up, sign_in, sign_out, sign_in_with_github, handle_github_callback
+from api.domain.auth.models import UserCreate, UserLogin, Token, RefreshToken, PasswordReset, PasswordChange
+from api.infrastructure.auth.service import sign_up, sign_in, sign_out, sign_in_with_github, handle_github_callback, refresh_token, request_password_reset, change_password
 from api.config import get_settings
 from api.presentation.exceptions import APIException
 
@@ -64,6 +64,7 @@ async def register(user_data: UserCreate) -> Token:
         # Get the session data (when email confirmation is not required)
         return Token(
             access_token=result.session.access_token,
+            refresh_token=result.session.refresh_token,
             user=user_dict
         )
     
@@ -103,6 +104,7 @@ async def login(user_data: UserLogin) -> Token:
         
         return Token(
             access_token=result.session.access_token,
+            refresh_token=result.session.refresh_token,
             user=user_dict
         )
     except ValueError as e:
@@ -143,6 +145,7 @@ async def login_with_oauth_form(form_data: OAuth2PasswordRequestForm = Depends()
         
         return {
             "access_token": result.session.access_token,
+            "refresh_token": result.session.refresh_token,
             "token_type": "bearer"
         }
     except ValueError as e:
@@ -155,6 +158,21 @@ async def login_with_oauth_form(form_data: OAuth2PasswordRequestForm = Depends()
         raise
     except Exception as e:
         APIException.raise_server_error("OAuth login", e)
+
+# Add this alias for Swagger UI - it will redirect to the OAuth endpoint
+@router.post("/swagger-auth")
+async def swagger_auth(form_data: OAuth2PasswordRequestForm = Depends()) -> Dict[str, Any]:
+    """
+    Alias endpoint for Swagger UI authentication.
+    This is an alias for /api/auth/login/oauth that may be easier to find.
+    
+    Args:
+        form_data: OAuth2 form data with username and password fields
+    
+    Returns:
+        Dict with access token and token type
+    """
+    return await login_with_oauth_form(form_data)
 
 @router.post("/logout", response_model=Dict[str, Any])
 async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
@@ -225,4 +243,83 @@ async def github_callback(code: str = Query(...)):
     except HTTPException:
         raise
     except Exception as e:
-        APIException.raise_server_error("GitHub callback", e) 
+        APIException.raise_server_error("GitHub callback", e)
+
+@router.post("/refresh", response_model=Token)
+async def refresh_auth_token(token_data: RefreshToken) -> Token:
+    """
+    Refresh an authentication token.
+    
+    Args:
+        token_data: Refresh token data
+    
+    Returns:
+        Token: New authentication token and user data
+    """
+    try:
+        result = await refresh_token(token_data.refresh_token)
+        
+        return Token(
+            access_token=result["access_token"],
+            refresh_token=result["refresh_token"],
+            user=result["user"]
+        )
+    except ValueError as e:
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("Token refresh", e)
+
+@router.post("/reset-password", response_model=Dict[str, Any])
+async def reset_password(reset_data: PasswordReset) -> Dict[str, Any]:
+    """
+    Request a password reset email.
+    
+    Args:
+        reset_data: Email for password reset
+    
+    Returns:
+        Dict with a success message
+    """
+    try:
+        result = await request_password_reset(reset_data.email)
+        return {"data": result}
+    except ValueError as e:
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("Password reset request", e)
+
+@router.post("/change-password", response_model=Dict[str, Any])
+async def change_user_password(password_data: PasswordChange, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """
+    Change a user's password.
+    
+    Args:
+        password_data: Current and new password
+        user: Current authenticated user (from dependency)
+    
+    Returns:
+        Dict with a success message
+    """
+    try:
+        # Extract the access token from the user dictionary
+        access_token = user.get('access_token')
+        if not access_token:
+            APIException.raise_bad_request("No access token available")
+            
+        result = await change_password(
+            access_token=access_token,
+            current_password=password_data.current_password,
+            new_password=password_data.new_password
+        )
+        
+        return {"data": result}
+    except ValueError as e:
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("Password change", e) 

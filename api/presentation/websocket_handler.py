@@ -20,6 +20,7 @@ import asyncio
 from api.infrastructure.services.flutter_generator_service_impl import FlutterGeneratorServiceImpl
 from api.infrastructure.database import SupabaseManager
 from api.infrastructure.auth import get_current_user
+from api.infrastructure.auth.service import refresh_token
 from api.infrastructure.projects.service import get_project
 from api.infrastructure.code_generations.service import create_code_generation, update_code_generation
 from api.presentation.exceptions import APIException
@@ -40,6 +41,13 @@ class WebSocketHandler:
         })
         await websocket.close()
     
+    async def send_token_expired(self, websocket: WebSocket) -> None:
+        """Send a token expired message without closing the connection."""
+        await websocket.send_json({
+            "type": "TokenExpired",
+            "value": "Authentication token has expired. Please refresh the token."
+        })
+    
     async def handle_websocket(self, websocket: WebSocket, token: str, project_id: str):
         """
         Handle WebSocket connection and messages.
@@ -52,6 +60,10 @@ class WebSocketHandler:
         await websocket.accept()
         
         try:
+            # Track authentication state
+            access_token = token
+            user = None
+            
             # Verify the token and project access
             try:
                 # Use the centralized auth validation
@@ -90,8 +102,12 @@ class WebSocketHandler:
                 })
                 
             except HTTPException as e:
-                await self.send_error(websocket, e.detail)
-                return
+                if e.status_code == 401:
+                    # Token likely expired, notify client
+                    await self.send_token_expired(websocket)
+                else:
+                    await self.send_error(websocket, e.detail)
+                    return
             except Exception as e:
                 await self.send_error(websocket, f"Authentication error: {str(e)}")
                 return
@@ -109,6 +125,43 @@ class WebSocketHandler:
                         "value": "Missing 'type' field in request"
                     })
                     continue
+                
+                # Handle token refresh
+                if message["type"] == "RefreshToken":
+                    if "refresh_token" not in message:
+                        await websocket.send_json({
+                            "type": "Error",
+                            "value": "Missing 'refresh_token' field in request"
+                        })
+                        continue
+                    
+                    try:
+                        # Refresh the token
+                        refresh_result = await refresh_token(message["refresh_token"])
+                        access_token = refresh_result["access_token"]
+                        
+                        # Update the user
+                        user = await get_current_user(access_token)
+                        
+                        # Notify client of successful refresh
+                        await websocket.send_json({
+                            "type": "TokenRefreshed",
+                            "value": {
+                                "access_token": access_token,
+                                "refresh_token": refresh_result["refresh_token"]
+                            }
+                        })
+                        
+                        # Re-verify project access with new token
+                        project = await get_project(project_id, access_token)
+                        if not project or not project.data:
+                            await self.send_error(websocket, "Project not found or you don't have access")
+                            return
+                            
+                        continue
+                    except Exception as e:
+                        await self.send_error(websocket, f"Token refresh failed: {str(e)}")
+                        return
                 
                 # Define callback for streaming responses
                 async def on_chunk(response: Dict[str, Any]):
@@ -151,6 +204,17 @@ class WebSocketHandler:
                                 # Update the message with context
                                 message["generation_id"] = generation_id
                                 message["output_path"] = output_path
+                            except HTTPException as e:
+                                if e.status_code == 401:
+                                    # Token expired during operation
+                                    await self.send_token_expired(websocket)
+                                    continue
+                                else:
+                                    await websocket.send_json({
+                                        "type": "Error",
+                                        "value": e.detail
+                                    })
+                                    continue
                             except Exception as e:
                                 await websocket.send_json({
                                     "type": "Error",
@@ -284,10 +348,20 @@ class WebSocketHandler:
                             "value": f"Unsupported message type: {message['type']}"
                         })
                 
+                except HTTPException as e:
+                    if e.status_code == 401:
+                        # Token expired during operation
+                        await self.send_token_expired(websocket)
+                        continue
+                    else:
+                        await websocket.send_json({
+                            "type": "Error",
+                            "value": e.detail
+                        })
                 except Exception as e:
                     await websocket.send_json({
                         "type": "Error",
-                        "value": f"Operation failed: {str(e)}"
+                        "value": f"Error processing request: {str(e)}"
                     })
         
         except WebSocketDisconnect:

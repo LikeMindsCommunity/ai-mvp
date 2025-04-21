@@ -17,4 +17,18 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: Dict[str, Any]
-    email_confirmation_required: Optional[bool] = False 
+    email_confirmation_required: Optional[bool] = False
+    refresh_token: Optional[str] = None
+
+class RefreshToken(BaseModel):
+    """Token refresh request model."""
+    refresh_token: str
+
+class PasswordReset(BaseModel):
+    """Password reset request model."""
+    email: EmailStr
+
+class PasswordChange(BaseModel):
+    """Password change request model."""
+    current_password: str
+    new_password: str = Field(..., min_length=8) 

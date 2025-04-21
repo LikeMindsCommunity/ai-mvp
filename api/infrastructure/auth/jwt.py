@@ -12,7 +12,7 @@ from api.config import get_settings
 from api.infrastructure.database import SupabaseManager
 
 settings = get_settings()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/swagger-auth")
 supabase_manager = SupabaseManager()
 
 def user_to_dict(user) -> Dict[str, Any]:
