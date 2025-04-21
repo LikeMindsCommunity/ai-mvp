@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     
     # Frontend settings
     frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:8080"))
-    frontend_callback_path: str = Field(default=os.getenv("FRONTEND_CALLBACK_PATH", "/auth/callback"))
+    frontend_callback_path: str = Field(default=os.getenv("FRONTEND_CALLBACK_PATH", ""))
 
         # JWT settings
     jwt_secret: str = Field(default=os.getenv("JWT_SECRET", "your-secret-key-for-jwt-signing"))
