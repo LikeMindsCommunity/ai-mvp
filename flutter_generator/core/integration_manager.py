@@ -78,31 +78,48 @@ class FlutterIntegrationManager:
             # Change to working directory if specified
             if working_dir:
                 os.chdir(working_dir)
+            
+            # Open the log file for appending
+            log_file = os.path.join(self.log_path, "flutter.log")
+            with open(log_file, 'a') as log:
+                log.write(f"\n=== Running command: {cmd} ===\n")
+                log.flush()
                 
-            process = subprocess.Popen(
-                cmd, 
-                shell=True, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT,
-                text=True
-            )
-            
-            output = []
-            def collect_output():
-                for line in process.stdout:
-                    output.append(line)
-            
-            thread = threading.Thread(target=collect_output)
-            thread.daemon = True
-            thread.start()
-            
-            try:
-                exit_code = process.wait(timeout=timeout)
-                thread.join(timeout=1)
-                return exit_code, ''.join(output)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                return -1, f"Command timed out after {timeout} seconds: {cmd}"
+                process = subprocess.Popen(
+                    cmd, 
+                    shell=True, 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+                
+                output = []
+                def collect_output():
+                    for line in process.stdout:
+                        output.append(line)
+                        # Write to log file
+                        with open(log_file, 'a') as cmd_log:
+                            cmd_log.write(line)
+                            cmd_log.flush()
+                        # Only print errors to console
+                        if "Error:" in line or "Exception:" in line or "Failed:" in line:
+                            print(f"Flutter Error: {line.strip()}")
+                
+                thread = threading.Thread(target=collect_output)
+                thread.daemon = True
+                thread.start()
+                
+                try:
+                    exit_code = process.wait(timeout=timeout)
+                    thread.join(timeout=1)
+                    return exit_code, ''.join(output)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    error_msg = f"Command timed out after {timeout} seconds: {cmd}"
+                    with open(log_file, 'a') as cmd_log:
+                        cmd_log.write(f"\n{error_msg}\n")
+                    print(error_msg)  # Print timeout errors to console
+                    return -1, error_msg
         finally:
             # Return to original directory
             os.chdir(current_dir)
@@ -127,8 +144,9 @@ class FlutterIntegrationManager:
                     log.write(output)
                     log.flush()
                     
-                    # Print to console for monitoring
-                    print(output, end='', flush=True)
+                    # Only print to console if it's an error message
+                    if "Error:" in output or "Exception:" in output or "Failed:" in output:
+                        print(f"Flutter Error: {output.strip()}", flush=True)
                 except Exception as e:
                     print(f"Error reading process output: {str(e)}")
                     break
@@ -146,15 +164,25 @@ class FlutterIntegrationManager:
         Returns:
             bool: True if command was sent successfully
         """
+        log_file = os.path.join(self.log_path, "flutter.log")
+        
         if not self.is_running or self.process_fd is None:
-            print("Cannot send command - Flutter process is not running")
+            with open(log_file, 'a') as log:
+                log.write("Cannot send command - Flutter process is not running\n")
+                log.flush()
             return False
             
         try:
             os.write(self.process_fd, command.encode('utf-8'))
+            with open(log_file, 'a') as log:
+                log.write(f"Sent command '{command}' to Flutter process\n")
+                log.flush()
             return True
         except Exception as e:
-            print(f"Failed to send command to Flutter process: {str(e)}")
+            with open(log_file, 'a') as log:
+                log.write(f"Failed to send command to Flutter process: {str(e)}\n")
+                log.flush()
+            print(f"Error: Failed to send command to Flutter process: {str(e)}")  # Print error to console
             return False
     
     def start_flutter_app(self) -> Optional[str]:
@@ -176,15 +204,28 @@ class FlutterIntegrationManager:
             # Ensure we're in the integration directory
             os.chdir(integration_dir)
             
-            # Run flutter pub get to update dependencies
-            print("Running flutter pub get...")
-            subprocess.run('flutter pub get', shell=True, check=True)
+            # Create or append to the log file
+            log_file = os.path.join(self.log_path, "flutter.log")
+            with open(log_file, 'a') as log:
+                log.write("\n=== Starting Flutter App ===\n")
+                log.write("Running flutter pub get...\n")
+                log.flush()
+            
+            # Run flutter pub get to update dependencies (logged to file)
+            process = subprocess.run('flutter pub get', shell=True, capture_output=True, text=True)
+            with open(log_file, 'a') as log:
+                log.write(process.stdout)
+                log.write(process.stderr)
+                log.flush()
             
             # Get host and port from environment
             host = os.environ.get("WEB_HOST", "0.0.0.0") 
             port = int(os.environ.get("FLUTTER_WEB_PORT", "8080"))
             
-            print(f"Starting Flutter web server on {host}:{port} in interactive mode...")
+            with open(log_file, 'a') as log:
+                log.write(f"Starting Flutter web server on {host}:{port} in interactive mode...\n")
+                log.flush()
+            
             cmd = f"flutter run -d web-server --web-port {port} --web-hostname {host}"
             
             # Start the process in a pseudo-terminal to allow for interactive commands
@@ -221,16 +262,22 @@ class FlutterIntegrationManager:
             self.process_thread.daemon = True
             self.process_thread.start()
             
-            print(f"Flutter process started with PID {process.pid}")
+            with open(log_file, 'a') as log:
+                log.write(f"Flutter process started with PID {process.pid}\n")
+                log.flush()
             
             # Function to verify if a web server is accepting connections
             def is_server_running(url, max_attempts=12, delay=5):
                 """Check if a server is running by making an HTTP request."""
-                print(f"Verifying web server at {url}...")
+                with open(log_file, 'a') as log:
+                    log.write(f"Verifying web server at {url}...\n")
+                    log.flush()
                 
                 for attempt in range(max_attempts):
                     try:
-                        print(f"Attempt {attempt+1}/{max_attempts} to connect to {url}")
+                        with open(log_file, 'a') as log:
+                            log.write(f"Attempt {attempt+1}/{max_attempts} to connect to {url}\n")
+                            log.flush()
                         
                         # Try to open the URL with a timeout
                         # Add cache-busting parameter to the URL
@@ -240,21 +287,34 @@ class FlutterIntegrationManager:
                         
                         # If we get a response, the server is running
                         if response.getcode() == 200:
-                            print(f"Server at {url} is responding!")
+                            with open(log_file, 'a') as log:
+                                log.write(f"Server at {url} is responding!\n")
+                                log.flush()
+                            print(f"Flutter server ready at {url}")  # Print success message to console
                             return True
                     except (urllib.error.URLError, ConnectionRefusedError) as e:
-                        print(f"Server not responding yet: {e}")
+                        with open(log_file, 'a') as log:
+                            log.write(f"Server not responding yet: {e}\n")
+                            log.flush()
                     except Exception as e:
-                        print(f"Unexpected error checking server: {e}")
+                        with open(log_file, 'a') as log:
+                            log.write(f"Unexpected error checking server: {e}\n")
+                            log.flush()
                     
                     # Check if process is still running
                     if not self.is_running or process.poll() is not None:
+                        with open(log_file, 'a') as log:
+                            log.write("Flutter process has terminated unexpectedly\n")
+                            log.flush()
                         print("Flutter process has terminated unexpectedly")
                         return False
                     
                     # Wait before next attempt
                     time.sleep(delay)
                 
+                with open(log_file, 'a') as log:
+                    log.write(f"Server verification timed out after {max_attempts * delay} seconds\n")
+                    log.flush()
                 print(f"Server verification timed out after {max_attempts * delay} seconds")
                 return False
             
@@ -282,57 +342,94 @@ class FlutterIntegrationManager:
             return None
     
     def hot_restart(self) -> bool:
-        """Trigger a hot restart of the Flutter app."""
+        """
+        Trigger a Flutter hot restart by sending 'R' to the process.
+        
+        Returns:
+            bool: True if successful
+        """
+        log_file = os.path.join(self.log_path, "flutter.log")
+        with open(log_file, 'a') as log:
+            log.write("\n=== Triggering Hot Restart ===\n")
+            log.flush()
+        
         return self.send_command_to_flutter('R')
     
     def hot_reload(self) -> bool:
-        """Trigger a hot reload of the Flutter app."""
+        """
+        Trigger a Flutter hot reload by sending 'r' to the process.
+        
+        Returns:
+            bool: True if successful
+        """
+        log_file = os.path.join(self.log_path, "flutter.log")
+        with open(log_file, 'a') as log:
+            log.write("\n=== Triggering Hot Reload ===\n")
+            log.flush()
+        
         return self.send_command_to_flutter('r')
     
     def stop_flutter_app(self):
-        """Stop the running Flutter app and clean up resources."""
-        # Check if we have a running process
-        if self.flutter_process is not None:
+        """Stop the Flutter app if it's running."""
+        if self.is_running and self.flutter_process:
+            log_file = os.path.join(self.log_path, "flutter.log")
+            with open(log_file, 'a') as log:
+                log.write("\n=== Stopping Flutter App ===\n")
+                log.flush()
+            
             try:
-                # Try to gracefully terminate first
-                if self.process_pid:
-                    print(f"Stopping Flutter process with PID {self.process_pid}...")
-                    os.killpg(os.getpgid(self.process_pid), signal.SIGTERM)
-                    
-                    # Give it a moment to terminate
-                    time.sleep(2)
-                    
-                    # If still running, force kill
-                    if self.flutter_process.poll() is None:
+                # Send 'q' to exit Flutter process gracefully
+                if self.process_fd:
+                    try:
+                        os.write(self.process_fd, b'q')
+                    except:
+                        pass
+                
+                # Wait a short time for graceful exit
+                time.sleep(1)
+                
+                # If process is still running, terminate it
+                if self.flutter_process.poll() is None:
+                    # Try SIGINT first (Ctrl+C)
+                    try:
+                        os.killpg(os.getpgid(self.process_pid), signal.SIGINT)
+                        time.sleep(1)
+                    except:
+                        pass
+                
+                # If still running, force kill
+                if self.flutter_process.poll() is None:
+                    try:
                         os.killpg(os.getpgid(self.process_pid), signal.SIGKILL)
-                        
+                    except:
+                        pass
+                
+                # Close the file descriptor
+                if self.process_fd:
+                    try:
+                        os.close(self.process_fd)
+                    except:
+                        pass
+                
+                with open(log_file, 'a') as log:
+                    log.write("Flutter app stopped\n")
+                    log.flush()
+                
             except Exception as e:
-                print(f"Error stopping Flutter process: {str(e)}")
-                
-            # Clean up resources
-            self.flutter_process = None
-            self.process_pid = None
-            
-            # Close file descriptor if open
-            if self.process_fd is not None:
-                try:
-                    os.close(self.process_fd)
-                except:
-                    pass
+                with open(log_file, 'a') as log:
+                    log.write(f"Error stopping Flutter app: {str(e)}\n")
+                    log.flush()
+                print(f"Error stopping Flutter app: {str(e)}")  # Print error to console
+            finally:
+                self.flutter_process = None
                 self.process_fd = None
+                self.process_pid = None
+                self.is_running = False
                 
-            # Reset flag
-            self.is_running = False
-            
-            print("Flutter process stopped")
-            
-        # Also attempt to kill any stray flutter processes
+        # Also clean up any stray web server processes
         try:
-            if os.name == 'posix':
-                # For Unix-like systems (Linux, macOS)
-                os.system("pkill -f 'flutter run -d web-server'")
-            else:
-                # For Windows
-                os.system("taskkill /F /IM flutter.exe")
+            # Kill any processes listening on the Flutter web port
+            port = os.environ.get("FLUTTER_WEB_PORT", "8080")
+            subprocess.run(f"lsof -ti:{port} | xargs kill -9", shell=True, stderr=subprocess.DEVNULL)
         except:
             pass 

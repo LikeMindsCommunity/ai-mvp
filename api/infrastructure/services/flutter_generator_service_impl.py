@@ -167,7 +167,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Inform starting generation
             await on_chunk({
                 "type": "Text",
-                "value": "Generating Flutter code based on your request..."
+                "value": "Generating Flutter code..."
             })
             
             # Generate code with the enhanced prompt
@@ -182,7 +182,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Extract and save code
             await on_chunk({
                 "type": "Text",
-                "value": "Processing generated code..."
+                "value": "Processing code..."
             })
             
             dart_codes = code_manager.extract_dart_code(generated_text)
@@ -213,7 +213,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Run Flutter pub get
             await on_chunk({
                 "type": "Text",
-                "value": "Running flutter pub get..."
+                "value": "Preparing Flutter environment..."
             })
             
             exit_code, output = integration_manager.run_command_with_timeout(
@@ -271,7 +271,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Start Flutter development server
             await on_chunk({
                 "type": "Text",
-                "value": "Starting Flutter development server..."
+                "value": "Starting Flutter application..."
             })
             
             # Start the Flutter app with hot reload
@@ -315,7 +315,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             
             await on_chunk({
                 "type": "Success",
-                "value": "Integration completed successfully!"
+                "value": "Flutter application is ready!"
             })
             
             # Update the generation record with success info and full content
@@ -518,7 +518,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Extract and save the fixed code
             await on_chunk({
                 "type": "Text",
-                "value": "Processing fixed code..."
+                "value": "Processing code fixes..."
             })
             
             dart_codes = code_manager.extract_dart_code(generated_text)
@@ -536,7 +536,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Copy to integration project
             await on_chunk({
                 "type": "Text",
-                "value": "Updating integration with fixed code..."
+                "value": "Updating integration environment..."
             })
             
             if not code_manager.copy_to_integration(latest_file):
@@ -549,7 +549,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Analyze the fixed code
             await on_chunk({
                 "type": "Text",
-                "value": "Analyzing fixed Flutter code..."
+                "value": "Analyzing fixed code..."
             })
             
             success, error_message = code_manager.analyze_flutter_code()
@@ -595,7 +595,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 if integration_manager.hot_restart():
                     await on_chunk({
                         "type": "Success",
-                        "value": "Hot restarted Flutter app with fixed code"
+                        "value": "Code fixes applied successfully"
                     })
                     
                     # Update the generation record with success info and full content
@@ -623,7 +623,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 else:
                     await on_chunk({
                         "type": "Text",
-                        "value": "Hot restart failed, attempting to restart the server..."
+                        "value": "Restarting Flutter application..."
                     })
                     
                     # Stop the current app
@@ -635,7 +635,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     if not web_url:
                         await on_chunk({
                             "type": "Error",
-                            "value": "Failed to restart Flutter development server"
+                            "value": "Failed to restart Flutter application"
                         })
                         
                         # Update the generation record with error info and full content
@@ -671,7 +671,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     
                     await on_chunk({
                         "type": "Success",
-                        "value": "Flutter server restarted with fixed code"
+                        "value": "Flutter application restarted with fixed code"
                     })
                     
                     # Update the generation record with success info and full content
@@ -702,7 +702,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 # Start a new Flutter app
                 await on_chunk({
                     "type": "Text",
-                    "value": "Starting Flutter development server..."
+                    "value": "Starting Flutter application..."
                 })
                 
                 web_url = integration_manager.start_flutter_app()
@@ -710,7 +710,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 if not web_url:
                     await on_chunk({
                         "type": "Error",
-                        "value": "Failed to start Flutter development server"
+                        "value": "Failed to start Flutter application"
                     })
                     
                     # Update the generation record with error info and full content
@@ -746,7 +746,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 
                 await on_chunk({
                     "type": "Success",
-                    "value": "Code fixes applied successfully!"
+                    "value": "Flutter application is ready with fixed code"
                 })
                 
                 # Update the generation record with success info and full content
