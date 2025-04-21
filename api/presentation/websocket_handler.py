@@ -275,31 +275,13 @@ class WebSocketHandler:
                             message["user_query"],
                             on_chunk,
                             session_id,
-                            message.get("generation_id")  # Pass the database ID
+                            message.get("generation_id"),  # Pass the database ID
+                            access_token  # Pass the access token
                         )
                         
                         # Track the generation ID for cleanup on disconnect
                         if result.get("generation_id") and websocket_id in self.active_generation_ids:
                             self.active_generation_ids[websocket_id].add(result["generation_id"])
-                        
-                        # Update the generation record with the result
-                        if "generation_id" in message:
-                            try:
-                                await update_code_generation(
-                                    message["generation_id"],
-                                    {
-                                        "status": "completed" if result.get("success", False) else "error",
-                                        "code_content": result.get("code", ""),
-                                        "output_path": result.get("file_path", ""),
-                                        "analysis_results": result.get("analysis", {})
-                                    },
-                                    access_token
-                                )
-                            except Exception as e:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": f"Failed to update code generation record: {str(e)}"
-                                })
                         
                         # Send final result
                         await websocket.send_json({
@@ -319,25 +301,10 @@ class WebSocketHandler:
                         result = await self.flutter_generator_service.generate_conversation(
                             message["user_query"],
                             on_chunk,
-                            session_id
+                            session_id,
+                            message.get("generation_id"),  # Pass the database ID
+                            access_token  # Pass the access token
                         )
-                        
-                        # Update the generation record with the result
-                        if "generation_id" in message:
-                            try:
-                                await update_code_generation(
-                                    message["generation_id"],
-                                    {
-                                        "status": "completed",
-                                        "conversation": result.get("conversation", [])
-                                    },
-                                    access_token
-                                )
-                            except Exception as e:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": f"Failed to update code generation record: {str(e)}"
-                                })
                         
                         # Send final result
                         await websocket.send_json({
@@ -369,31 +336,13 @@ class WebSocketHandler:
                             message["error_message"],
                             on_chunk,
                             session_id,
-                            existing_generation_id
+                            existing_generation_id,
+                            access_token  # Pass the access token
                         )
                         
                         # Track the generation ID for cleanup on disconnect
                         if result.get("generation_id") and websocket_id in self.active_generation_ids:
                             self.active_generation_ids[websocket_id].add(result["generation_id"])
-                        
-                        # Update the generation record with the result
-                        if "generation_id" in message:
-                            try:
-                                await update_code_generation(
-                                    message["generation_id"],
-                                    {
-                                        "status": "completed" if result.get("success", False) else "error",
-                                        "code_content": result.get("code", ""),
-                                        "output_path": result.get("file_path", ""),
-                                        "analysis_results": result.get("analysis", {})
-                                    },
-                                    access_token
-                                )
-                            except Exception as e:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": f"Failed to update code generation record: {str(e)}"
-                                })
                         
                         # Send final result
                         await websocket.send_json({

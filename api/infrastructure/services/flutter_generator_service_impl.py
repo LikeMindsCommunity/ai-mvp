@@ -24,6 +24,7 @@ from flutter_generator.core.generator import FlutterCodeGenerator
 from flutter_generator.core.code_manager import FlutterCodeManager
 from flutter_generator.core.integration_manager import FlutterIntegrationManager
 from flutter_generator.core.conversation import FlutterConversationManager
+from api.infrastructure.code_generations.service import update_code_generation
 
 class FlutterGeneratorServiceImpl(FlutterGeneratorService):
     """Implementation of the Flutter code generator service."""
@@ -117,7 +118,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         # If this is the first request, return the original query
         return user_query
     
-    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None) -> Dict[str, Any]:
+    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """
         Generate Flutter code based on user query.
         
@@ -126,6 +127,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
             db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this instead of generating a UUID.
+            access_token (str, optional): User's JWT access token for database operations.
             
         Returns:
             Dict[str, Any]: Response containing the generation result
@@ -139,8 +141,25 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             integration_manager = self._get_integration_manager(generation_id)
             conversation_manager = self._get_conversation_manager(session_id)
             
+            # Store the complete AI response
+            full_ai_response = ""
+            
+            # Store the complete code content
+            full_code_content = ""
+            
+            # Modified callback to capture full AI response
+            original_on_chunk = on_chunk
+            async def capture_response_on_chunk(chunk: Dict[str, Any]) -> None:
+                nonlocal full_ai_response
+                # Capture Chat and Code chunks for the full AI response
+                if chunk.get("type") == "Chat":
+                    full_ai_response += chunk.get("value", "")
+                
+                # Forward to original callback
+                await original_on_chunk(chunk)
+            
             # First, generate a conversation plan
-            await conversation_manager.generate_conversation(user_query, on_chunk)
+            conversation_result = await conversation_manager.generate_conversation(user_query, capture_response_on_chunk)
             
             # Update conversation history and get enhanced prompt
             enhanced_prompt = self._update_conversation_history(session_id, user_query)
@@ -152,7 +171,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             
             # Generate code with the enhanced prompt
-            generated_text = await self.code_generator.generate_code(enhanced_prompt, on_chunk)
+            generated_text = await self.code_generator.generate_code(enhanced_prompt, capture_response_on_chunk)
             if not generated_text:
                 await on_chunk({
                     "type": "Error",
@@ -174,8 +193,9 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 })
                 return {"success": False, "error": "No valid Dart code found"}
             
-            # Save the first code block
-            latest_file = code_manager.save_dart_code(dart_codes[0])
+            # Save the first code block and store the full code content
+            full_code_content = dart_codes[0]
+            latest_file = code_manager.save_dart_code(full_code_content)
             
             # Copy to integration project
             await on_chunk({
@@ -222,6 +242,24 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     "type": "AnalysisError",
                     "value": error_message
                 })
+                
+                # Update the generation record with error info and full content
+                if db_generation_id and access_token:
+                    try:
+                        await update_code_generation(
+                            db_generation_id,
+                            {
+                                "status": "error",
+                                "code_content": full_code_content,
+                                "ai_response": full_ai_response,
+                                "analysis_results": error_message,
+                                "output_path": latest_file
+                            },
+                            access_token
+                        )
+                    except Exception as e:
+                        print(f"Failed to update code generation record: {str(e)}")
+                
                 return {
                     "success": False, 
                     "error": "Flutter code analysis found errors",
@@ -244,6 +282,23 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     "type": "Error",
                     "value": "Failed to start Flutter development server"
                 })
+                
+                # Update the generation record with error info and full content
+                if db_generation_id and access_token:
+                    try:
+                        await update_code_generation(
+                            db_generation_id,
+                            {
+                                "status": "error",
+                                "code_content": full_code_content,
+                                "ai_response": full_ai_response,
+                                "output_path": latest_file
+                            },
+                            access_token
+                        )
+                    except Exception as e:
+                        print(f"Failed to update code generation record: {str(e)}")
+                
                 return {
                     "success": False,
                     "error": "Failed to start Flutter development server",
@@ -263,11 +318,29 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "value": "Integration completed successfully!"
             })
             
+            # Update the generation record with success info and full content
+            if db_generation_id and access_token:
+                try:
+                    await update_code_generation(
+                        db_generation_id,
+                        {
+                            "status": "completed",
+                            "code_content": full_code_content,
+                            "ai_response": full_ai_response,
+                            "output_path": latest_file,
+                            "web_url": web_url
+                        },
+                        access_token
+                    )
+                except Exception as e:
+                    print(f"Failed to update code generation record: {str(e)}")
+            
             return {
                 "success": True,
                 "web_url": web_url,
                 "code_path": latest_file,
-                "generation_id": generation_id
+                "generation_id": generation_id,
+                "code": full_code_content
             }
             
         except Exception as e:
@@ -275,9 +348,26 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "type": "Error",
                 "value": f"An error occurred: {str(e)}"
             })
+            
+            # Update the generation record with error info
+            if db_generation_id and access_token:
+                try:
+                    await update_code_generation(
+                        db_generation_id,
+                        {
+                            "status": "error",
+                            "ai_response": full_ai_response if 'full_ai_response' in locals() else "",
+                            "code_content": full_code_content if 'full_code_content' in locals() else "",
+                            "error_message": str(e)
+                        },
+                        access_token
+                    )
+                except Exception as update_err:
+                    print(f"Failed to update code generation record: {str(update_err)}")
+            
             return {"success": False, "error": str(e)}
     
-    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default") -> str:
+    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """
         Generate conversational explanation and plan for Flutter code implementation.
         
@@ -285,29 +375,86 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             user_query (str): The user's input query
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
+            db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this to update the record.
+            access_token (str, optional): User's JWT access token for database operations.
             
         Returns:
-            str: The generated conversation text
+            Dict[str, Any]: The generated conversation result
         """
         try:
             # Get conversation manager for this session
             conversation_manager = self._get_conversation_manager(session_id)
             
+            # Store the complete AI response
+            full_ai_response = ""
+            
+            # Modified callback to capture full AI response
+            original_on_chunk = on_chunk
+            async def capture_response_on_chunk(chunk: Dict[str, Any]) -> None:
+                nonlocal full_ai_response
+                # Capture Chat chunks for the full AI response
+                if chunk.get("type") == "Chat":
+                    full_ai_response += chunk.get("value", "")
+                
+                # Forward to original callback
+                await original_on_chunk(chunk)
+            
             # Use the conversation history for context if available
             enhanced_prompt = self._update_conversation_history(session_id, user_query)
             
             # Generate conversation response
-            conversation_text = await conversation_manager.generate_conversation(enhanced_prompt, on_chunk)
-            return conversation_text
+            conversation_text = await conversation_manager.generate_conversation(enhanced_prompt, capture_response_on_chunk)
+            
+            # Update the generation record with the conversation
+            if db_generation_id and access_token:
+                try:
+                    await update_code_generation(
+                        db_generation_id,
+                        {
+                            "status": "completed",
+                            "ai_response": full_ai_response,
+                            "conversation": [
+                                {"role": "user", "content": user_query},
+                                {"role": "assistant", "content": full_ai_response}
+                            ]
+                        },
+                        access_token
+                    )
+                except Exception as e:
+                    print(f"Failed to update code generation record: {str(e)}")
+            
+            return {
+                "success": True,
+                "conversation": [
+                    {"role": "user", "content": user_query},
+                    {"role": "assistant", "content": full_ai_response}
+                ]
+            }
             
         except Exception as e:
             await on_chunk({
                 "type": "Error",
                 "value": f"Error generating conversation: {str(e)}"
             })
-            return ""
+            
+            # Update the generation record with error info
+            if db_generation_id and access_token:
+                try:
+                    await update_code_generation(
+                        db_generation_id,
+                        {
+                            "status": "error",
+                            "ai_response": full_ai_response if 'full_ai_response' in locals() else "",
+                            "error_message": str(e)
+                        },
+                        access_token
+                    )
+                except Exception as update_err:
+                    print(f"Failed to update code generation record: {str(update_err)}")
+            
+            return {"success": False, "error": str(e)}
     
-    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None) -> Dict[str, Any]:
+    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """
         Fix Flutter code based on analysis errors.
         
@@ -317,6 +464,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             on_chunk (Callable): Callback function to handle streaming output chunks
             session_id (str, optional): Unique identifier for the user session. Defaults to "default".
             generation_id (str, optional): Unique identifier for the generation to fix. If not provided, a new one will be created.
+            access_token (str, optional): User's JWT access token for database operations.
             
         Returns:
             Dict[str, Any]: Response containing the fixed code result
@@ -330,6 +478,23 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             code_manager = self._get_code_manager(generation_id)
             integration_manager = self._get_integration_manager(generation_id)
             conversation_manager = self._get_conversation_manager(session_id)
+            
+            # Store the complete AI response
+            full_ai_response = ""
+            
+            # Store the complete code content
+            full_code_content = ""
+            
+            # Modified callback to capture full AI response
+            original_on_chunk = on_chunk
+            async def capture_response_on_chunk(chunk: Dict[str, Any]) -> None:
+                nonlocal full_ai_response
+                # Capture Chat and Code chunks for the full AI response
+                if chunk.get("type") == "Chat":
+                    full_ai_response += chunk.get("value", "")
+                
+                # Forward to original callback
+                await original_on_chunk(chunk)
                 
             # Update conversation history with error context
             error_prompt = f"{user_query}\n\nI'm getting these Flutter errors:\n{error_message}\n\nPlease fix them."
@@ -342,7 +507,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             
             # Generate fixed code with the enhanced prompt
-            generated_text = await self.code_generator.generate_code(enhanced_prompt, on_chunk)
+            generated_text = await self.code_generator.generate_code(enhanced_prompt, capture_response_on_chunk)
             if not generated_text:
                 await on_chunk({
                     "type": "Error",
@@ -365,7 +530,8 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 return {"success": False, "error": "No valid Dart code found"}
             
             # Save the fixed code
-            latest_file = code_manager.save_dart_code(dart_codes[0], index=1)  # Use index 1 to avoid overwriting
+            full_code_content = dart_codes[0]
+            latest_file = code_manager.save_dart_code(full_code_content, index=1)  # Use index 1 to avoid overwriting
             
             # Copy to integration project
             await on_chunk({
@@ -393,6 +559,24 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                     "type": "AnalysisError",
                     "value": error_message
                 })
+                
+                # Update the generation record with error info and full content
+                if generation_id and access_token:
+                    try:
+                        await update_code_generation(
+                            generation_id,
+                            {
+                                "status": "error",
+                                "code_content": full_code_content,
+                                "ai_response": full_ai_response,
+                                "analysis_results": error_message,
+                                "output_path": latest_file
+                            },
+                            access_token
+                        )
+                    except Exception as e:
+                        print(f"Failed to update code generation record: {str(e)}")
+                
                 return {
                     "success": False,
                     "error": "Flutter code analysis still found errors",
@@ -413,6 +597,29 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                         "type": "Success",
                         "value": "Hot restarted Flutter app with fixed code"
                     })
+                    
+                    # Update the generation record with success info and full content
+                    if generation_id and access_token:
+                        try:
+                            await update_code_generation(
+                                generation_id,
+                                {
+                                    "status": "completed",
+                                    "code_content": full_code_content,
+                                    "ai_response": full_ai_response,
+                                    "output_path": latest_file
+                                },
+                                access_token
+                            )
+                        except Exception as e:
+                            print(f"Failed to update code generation record: {str(e)}")
+                    
+                    return {
+                        "success": True,
+                        "code_path": latest_file,
+                        "generation_id": generation_id,
+                        "code": full_code_content
+                    }
                 else:
                     await on_chunk({
                         "type": "Text",
@@ -430,6 +637,24 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                             "type": "Error",
                             "value": "Failed to restart Flutter development server"
                         })
+                        
+                        # Update the generation record with error info and full content
+                        if generation_id and access_token:
+                            try:
+                                await update_code_generation(
+                                    generation_id,
+                                    {
+                                        "status": "error",
+                                        "code_content": full_code_content,
+                                        "ai_response": full_ai_response,
+                                        "output_path": latest_file,
+                                        "error_message": "Failed to restart Flutter development server"
+                                    },
+                                    access_token
+                                )
+                            except Exception as e:
+                                print(f"Failed to update code generation record: {str(e)}")
+                        
                         return {
                             "success": False,
                             "error": "Failed to restart Flutter development server",
@@ -449,11 +674,29 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                         "value": "Flutter server restarted with fixed code"
                     })
                     
+                    # Update the generation record with success info and full content
+                    if generation_id and access_token:
+                        try:
+                            await update_code_generation(
+                                generation_id,
+                                {
+                                    "status": "completed",
+                                    "code_content": full_code_content,
+                                    "ai_response": full_ai_response,
+                                    "output_path": latest_file,
+                                    "web_url": web_url
+                                },
+                                access_token
+                            )
+                        except Exception as e:
+                            print(f"Failed to update code generation record: {str(e)}")
+                    
                     return {
                         "success": True,
                         "web_url": web_url,
                         "code_path": latest_file,
-                        "generation_id": generation_id
+                        "generation_id": generation_id,
+                        "code": full_code_content
                     }
             else:
                 # Start a new Flutter app
@@ -469,6 +712,24 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                         "type": "Error",
                         "value": "Failed to start Flutter development server"
                     })
+                    
+                    # Update the generation record with error info and full content
+                    if generation_id and access_token:
+                        try:
+                            await update_code_generation(
+                                generation_id,
+                                {
+                                    "status": "error",
+                                    "code_content": full_code_content,
+                                    "ai_response": full_ai_response,
+                                    "output_path": latest_file,
+                                    "error_message": "Failed to start Flutter development server"
+                                },
+                                access_token
+                            )
+                        except Exception as e:
+                            print(f"Failed to update code generation record: {str(e)}")
+                    
                     return {
                         "success": False,
                         "error": "Failed to start Flutter development server",
@@ -482,24 +743,58 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 if "localhost" in web_url:
                     # Replace localhost with public host if needed
                     web_url = web_url.replace("localhost", public_host)
-            
-            await on_chunk({
-                "type": "Success",
-                "value": "Code fixes applied successfully!"
-            })
-            
-            return {
-                "success": True,
-                "web_url": web_url if 'web_url' in locals() else None,
-                "code_path": latest_file,
-                "generation_id": generation_id
-            }
-            
+                
+                await on_chunk({
+                    "type": "Success",
+                    "value": "Code fixes applied successfully!"
+                })
+                
+                # Update the generation record with success info and full content
+                if generation_id and access_token:
+                    try:
+                        await update_code_generation(
+                            generation_id,
+                            {
+                                "status": "completed",
+                                "code_content": full_code_content,
+                                "ai_response": full_ai_response,
+                                "output_path": latest_file,
+                                "web_url": web_url if 'web_url' in locals() else None
+                            },
+                            access_token
+                        )
+                    except Exception as e:
+                        print(f"Failed to update code generation record: {str(e)}")
+                
+                return {
+                    "success": True,
+                    "web_url": web_url if 'web_url' in locals() else None,
+                    "code_path": latest_file,
+                    "generation_id": generation_id,
+                    "code": full_code_content
+                }
         except Exception as e:
             await on_chunk({
                 "type": "Error",
                 "value": f"An error occurred while fixing code: {str(e)}"
             })
+            
+            # Update the generation record with error info
+            if generation_id and access_token:
+                try:
+                    await update_code_generation(
+                        generation_id,
+                        {
+                            "status": "error",
+                            "ai_response": full_ai_response if 'full_ai_response' in locals() else "",
+                            "code_content": full_code_content if 'full_code_content' in locals() else "",
+                            "error_message": str(e)
+                        },
+                        access_token
+                    )
+                except Exception as update_err:
+                    print(f"Failed to update code generation record: {str(update_err)}")
+            
             return {"success": False, "error": str(e)}
             
     def cleanup_generation(self, generation_id: str) -> bool:
@@ -516,7 +811,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Stop the Flutter app if it's running
             if generation_id in self.integration_managers:
                 self.integration_managers[generation_id].stop_flutter_app()
-                
+        
             # Clean up code manager resources
             if generation_id in self.code_managers:
                 self.code_managers[generation_id].cleanup()
