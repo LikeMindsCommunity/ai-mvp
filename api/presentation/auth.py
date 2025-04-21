@@ -15,6 +15,7 @@ from api.infrastructure.auth import get_current_user, create_access_token, user_
 from api.domain.auth.models import UserCreate, UserLogin, Token
 from api.infrastructure.auth.service import sign_up, sign_in, sign_out, sign_in_with_github, handle_github_callback
 from api.config import get_settings
+from api.presentation.exceptions import APIException
 
 # Custom JSON encoder to handle datetime objects
 class DateTimeEncoder(json.JSONEncoder):
@@ -46,10 +47,7 @@ async def register(user_data: UserCreate) -> Token:
         )
         
         if result.user is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed"
-            )
+            APIException.raise_bad_request("Registration failed")
         
         # Convert user object to dictionary
         user_dict = user_to_dict(result.user)
@@ -70,15 +68,11 @@ async def register(user_data: UserCreate) -> Token:
         )
     
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Registration error: {str(e)}"
-        )
+        APIException.raise_server_error("Registration", e)
 
 @router.post("/login", response_model=Token)
 async def login(user_data: UserLogin) -> Token:
@@ -117,11 +111,10 @@ async def login(user_data: UserLogin) -> Token:
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Login error: {str(e)}"
-        )
+        APIException.raise_server_error("Login", e)
 
 @router.post("/login/oauth")
 async def login_with_oauth_form(form_data: OAuth2PasswordRequestForm = Depends()) -> Dict[str, Any]:
@@ -158,6 +151,10 @@ async def login_with_oauth_form(form_data: OAuth2PasswordRequestForm = Depends()
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("OAuth login", e)
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
@@ -171,23 +168,16 @@ async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
         # Extract the access token from the user dictionary
         access_token = user.get('access_token')
         if not access_token:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No access token available"
-            )
+            APIException.raise_bad_request("No access token available")
             
         # Sign out with the token
         await sign_out(access_token)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Logout error: {str(e)}"
-        )
+        APIException.raise_server_error("Logout", e)
 
 @router.post("/github", response_model=Dict[str, Any])
 async def github_sign_in():
@@ -198,15 +188,11 @@ async def github_sign_in():
         result = await sign_in_with_github()
         return result
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"GitHub sign in error: {str(e)}"
-        )
+        APIException.raise_server_error("GitHub sign in", e)
 
 @router.get("/github/callback")
 async def github_callback(code: str = Query(...)):
@@ -229,12 +215,8 @@ async def github_callback(code: str = Query(...)):
             url=f"{callback_url}?session={session_json}"
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"GitHub callback error: {str(e)}"
-        ) 
+        APIException.raise_server_error("GitHub callback", e) 

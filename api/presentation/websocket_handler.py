@@ -22,6 +22,7 @@ from api.infrastructure.database import SupabaseManager
 from api.infrastructure.auth import get_current_user
 from api.infrastructure.projects.service import get_project
 from api.infrastructure.code_generations.service import create_code_generation, update_code_generation
+from api.presentation.exceptions import APIException
 
 class WebSocketHandler:
     """Handler for WebSocket connections."""
@@ -30,6 +31,14 @@ class WebSocketHandler:
         """Initialize the WebSocket handler."""
         self.flutter_generator_service = FlutterGeneratorServiceImpl()
         self.supabase_manager = SupabaseManager()  # Eventually this can be removed once all methods are migrated to services
+    
+    async def send_error(self, websocket: WebSocket, message: str) -> None:
+        """Send an error message and close the connection."""
+        await websocket.send_json({
+            "type": "Error",
+            "value": message
+        })
+        await websocket.close()
     
     async def handle_websocket(self, websocket: WebSocket, token: str, project_id: str):
         """
@@ -49,31 +58,19 @@ class WebSocketHandler:
                 user = await get_current_user(token)
                 
                 if not user:
-                    await websocket.send_json({
-                        "type": "Error",
-                        "value": "Invalid authentication token"
-                    })
-                    await websocket.close()
+                    await self.send_error(websocket, "Invalid authentication token")
                     return
                 
                 # Extract the access token
                 access_token = user.get('access_token')
                 if not access_token:
-                    await websocket.send_json({
-                        "type": "Error",
-                        "value": "Invalid or missing access token"
-                    })
-                    await websocket.close()
+                    await self.send_error(websocket, "Invalid or missing access token")
                     return
                 
                 # Verify project access
                 project = await get_project(project_id, access_token)
                 if not project or not project.data:
-                    await websocket.send_json({
-                        "type": "Error",
-                        "value": "Project not found or you don't have access"
-                    })
-                    await websocket.close()
+                    await self.send_error(websocket, "Project not found or you don't have access")
                     return
 
                 # Create project output directory if it doesn't exist
@@ -93,18 +90,10 @@ class WebSocketHandler:
                 })
                 
             except HTTPException as e:
-                await websocket.send_json({
-                    "type": "Error",
-                    "value": e.detail
-                })
-                await websocket.close()
+                await self.send_error(websocket, e.detail)
                 return
             except Exception as e:
-                await websocket.send_json({
-                    "type": "Error",
-                    "value": f"Authentication error: {str(e)}"
-                })
-                await websocket.close()
+                await self.send_error(websocket, f"Authentication error: {str(e)}")
                 return
             
             # Process incoming messages
@@ -136,167 +125,175 @@ class WebSocketHandler:
                 # Extract session ID if available, otherwise use project_id
                 session_id = message.get("session_id", project_id)
                 
-                # Create a code generation record in the database
-                if message["type"] in ["GenerateCode", "GenerateConversation", "FixCode"]:
-                    if "user_query" in message:
-                        try:
-                            # Create a code generation record
-                            generation_result = await create_code_generation(
-                                project_id=project_id,
-                                prompt=message["user_query"],
-                                jwt=access_token
-                            )
-                            
-                            # Use the generation ID as part of the generation context
-                            generation_id = generation_result.data[0]["id"]
-                            output_path = os.path.join(project_output_dir, f"{generation_id}.dart")
-                            
-                            # Update the message with context
-                            message["generation_id"] = generation_id
-                            message["output_path"] = output_path
-                        except Exception as e:
-                            # Log the error but continue - this is not critical
-                            print(f"Failed to create code generation record: {str(e)}")
-                
-                # Handle different message types
-                if message["type"] == "GenerateCode":
-                    if "user_query" not in message:
+                try:
+                    # Create a code generation record in the database
+                    if message["type"] in ["GenerateCode", "GenerateConversation", "FixCode"]:
+                        if "user_query" in message:
+                            try:
+                                # Create a code generation record
+                                generation_result = await create_code_generation(
+                                    project_id=project_id,
+                                    prompt=message["user_query"],
+                                    jwt=access_token
+                                )
+                                
+                                if not generation_result or not generation_result.data:
+                                    await websocket.send_json({
+                                        "type": "Error",
+                                        "value": "Failed to create code generation record"
+                                    })
+                                    continue
+                                
+                                # Use the generation ID as part of the generation context
+                                generation_id = generation_result.data[0]["id"]
+                                output_path = os.path.join(project_output_dir, f"{generation_id}.dart")
+                                
+                                # Update the message with context
+                                message["generation_id"] = generation_id
+                                message["output_path"] = output_path
+                            except Exception as e:
+                                await websocket.send_json({
+                                    "type": "Error",
+                                    "value": f"Failed to create code generation record: {str(e)}"
+                                })
+                                continue
+                    
+                    # Handle different message types
+                    if message["type"] == "GenerateCode":
+                        if "user_query" not in message:
+                            await websocket.send_json({
+                                "type": "Error",
+                                "value": "Missing 'user_query' field in request"
+                            })
+                            continue
+                        
+                        # Generate code
+                        result = await self.flutter_generator_service.generate_flutter_code(
+                            message["user_query"],
+                            on_chunk,
+                            session_id
+                        )
+                        
+                        # Update the generation record with the result
+                        if "generation_id" in message:
+                            try:
+                                await update_code_generation(
+                                    message["generation_id"],
+                                    {
+                                        "status": "completed" if result.get("success", False) else "error",
+                                        "code_content": result.get("code", ""),
+                                        "output_path": result.get("file_path", ""),
+                                        "analysis_results": result.get("analysis", {})
+                                    },
+                                    access_token
+                                )
+                            except Exception as e:
+                                await websocket.send_json({
+                                    "type": "Error",
+                                    "value": f"Failed to update code generation record: {str(e)}"
+                                })
+                        
+                        # Send final result
+                        await websocket.send_json({
+                            "type": "Result",
+                            "value": result
+                        })
+                    
+                    elif message["type"] == "GenerateConversation":
+                        if "user_query" not in message:
+                            await websocket.send_json({
+                                "type": "Error",
+                                "value": "Missing 'user_query' field in request"
+                            })
+                            continue
+                        
+                        # Generate conversation
+                        result = await self.flutter_generator_service.generate_conversation(
+                            message["user_query"],
+                            on_chunk,
+                            session_id
+                        )
+                        
+                        # Update the generation record with the result
+                        if "generation_id" in message:
+                            try:
+                                await update_code_generation(
+                                    message["generation_id"],
+                                    {
+                                        "status": "completed",
+                                        "conversation": result.get("conversation", [])
+                                    },
+                                    access_token
+                                )
+                            except Exception as e:
+                                await websocket.send_json({
+                                    "type": "Error",
+                                    "value": f"Failed to update code generation record: {str(e)}"
+                                })
+                        
+                        # Send final result
+                        await websocket.send_json({
+                            "type": "Result",
+                            "value": result
+                        })
+                    
+                    elif message["type"] == "FixCode":
+                        if "user_query" not in message or "code" not in message:
+                            await websocket.send_json({
+                                "type": "Error",
+                                "value": "Missing required fields in request"
+                            })
+                            continue
+                        
+                        # Fix code
+                        result = await self.flutter_generator_service.fix_flutter_code(
+                            message["user_query"],
+                            message["code"],
+                            on_chunk,
+                            session_id
+                        )
+                        
+                        # Update the generation record with the result
+                        if "generation_id" in message:
+                            try:
+                                await update_code_generation(
+                                    message["generation_id"],
+                                    {
+                                        "status": "completed" if result.get("success", False) else "error",
+                                        "code_content": result.get("code", ""),
+                                        "output_path": result.get("file_path", ""),
+                                        "analysis_results": result.get("analysis", {})
+                                    },
+                                    access_token
+                                )
+                            except Exception as e:
+                                await websocket.send_json({
+                                    "type": "Error",
+                                    "value": f"Failed to update code generation record: {str(e)}"
+                                })
+                        
+                        # Send final result
+                        await websocket.send_json({
+                            "type": "Result",
+                            "value": result
+                        })
+                    
+                    else:
                         await websocket.send_json({
                             "type": "Error",
-                            "value": "Missing 'user_query' field in request"
+                            "value": f"Unsupported message type: {message['type']}"
                         })
-                        continue
-                    
-                    # Generate code
-                    result = await self.flutter_generator_service.generate_flutter_code(
-                        message["user_query"],
-                        on_chunk,
-                        session_id
-                    )
-                    
-                    # Update the generation record with the result
-                    if "generation_id" in message:
-                        try:
-                            await update_code_generation(
-                                message["generation_id"],
-                                {
-                                    "status": "completed" if result.get("success", False) else "error",
-                                    "code_content": result.get("code", ""),
-                                    "output_path": result.get("file_path", ""),
-                                    "analysis_results": result.get("analysis", {})
-                                },
-                                access_token
-                            )
-                        except Exception as e:
-                            # Log the error but continue - this is not critical
-                            print(f"Failed to update code generation record: {str(e)}")
-                    
-                    # Send final result
-                    await websocket.send_json({
-                        "type": "Result",
-                        "value": result
-                    })
                 
-                elif message["type"] == "GenerateConversation":
-                    if "user_query" not in message:
-                        await websocket.send_json({
-                            "type": "Error",
-                            "value": "Missing 'user_query' field in request"
-                        })
-                        continue
-                    
-                    # Generate only conversation/explanation
-                    conversation_text = await self.flutter_generator_service.generate_conversation(
-                        message["user_query"],
-                        on_chunk,
-                        session_id
-                    )
-                    
-                    # Update the generation record with the result
-                    if "generation_id" in message:
-                        try:
-                            await update_code_generation(
-                                message["generation_id"],
-                                {
-                                    "status": "completed",
-                                    "code_content": conversation_text,
-                                },
-                                access_token
-                            )
-                        except Exception as e:
-                            # Log the error but continue - this is not critical
-                            print(f"Failed to update code generation record: {str(e)}")
-                    
-                    # Send final result
-                    await websocket.send_json({
-                        "type": "Result",
-                        "value": {
-                            "success": True,
-                            "conversation": conversation_text
-                        }
-                    })
-                
-                elif message["type"] == "FixCode":
-                    if "user_query" not in message or "error_message" not in message:
-                        await websocket.send_json({
-                            "type": "Error",
-                            "value": "Missing 'user_query' or 'error_message' field in request"
-                        })
-                        continue
-                    
-                    # Fix code with errors
-                    result = await self.flutter_generator_service.fix_flutter_code(
-                        message["user_query"],
-                        message["error_message"],
-                        on_chunk,
-                        session_id
-                    )
-                    
-                    # Update the generation record with the result
-                    if "generation_id" in message:
-                        try:
-                            await update_code_generation(
-                                message["generation_id"],
-                                {
-                                    "status": "completed" if result.get("success", False) else "error",
-                                    "code_content": result.get("code", ""),
-                                    "output_path": result.get("file_path", ""),
-                                    "analysis_results": result.get("analysis", {})
-                                },
-                                access_token
-                            )
-                        except Exception as e:
-                            # Log the error but continue - this is not critical
-                            print(f"Failed to update code generation record: {str(e)}")
-                    
-                    # Send final result
-                    await websocket.send_json({
-                        "type": "Result",
-                        "value": result
-                    })
-                
-                else:
+                except Exception as e:
                     await websocket.send_json({
                         "type": "Error",
-                        "value": f"Unknown message type: {message['type']}"
+                        "value": f"Operation failed: {str(e)}"
                     })
         
         except WebSocketDisconnect:
             # Client disconnected
             pass
         except Exception as e:
-            # Send error message
-            try:
-                await websocket.send_json({
-                    "type": "Error",
-                    "value": str(e)
-                })
-            except:
-                # Websocket already closed
-                pass
-        finally:
-            # Ensure websocket is closed
-            try:
-                await websocket.close()
-            except:
-                pass 
+            # Unexpected error
+            await self.send_error(websocket, f"Unexpected error: {str(e)}")
+            return 

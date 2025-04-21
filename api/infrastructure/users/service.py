@@ -90,7 +90,7 @@ async def update_profile(profile_data: Dict[str, Any], jwt: str) -> Dict[str, An
         if 'avatar_url' in profile and profile['avatar_url'] is None:
             profile['avatar_url'] = ""
             
-        return profile
+        return update_result
             
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Profile update error: {str(e)}")
