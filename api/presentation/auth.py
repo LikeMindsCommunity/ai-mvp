@@ -156,13 +156,16 @@ async def login_with_oauth_form(form_data: OAuth2PasswordRequestForm = Depends()
     except Exception as e:
         APIException.raise_server_error("OAuth login", e)
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
+@router.post("/logout", response_model=Dict[str, Any])
+async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
     """
     Log out the current user.
     
     Args:
         user: Current authenticated user (from dependency)
+    
+    Returns:
+        Dict with success message
     """
     try:
         # Extract the access token from the user dictionary
@@ -172,6 +175,9 @@ async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> None:
             
         # Sign out with the token
         await sign_out(access_token)
+        
+        # Return success response
+        return {"data": {"message": "Successfully logged out"}}
     except ValueError as e:
         APIException.raise_bad_request(str(e))
     except HTTPException:
