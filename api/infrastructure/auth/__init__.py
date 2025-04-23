@@ -2,7 +2,16 @@
 Authentication module - provides user authentication and JWT token handling.
 """
 from api.infrastructure.auth.jwt import get_current_user, create_access_token, user_to_dict
-from api.infrastructure.auth.service import sign_up, sign_in, sign_out
+from api.infrastructure.auth.service import (
+    sign_up, 
+    sign_in, 
+    sign_out, 
+    sign_in_with_github, 
+    handle_github_callback,
+    refresh_token,
+    request_password_reset,
+    change_password
+)
 
 __all__ = [
     'get_current_user',
@@ -12,5 +21,8 @@ __all__ = [
     'sign_in',
     'sign_out',
     'sign_in_with_github',
-    'handle_github_callback'
+    'handle_github_callback',
+    'refresh_token',
+    'request_password_reset',
+    'change_password'
 ] 

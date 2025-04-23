@@ -121,12 +121,12 @@ This document outlines the key tasks required to address the findings from the t
     -   Add endpoint `GET /api/repos` that uses the stored GitHub token to fetch and return a list of user repositories.
     -   Add endpoint `POST /api/repos/import` to select a repository, specify branch/folder, and enqueue import.
 -   **[High] Clone and Prepare Repository Workspace:**
-    -   Implement a service (`GitHubRepoService`) that clones the selected repository into a temporary workspace directory (e.g., `output/<project_id>/<generation_id>/repos/`).
+    -   Implement a service (`GitHubRepoService`) that clones the selected repository into the template - integration  directory (e.g., `output/<project_id>/integration/`).
     -   Detect Flutter projects by scanning for `pubspec.yaml` files and present available entry paths for integration.
     -   Prepare a flat summary `codebase.txt` using gitingest of the project codebase for us to analyse the query and see how to generate the best code.
     -   Ensure clones are shallow (single branch) and cleaned up after use or cancellation.
 -   **[Medium] Integrate Code Generation into Existing Codebase:**
-    -   Refactor `FlutterGeneratorServiceImpl` (or its background task) to accept a `repo_path` parameter and use the flat `codebase.txt` summary to generate the best code.
+    -   Refactor `FlutterGeneratorServiceImpl` (or its background task) to use the existing sturcture of using `integration/` directory and use the flat `codebase.txt` summary to generate the best code.
     -   apply generated changes directly into the repo's `lib/` folder or user-specified target.
     -   Support previewing diffs and choosing insertion points (e.g., via PR on a branch).
     -   After generation, commit changes back to a new Git branch and push to the user's GitHub repository if authorized.

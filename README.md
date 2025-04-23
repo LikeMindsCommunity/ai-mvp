@@ -134,7 +134,7 @@ Authorization: Bearer <access_token>
 POST /api/auth/github
 # Returns GitHub OAuth URL for sign-in
 
-GET /api/auth/github/callback?code=<code>
+GET /api/auth/github/callback?session=<session>
 # GitHub OAuth callback endpoint
 ```
 

@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .auth-section {
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .response {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+
+        .repo-list-item {
+            cursor: pointer;
+        }
+
+        .repo-list-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .repo-list-item.selected {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .token-display {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+            cursor: pointer;
+        }
+
+        .token-display.expanded {
+            white-space: normal;
+            word-break: break-all;
+        }
+
+        .tab {
+            cursor: pointer;
+            padding: 10px 20px;
+            margin-right: 5px;
+            background-color: #f1f1f1;
+            border-radius: 5px 5px 0 0;
+            display: inline-block;
+        }
+
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .section {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .status-pending {
+            background-color: #ffeeba;
+            color: #856404;
+        }
+
+        .status-completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-processing {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>GitHub Repository Integration</h1>
+
+    <!-- Authentication Section -->
+    <div class="auth-section" id="authSection">
+        <h2>Authentication</h2>
+        <div id="tokenStatusDisplay">Not authenticated</div>
+
+        <div class="form-group">
+            <label for="authMethod">Authentication Method:</label>
+            <select id="authMethod">
+                <option value="localStorage">Use token from LocalStorage</option>
+                <option value="manual">Paste token manually</option>
+            </select>
+        </div>
+
+        <div id="manualTokenSection" class="hidden">
+            <div class="form-group">
+                <label for="manualToken">Access Token:</label>
+                <input type="text" id="manualToken" placeholder="Paste your access token here">
+            </div>
+        </div>
+
+        <div id="localStorageTokenSection">
+            <div class="token-display" id="tokenDisplay" onclick="toggleTokenDisplay(this)">
+                No token available
+            </div>
+        </div>
+
+        <button id="authenticateBtn">Authenticate</button>
+        <button id="clearTokenBtn">Clear Token</button>
+    </div>
+
+    <div class="container hidden" id="mainContent">
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <div class="tab active" data-section="connectGitHub">Connect GitHub</div>
+            <div class="tab" data-section="listRepositories">List Repositories</div>
+            <div class="tab" data-section="importRepository">Import Repository</div>
+            <div class="tab" data-section="repositoryStatus">Repository Status</div>
+        </div>
+
+        <!-- Connect GitHub Section -->
+        <div id="connectGitHub" class="section active">
+            <h2>Connect GitHub Account</h2>
+            <p>Connect your GitHub account to access your repositories.</p>
+            <button id="connectGitHubBtn">Connect GitHub Account</button>
+            <div id="connectionStatusDisplay" class="response"></div>
+        </div>
+
+        <!-- List Repositories Section -->
+        <div id="listRepositories" class="section">
+            <h2>Your GitHub Repositories</h2>
+            <button id="listReposBtn">List Repositories</button>
+            <div id="repositoriesList" class="response"></div>
+        </div>
+
+        <!-- Import Repository Section -->
+        <div id="importRepository" class="section">
+            <h2>Import GitHub Repository</h2>
+            <div class="form-group">
+                <label for="repositoryNameInput">Repository Name or URL:</label>
+                <input type="text" id="repositoryNameInput" placeholder="username/repository">
+            </div>
+            <button id="importRepoBtn">Import Repository</button>
+            <div id="importResponse" class="response"></div>
+        </div>
+
+        <!-- Repository Status Section -->
+        <div id="repositoryStatus" class="section">
+            <h2>Repository Status</h2>
+            <div class="form-group">
+                <label for="statusRepoNameInput">Repository Name:</label>
+                <input type="text" id="statusRepoNameInput" placeholder="username/repository">
+            </div>
+            <button id="checkStatusBtn">Check Status</button>
+            <button id="reprocessBtn">Re-Process Repository</button>
+            <div id="statusResponse" class="response"></div>
+
+            <div id="flutterProjectSection" class="hidden">
+                <h3>Select Flutter Project</h3>
+                <div class="form-group">
+                    <label for="flutterProjectSelect">Available Flutter Projects:</label>
+                    <select id="flutterProjectSelect"></select>
+                </div>
+                <button id="selectFlutterProjectBtn">Select Project</button>
+                <div id="selectProjectResponse" class="response"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            accessToken: null,
+            baseUrl: window.location.origin,
+            activeTab: 'connectGitHub',
+            repositories: [],
+            selectedRepository: null,
+            flutterProjects: [],
+            githubConnected: false,
+            tokenExpiry: null,
+        };
+
+        // Helper function for API requests
+        async function apiRequest(path, method, data, token) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(`${state.baseUrl}${path}`, {
+                    method,
+                    headers,
+                    body: data ? JSON.stringify(data) : undefined
+                });
+
+                let responseData;
+                try {
+                    responseData = await response.json();
+                } catch (e) {
+                    responseData = await response.text();
+                }
+
+                return {
+                    status: response.status,
+                    success: response.ok,
+                    data: responseData
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function () {
+            initializeTabs();
+            checkToken();
+
+            // Set up event listeners
+            document.getElementById('authenticateBtn').addEventListener('click', handleAuthentication);
+            document.getElementById('clearTokenBtn').addEventListener('click', clearToken);
+            document.getElementById('authMethod').addEventListener('change', toggleAuthMethod);
+            document.getElementById('connectGitHubBtn').addEventListener('click', connectGitHub);
+            document.getElementById('listReposBtn').addEventListener('click', listRepositories);
+            document.getElementById('importRepoBtn').addEventListener('click', importRepository);
+            document.getElementById('checkStatusBtn').addEventListener('click', checkRepositoryStatus);
+            document.getElementById('reprocessBtn').addEventListener('click', reprocessRepository);
+            document.getElementById('selectFlutterProjectBtn').addEventListener('click', selectFlutterProject);
+
+            // Handle OAuth callback if present
+            handleOAuthCallback();
+        });
+
+        function initializeTabs() {
+            // Add click handlers to tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function () {
+                    // Remove active class from all tabs and sections
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+                    // Add active class to clicked tab and corresponding section
+                    this.classList.add('active');
+                    const section = this.getAttribute('data-section');
+                    document.getElementById(section).classList.add('active');
+
+                    state.activeTab = section;
+                });
+            });
+        }
+
+        function toggleAuthMethod() {
+            const authMethod = document.getElementById('authMethod').value;
+
+            if (authMethod === 'manual') {
+                document.getElementById('manualTokenSection').classList.remove('hidden');
+                document.getElementById('localStorageTokenSection').classList.add('hidden');
+            } else {
+                document.getElementById('manualTokenSection').classList.add('hidden');
+                document.getElementById('localStorageTokenSection').classList.remove('hidden');
+            }
+        }
+
+        function checkToken() {
+            // Try to get token from localStorage
+            const storedToken = localStorage.getItem('accessToken');
+
+            if (storedToken && !isTokenExpired(storedToken)) {
+                state.accessToken = storedToken;
+                document.getElementById('tokenStatusDisplay').textContent = 'Valid authentication token found';
+                document.getElementById('tokenStatusDisplay').className = 'success';
+
+                // Check if the user is connected to GitHub
+                checkGitHubConnection();
+            } else {
+                if (storedToken) {
+                    document.getElementById('tokenStatusDisplay').textContent = 'Authentication token is expired. Please re-login in the main application.';
+                } else {
+                    document.getElementById('tokenStatusDisplay').textContent = 'No authentication token found. Please login in the main application.';
+                }
+                document.getElementById('tokenStatusDisplay').className = 'error';
+                localStorage.removeItem('accessToken'); // Remove expired token
+                state.accessToken = null;
+            }
+            updateTokenDisplay();
+        }
+
+        function handleAuthentication() {
+            const authMethod = document.getElementById('authMethod').value;
+
+            if (authMethod === 'localStorage') {
+                const storedToken = localStorage.getItem('accessToken');
+                if (storedToken && !isTokenExpired(storedToken)) {
+                    state.accessToken = storedToken;
+                    updateTokenDisplay();
+                    document.getElementById('tokenStatusDisplay').textContent = 'Authenticated with token from localStorage';
+                    document.getElementById('tokenStatusDisplay').className = 'success';
+
+                    // Check GitHub connection after authentication
+                    checkGitHubConnection();
+                } else {
+                    if (storedToken) {
+                        document.getElementById('tokenStatusDisplay').textContent = 'Token in localStorage is expired. Please re-login in the main application.';
+                    } else {
+                        document.getElementById('tokenStatusDisplay').textContent = 'No token found in localStorage';
+                    }
+                    document.getElementById('tokenStatusDisplay').className = 'error';
+                }
+            } else {
+                const manualToken = document.getElementById('manualToken').value.trim();
+                if (manualToken) {
+                    // Validate the token format
+                    try {
+                        // Check if it's a valid JWT (has 3 parts)
+                        const parts = manualToken.split('.');
+                        if (parts.length !== 3) {
+                            document.getElementById('tokenStatusDisplay').textContent = 'Invalid token format';
+                            document.getElementById('tokenStatusDisplay').className = 'error';
+                            return;
+                        }
+
+                        // Check if it's expired
+                        if (isTokenExpired(manualToken)) {
+                            document.getElementById('tokenStatusDisplay').textContent = 'Token is expired';
+                            document.getElementById('tokenStatusDisplay').className = 'error';
+                            return;
+                        }
+
+                        state.accessToken = manualToken;
+                        localStorage.setItem('accessToken', manualToken);
+                        updateTokenDisplay();
+                        document.getElementById('tokenStatusDisplay').textContent = 'Authenticated with manual token';
+                        document.getElementById('tokenStatusDisplay').className = 'success';
+
+                        // Check GitHub connection after authentication
+                        checkGitHubConnection();
+                    } catch (e) {
+                        console.error("Error validating token:", e);
+                        document.getElementById('tokenStatusDisplay').textContent = 'Invalid token';
+                        document.getElementById('tokenStatusDisplay').className = 'error';
+                    }
+                } else {
+                    document.getElementById('tokenStatusDisplay').textContent = 'Please enter a token';
+                    document.getElementById('tokenStatusDisplay').className = 'error';
+                }
+            }
+        }
+
+        function clearToken() {
+            state.accessToken = null;
+            localStorage.removeItem('accessToken');
+            document.getElementById('tokenDisplay').textContent = 'No token available';
+            document.getElementById('tokenDisplay').classList.remove('expanded');
+            document.getElementById('tokenStatusDisplay').textContent = 'Token cleared';
+            document.getElementById('tokenStatusDisplay').className = 'error';
+            document.getElementById('mainContent').classList.add('hidden');
+        }
+
+        function updateTokenDisplay() {
+            const tokenDisplay = document.getElementById('tokenDisplay');
+
+            if (state.accessToken) {
+                // Show truncated token
+                const truncatedToken = state.accessToken.length > 20 ?
+                    state.accessToken.substring(0, 10) + '...' + state.accessToken.substring(state.accessToken.length - 10) :
+                    state.accessToken;
+
+                tokenDisplay.textContent = truncatedToken;
+                tokenDisplay.title = state.accessToken; // Full token on hover
+            } else {
+                tokenDisplay.textContent = 'No token available';
+                tokenDisplay.title = '';
+            }
+        }
+
+        function toggleTokenDisplay(element) {
+            element.classList.toggle('expanded');
+
+            if (element.classList.contains('expanded') && state.accessToken) {
+                element.textContent = state.accessToken;
+            } else if (state.accessToken) {
+                const truncatedToken = state.accessToken.length > 20 ?
+                    state.accessToken.substring(0, 10) + '...' + state.accessToken.substring(state.accessToken.length - 10) :
+                    state.accessToken;
+
+                element.textContent = truncatedToken;
+            }
+        }
+
+        function showMainContent() {
+            document.getElementById('mainContent').classList.remove('hidden');
+        }
+
+        async function connectGitHub() {
+            if (!state.accessToken) {
+                updateResponseDisplay('connectionStatusDisplay', 'You need to authenticate first', false);
+                return;
+            }
+
+            // If already connected, show message
+            if (state.githubConnected) {
+                updateResponseDisplay('connectionStatusDisplay', 'Already connected to GitHub', true);
+                return;
+            }
+
+            // Get the GitHub OAuth URL
+            const response = await apiRequest('/api/github/connect', 'POST', {}, state.accessToken);
+
+            if (response.success && response.data.url) {
+                // Store current page URL to return to after GitHub OAuth
+                localStorage.setItem('github_oauth_return_url', window.location.href);
+
+                // Redirect to GitHub for authorization
+                window.location.href = response.data.url;
+            } else {
+                updateResponseDisplay('connectionStatusDisplay', 'Error getting GitHub authorization URL: ' + JSON.stringify(response), false);
+            }
+        }
+
+        async function listRepositories() {
+            if (!state.accessToken) {
+                updateResponseDisplay('repositoriesList', 'You need to authenticate first', false);
+                return;
+            }
+
+            // Check token validity before proceeding
+            if (!await refreshTokenIfNeeded()) {
+                updateResponseDisplay('repositoriesList', 'Authentication token expired. Please re-login in the main application.', false);
+                return;
+            }
+
+            const response = await apiRequest('/api/github/repositories', 'GET', null, state.accessToken);
+
+            if (response.success && response.data.repositories) {
+                state.repositories = response.data.repositories;
+
+                if (response.data.repositories.length === 0) {
+                    updateResponseDisplay('repositoriesList', 'No repositories found', true);
+                    return;
+                }
+
+                // Create clickable list of repositories
+                const repoListHTML = `
+                    <h3>Select a repository to import:</h3>
+                    <ul>
+                        ${response.data.repositories.map(repo => `
+                            <li class="repo-list-item" data-repo="${repo.full_name}">
+                                <strong>${repo.full_name}</strong>
+                                ${repo.description ? `<p>${repo.description}</p>` : ''}
+                                <em>Language: ${repo.language || 'Not specified'}</em>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+
+                document.getElementById('repositoriesList').innerHTML = repoListHTML;
+
+                // Add click handlers to repositories
+                document.querySelectorAll('.repo-list-item').forEach(item => {
+                    item.addEventListener('click', function () {
+                        // Remove selected class from all items
+                        document.querySelectorAll('.repo-list-item').forEach(i => i.classList.remove('selected'));
+
+                        // Add selected class to clicked item
+                        this.classList.add('selected');
+
+                        // Update state with selected repository
+                        state.selectedRepository = this.getAttribute('data-repo');
+
+                        // Pre-fill the import field with the selected repository
+                        document.getElementById('repositoryNameInput').value = state.selectedRepository;
+
+                        // Switch to import tab
+                        document.querySelector('.tab[data-section="importRepository"]').click();
+                    });
+                });
+            } else {
+                updateResponseDisplay('repositoriesList', 'Error fetching repositories: ' + JSON.stringify(response), false);
+            }
+        }
+
+        async function importRepository() {
+            if (!state.accessToken) {
+                updateResponseDisplay('importResponse', 'You need to authenticate first', false);
+                return;
+            }
+
+            // Check token validity before proceeding
+            if (!await refreshTokenIfNeeded()) {
+                updateResponseDisplay('importResponse', 'Authentication token expired. Please re-login in the main application.', false);
+                return;
+            }
+
+            const repoName = document.getElementById('repositoryNameInput').value.trim();
+
+            if (!repoName) {
+                updateResponseDisplay('importResponse', 'Please enter a repository name', false);
+                return;
+            }
+
+            updateResponseDisplay('importResponse', 'Importing repository: ' + repoName + '...', true);
+
+            // First create a project with this repository
+            const projectName = repoName.split('/').pop(); // Use repo name as project name
+            const projectResponse = await apiRequest('/api/projects/import-github', 'POST', {
+                name: projectName,
+                description: `Project imported from GitHub repository ${repoName}`,
+                github_repo: {
+                    repo_full_name: repoName
+                }
+            }, state.accessToken);
+
+            if (projectResponse.success) {
+                updateResponseDisplay('importResponse', `Created project "${projectName}" and started GitHub repository import: ${JSON.stringify(projectResponse.data)}`, true);
+
+                // Pre-fill the status check field
+                document.getElementById('statusRepoNameInput').value = repoName;
+
+                // Switch to status tab
+                setTimeout(() => {
+                    document.querySelector('.tab[data-section="repositoryStatus"]').click();
+                    checkRepositoryStatus();
+                }, 1000);
+            } else {
+                updateResponseDisplay('importResponse', 'Error importing repository and creating project: ' + JSON.stringify(projectResponse), false);
+            }
+        }
+
+        async function checkRepositoryStatus() {
+            if (!state.accessToken) {
+                updateResponseDisplay('statusResponse', 'You need to authenticate first', false);
+                return;
+            }
+
+            // Check token validity before proceeding
+            if (!await refreshTokenIfNeeded()) {
+                updateResponseDisplay('statusResponse', 'Authentication token expired. Please re-login in the main application.', false);
+                return;
+            }
+
+            const repoName = document.getElementById('statusRepoNameInput').value.trim();
+
+            if (!repoName) {
+                updateResponseDisplay('statusResponse', 'Please enter a repository name', false);
+                return;
+            }
+
+            // First try to find a project with this GitHub repository
+            const projectsResponse = await apiRequest('/api/projects', 'GET', null, state.accessToken);
+            let githubRepoId = null;
+            let projectId = null;
+
+            if (projectsResponse.success && Array.isArray(projectsResponse.data)) {
+                // Look for a project with this repository
+                const matchingProject = projectsResponse.data.find(project => {
+                    const settings = project.settings || {};
+                    return settings.github_repo_name === repoName;
+                });
+
+                if (matchingProject) {
+                    projectId = matchingProject.id;
+                    githubRepoId = matchingProject.settings?.github_repo_id;
+
+                    updateResponseDisplay('statusResponse', `Found project: ${matchingProject.name} with GitHub repository: ${repoName}`, true);
+                }
+            }
+
+            // If we found the repository ID, use it to get the status
+            if (githubRepoId) {
+                const response = await apiRequest(`/api/github/repositories/${githubRepoId}/status`, 'GET', null, state.accessToken);
+
+                if (response.success) {
+                    displayRepositoryStatus(response.data, repoName, projectId);
+                } else {
+                    updateResponseDisplay('statusResponse', 'Error checking repository status: ' + JSON.stringify(response), false);
+                }
+            } else {
+                // If we didn't find a project, try to find the repository directly
+                const reposResponse = await apiRequest('/api/github/repositories', 'GET', null, state.accessToken);
+
+                if (reposResponse.success && Array.isArray(reposResponse.data.repositories)) {
+                    const matchingRepo = reposResponse.data.repositories.find(repo =>
+                        repo.full_name === repoName
+                    );
+
+                    if (matchingRepo) {
+                        updateResponseDisplay('statusResponse', `Repository found but not imported yet. Please import it first.`, false);
+                    } else {
+                        updateResponseDisplay('statusResponse', `Repository not found: ${repoName}`, false);
+                    }
+                } else {
+                    updateResponseDisplay('statusResponse', 'Error checking repository status: Repository not found', false);
+                }
+            }
+        }
+
+        function displayRepositoryStatus(data, repoName, projectId) {
+            // Display the status information
+            let statusHTML = `<h3>Repository: ${repoName}</h3>`;
+            statusHTML += `<p>Status: <span class="status-badge status-${data.status.toLowerCase()}">${data.status}</span></p>`;
+
+            if (projectId) {
+                statusHTML += `<p>Project ID: ${projectId}</p>`;
+            }
+
+            if (data.error_message) {
+                statusHTML += `<p>Error: ${data.error_message}</p>`;
+            }
+
+            if (data.last_synced_at) {
+                statusHTML += `<p>Last synced: ${new Date(data.last_synced_at).toLocaleString()}</p>`;
+            }
+
+            if (data.has_codebase_summary) {
+                statusHTML += `<p>Codebase summary: Available</p>`;
+            }
+
+            // Display Flutter projects if available
+            if (data.flutter_projects && data.flutter_projects.length > 0) {
+                state.flutterProjects = data.flutter_projects;
+
+                statusHTML += `<p>Flutter projects found: ${data.flutter_projects.length}</p>`;
+
+                // Show flutter project section
+                document.getElementById('flutterProjectSection').classList.remove('hidden');
+
+                // Populate the select dropdown
+                const selectElement = document.getElementById('flutterProjectSelect');
+                selectElement.innerHTML = '';
+
+                data.flutter_projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project;
+                    option.textContent = project || '<root>';
+
+                    if (project === data.selected_path) {
+                        option.selected = true;
+                    }
+
+                    selectElement.appendChild(option);
+                });
+            } else {
+                document.getElementById('flutterProjectSection').classList.add('hidden');
+            }
+
+            updateResponseDisplay('statusResponse', statusHTML, true, true);
+        }
+
+        async function reprocessRepository() {
+            if (!state.accessToken) {
+                updateResponseDisplay('statusResponse', 'You need to authenticate first', false);
+                return;
+            }
+
+            // Check token validity before proceeding
+            if (!await refreshTokenIfNeeded()) {
+                updateResponseDisplay('statusResponse', 'Authentication token expired. Please re-login in the main application.', false);
+                return;
+            }
+
+            const repoName = document.getElementById('statusRepoNameInput').value.trim();
+
+            if (!repoName) {
+                updateResponseDisplay('statusResponse', 'Please enter a repository name', false);
+                return;
+            }
+
+            // First try to find a project with this GitHub repository
+            const projectsResponse = await apiRequest('/api/projects', 'GET', null, state.accessToken);
+            let githubRepoId = null;
+            let projectId = null;
+
+            if (projectsResponse.success && Array.isArray(projectsResponse.data)) {
+                // Look for a project with this repository
+                const matchingProject = projectsResponse.data.find(project => {
+                    const settings = project.settings || {};
+                    return settings.github_repo_name === repoName;
+                });
+
+                if (matchingProject) {
+                    projectId = matchingProject.id;
+                    githubRepoId = matchingProject.settings?.github_repo_id;
+                }
+            }
+
+            if (!githubRepoId) {
+                updateResponseDisplay('statusResponse', 'Cannot find project or repository ID', false);
+                return;
+            }
+
+            updateResponseDisplay('statusResponse', 'Requesting repository re-processing...', true);
+
+            // Call the reprocess endpoint
+            const response = await apiRequest(`/api/github/repositories/${githubRepoId}/process`, 'POST', null, state.accessToken);
+
+            if (response.success) {
+                updateResponseDisplay('statusResponse', 'Repository re-processing started', true);
+
+                // Periodically check status
+                const intervalId = setInterval(async () => {
+                    await checkRepositoryStatus();
+
+                    // Find the status badge
+                    const statusElement = document.querySelector('.status-badge');
+
+                    // Stop checking if processing is complete or failed
+                    if (statusElement &&
+                        (statusElement.classList.contains('status-ready') ||
+                            statusElement.classList.contains('status-error'))) {
+                        clearInterval(intervalId);
+                    }
+                }, 5000);
+            } else {
+                updateResponseDisplay('statusResponse', 'Error re-processing repository: ' + JSON.stringify(response), false);
+            }
+        }
+
+        async function selectFlutterProject() {
+            if (!state.accessToken) {
+                updateResponseDisplay('selectProjectResponse', 'You need to authenticate first', false);
+                return;
+            }
+
+            // Check token validity before proceeding
+            if (!await refreshTokenIfNeeded()) {
+                updateResponseDisplay('selectProjectResponse', 'Authentication token expired. Please re-login in the main application.', false);
+                return;
+            }
+
+            const repoName = document.getElementById('statusRepoNameInput').value.trim();
+            const selectedProject = document.getElementById('flutterProjectSelect').value;
+
+            if (!repoName || selectedProject === undefined) {
+                updateResponseDisplay('selectProjectResponse', 'Repository name and Flutter project must be selected', false);
+                return;
+            }
+
+            // First try to find a project with this GitHub repository
+            const projectsResponse = await apiRequest('/api/projects', 'GET', null, state.accessToken);
+            let githubRepoId = null;
+            let projectId = null;
+
+            if (projectsResponse.success && Array.isArray(projectsResponse.data)) {
+                // Look for a project with this repository
+                const matchingProject = projectsResponse.data.find(project => {
+                    const settings = project.settings || {};
+                    return settings.github_repo_name === repoName;
+                });
+
+                if (matchingProject) {
+                    projectId = matchingProject.id;
+                    githubRepoId = matchingProject.settings?.github_repo_id;
+                }
+            }
+
+            if (!githubRepoId) {
+                updateResponseDisplay('selectProjectResponse', 'Cannot find project or repository ID', false);
+                return;
+            }
+
+            // Call the select path endpoint
+            const response = await apiRequest(
+                `/api/github/repositories/${githubRepoId}/select-path`,
+                'POST',
+                { project_path: selectedProject },
+                state.accessToken
+            );
+
+            if (response.success) {
+                updateResponseDisplay('selectProjectResponse', 'Flutter project selected', true);
+
+                // Update project settings if we have a project ID
+                if (projectId) {
+                    // Get current project settings
+                    const projectResponse = await apiRequest(`/api/projects/${projectId}`, 'GET', null, state.accessToken);
+                    if (projectResponse.success) {
+                        const settings = projectResponse.data.settings || {};
+
+                        // Update the settings
+                        settings.selected_path = selectedProject;
+
+                        // Update the project
+                        await apiRequest(`/api/projects/${projectId}`, 'PUT', { settings }, state.accessToken);
+                    }
+                }
+
+                // Refresh the status
+                setTimeout(() => {
+                    checkRepositoryStatus();
+                }, 1000);
+            } else {
+                updateResponseDisplay('selectProjectResponse', 'Error selecting Flutter project: ' + JSON.stringify(response), false);
+            }
+        }
+
+        function updateResponseDisplay(elementId, content, isSuccess, isHTML = false) {
+            const element = document.getElementById(elementId);
+            element.className = isSuccess ? 'response success' : 'response error';
+
+            if (isHTML) {
+                element.innerHTML = content;
+            } else {
+                element.textContent = content;
+            }
+        }
+
+        // Handle GitHub OAuth callback
+        async function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.has('code') && urlParams.has('state')) {
+                // This appears to be a GitHub OAuth callback
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+
+                // First ensure we have a valid token
+                if (!refreshTokenIfNeeded()) {
+                    updateResponseDisplay('connectionStatusDisplay', 'Authentication token expired. Please re-login in the main application.', false);
+                    return;
+                }
+
+                // Complete the GitHub connection
+                await exchangeCodeForToken(code, state);
+
+                // Clean up the URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        async function exchangeCodeForToken(code, state) {
+            if (!state.accessToken) {
+                updateResponseDisplay('connectionStatusDisplay', 'You need to authenticate first before connecting GitHub', false);
+                return;
+            }
+
+            updateResponseDisplay('connectionStatusDisplay', 'Completing GitHub connection...', true);
+
+            const response = await apiRequest('/api/github/callback', 'POST', { code, state }, state.accessToken);
+
+            if (response.success) {
+                updateResponseDisplay('connectionStatusDisplay', 'Successfully connected to GitHub: ' + JSON.stringify(response.data), true);
+
+                // Move to the list repositories tab
+                setTimeout(() => {
+                    document.querySelector('.tab[data-section="listRepositories"]').click();
+                    listRepositories();
+                }, 1000);
+            } else {
+                updateResponseDisplay('connectionStatusDisplay', 'Error connecting to GitHub: ' + JSON.stringify(response), false);
+            }
+        }
+
+        // Add a function to check if the JWT is valid
+        function isTokenExpired(token) {
+            if (!token) return true;
+
+            try {
+                // JWT tokens have 3 parts separated by dots
+                const parts = token.split('.');
+                if (parts.length !== 3) return true;
+
+                // Decode the payload (middle part)
+                const payload = JSON.parse(atob(parts[1]));
+
+                // Check if exp (expiration time) exists and is in the past
+                if (payload.exp) {
+                    const expTime = payload.exp * 1000; // Convert to milliseconds
+                    return Date.now() > expTime;
+                }
+
+                return false;
+            } catch (e) {
+                console.error("Error checking token expiration:", e);
+                return true;
+            }
+        }
+
+        // Add a function to check GitHub connection
+        async function checkGitHubConnection() {
+            if (!state.accessToken) return;
+
+            try {
+                const response = await apiRequest('/api/github/token', 'GET', null, state.accessToken);
+
+                if (response.success && response.data) {
+                    state.githubConnected = true;
+                    document.getElementById('connectionStatusDisplay').textContent = 'Connected to GitHub';
+                    document.getElementById('connectionStatusDisplay').className = 'response success';
+                    showMainContent();
+                } else {
+                    state.githubConnected = false;
+                }
+            } catch (error) {
+                console.error("Error checking GitHub connection:", error);
+                state.githubConnected = false;
+            }
+        }
+
+        // Function to refresh token if needed
+        async function refreshTokenIfNeeded() {
+            if (!state.accessToken) {
+                return false;
+            }
+
+            // If we haven't checked expiry yet or token is expired
+            if (!state.tokenExpiry || new Date() >= new Date(state.tokenExpiry)) {
+                try {
+                    // Make a lightweight call to verify token validity
+                    const response = await fetch(`${state.baseUrl}/api/auth/verify`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${state.accessToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            // Update token expiry time if available in response
+                            if (data.expires_at) {
+                                state.tokenExpiry = data.expires_at;
+                            }
+                            return true;
+                        }
+                    }
+
+                    // If we reach here, token is invalid or expired
+                    state.accessToken = null;
+                    state.tokenExpiry = null;
+                    localStorage.removeItem('accessToken');
+                    return false;
+                } catch (error) {
+                    console.error("Error verifying token:", error);
+                    return false;
+                }
+            }
+
+            // Token is still valid
+            return true;
+        }
+    </script>
+</body>
+
+</html>

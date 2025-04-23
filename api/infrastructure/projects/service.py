@@ -1,14 +1,28 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from api.infrastructure.database import get_supabase_client
 import httpx
+import os
+import asyncio
+from pathlib import Path
 
-async def create_project(name: str, description: Optional[str] = None, jwt: str = None) -> Dict[str, Any]:
+from api.domain.github.models import GitHubRepositoryImport
+from api.infrastructure.github.service import get_github_token, import_github_repository
+
+async def create_project(
+    name: str, 
+    description: Optional[str] = None, 
+    github_repo: Optional[Dict[str, Any]] = None, 
+    settings: Optional[Dict[str, Any]] = None,
+    jwt: str = None
+) -> Dict[str, Any]:
     """
-    Create a new project.
+    Create a new project, optionally with a GitHub repository.
     
     Args:
         name: Project name
         description: Project description (optional)
+        github_repo: GitHub repository information (optional)
+        settings: Project settings (optional)
         jwt: Supabase JWT token
         
     Returns:
@@ -31,13 +45,67 @@ async def create_project(name: str, description: Optional[str] = None, jwt: str 
         client.postgrest.auth(jwt)
         
         # Create the project
-        data = client.from_('projects').insert({
+        project_data = {
             'owner_id': user_id,
             'name': name,
             'description': description
-        }).execute()
+        }
         
+        if settings:
+            project_data['settings'] = settings
+            
+        # Insert the project
+        data = client.from_('projects').insert(project_data).execute()
+        
+        if not data or not data.data or len(data.data) == 0:
+            raise ValueError("Failed to create project")
+            
+        project = data.data[0]
+        project_id = project['id']
+        
+        # If a GitHub repository is specified, import it
+        if github_repo:
+            # Create a new project directory
+            output_dir = Path(os.path.join(os.getcwd(), "output", project_id))
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Import the GitHub repository
+            repo_import = GitHubRepositoryImport(
+                repo_full_name=github_repo.get('repo_full_name'),
+                branch=github_repo.get('branch'),
+                project_id=project_id,
+                path=github_repo.get('path')
+            )
+            
+            try:
+                # Import the repository
+                import_result = await import_github_repository(user_id, repo_import)
+                
+                # Update project with GitHub repository information
+                github_info = {
+                    'github_repo_id': import_result.get('repository_id'),
+                    'github_repo_name': repo_import.repo_full_name,
+                    'source_type': 'github'
+                }
+                
+                # Update the project with GitHub info
+                if settings:
+                    settings.update(github_info)
+                else:
+                    settings = github_info
+                    
+                client.from_('projects').update({'settings': settings}).eq('id', project_id).execute()
+                
+                # Return the updated project data
+                project['settings'] = settings
+                
+            except Exception as e:
+                # Log the error but continue with project creation
+                print(f"GitHub repository import failed: {str(e)}")
+                # We don't want to fail project creation if GitHub import fails
+                
         return data
+        
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Project creation error: {str(e)}")
     except Exception as e:

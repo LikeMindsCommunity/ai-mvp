@@ -191,6 +191,25 @@ async def handle_github_callback(code: str) -> Dict[str, Any]:
         # Structure the response using our helper functions that handle datetime objects
         user_data = user_to_dict(data.user)
         
+        # Extract GitHub token information from the user's app_metadata
+        # This requires that the GitHub provider is properly configured in Supabase
+        if hasattr(data.user, 'app_metadata') and data.user.app_metadata:
+            # Try to get the provider access token
+            provider_token = data.user.app_metadata.get('provider_token')
+            if provider_token:
+                from api.infrastructure.github.service import store_github_token
+                
+                # Store the GitHub token
+                try:
+                    await store_github_token(data.user.id, {
+                        'access_token': provider_token,
+                        'token_type': 'bearer'
+                    })
+                    print(f"Stored GitHub token for user {data.user.id}")
+                except Exception as token_error:
+                    print(f"Error storing GitHub token: {token_error}")
+                    # Non-blocking - we still want to return the session
+        
         return {
             "access_token": data.session.access_token,
             "token_type": "bearer",

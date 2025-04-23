@@ -19,7 +19,7 @@ async def create_project(
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    Create a new project.
+    Create a new project, optionally with a GitHub repository.
     
     Args:
         project_data: Project creation data
@@ -29,9 +29,15 @@ async def create_project(
         Dict containing created project data
     """
     try:
+        github_repo = None
+        if project_data.github_repo:
+            github_repo = project_data.github_repo.dict()
+            
         result = await service.create_project(
             name=project_data.name,
             description=project_data.description,
+            github_repo=github_repo, 
+            settings=project_data.settings,
             jwt=user.get('access_token')
         )
         return APIException.format_response(result)
@@ -41,6 +47,42 @@ async def create_project(
         raise
     except Exception as e:
         APIException.raise_server_error("Project creation", e)
+
+@router.post("/import-github", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+async def import_github_repo_as_project(
+    project_data: ProjectCreate,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Create a new project by importing a GitHub repository.
+    
+    Args:
+        project_data: Project creation data with GitHub repository information
+        user: Current authenticated user (from dependency)
+    
+    Returns:
+        Dict containing created project data
+    """
+    if not project_data.github_repo:
+        APIException.raise_bad_request("GitHub repository information is required")
+        
+    try:
+        github_repo = project_data.github_repo.dict()
+            
+        result = await service.create_project(
+            name=project_data.name,
+            description=project_data.description,
+            github_repo=github_repo,
+            settings=project_data.settings,
+            jwt=user.get('access_token')
+        )
+        return APIException.format_response(result)
+    except ValueError as e:
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("GitHub project import", e)
 
 @router.get("/", response_model=List[Dict[str, Any]])
 async def get_projects(user: Dict[str, Any] = Depends(get_current_user)):

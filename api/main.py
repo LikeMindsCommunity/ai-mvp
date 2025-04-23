@@ -15,6 +15,7 @@ from api.presentation.websocket_handler import WebSocketHandler
 from api.presentation.auth import router as auth_router
 from api.presentation.users import router as users_router
 from api.presentation.projects import router as projects_router
+from api.presentation.github import router as github_router
 from api.infrastructure.auth import get_current_user
 
 # Create FastAPI app with custom OpenAPI URL
@@ -55,6 +56,7 @@ except Exception as e:
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(projects_router)
+app.include_router(github_router)
 
 # Initialize WebSocket handler
 websocket_handler = WebSocketHandler()
@@ -102,7 +104,8 @@ async def root():
         "documentation": "/docs",
         "websocket_tester": "/websocket-tester",
         "api_tester": "/api-tester",
-        "integration_tester": "/integration-tester"
+        "integration_tester": "/integration-tester",
+        "github_integration": "/github-integration"
     }
 
 @app.get("/openapi.json", include_in_schema=False)
@@ -196,6 +199,20 @@ async def get_integration_tester():
             return HTMLResponse(content=html_content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading Integration tester: {str(e)}")
+
+@app.get("/github-integration", response_class=HTMLResponse, include_in_schema=False)
+async def get_github_integration():
+    """Serve GitHub Integration HTML page."""
+    # Path to the GitHub Integration HTML file
+    tester_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                              "static", "github-integration.html")
+    
+    try:
+        with open(tester_path, "r") as f:
+            html_content = f.read()
+            return HTMLResponse(content=html_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading GitHub Integration page: {str(e)}")
 
 def start(reload=True):
     """Start the FastAPI application with Uvicorn."""
