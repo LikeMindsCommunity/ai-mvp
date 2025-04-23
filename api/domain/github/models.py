@@ -20,6 +20,8 @@ class GitHubToken(BaseModel):
     id: str
     user_id: str
     token_type: str
+    access_token: str
+    refresh_token: Optional[str] = None
     scope: Optional[str] = None
     created_at: datetime
     updated_at: datetime

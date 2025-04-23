@@ -1,23 +1,21 @@
-version: '3.8'
-
 services:
   flutter-assistant:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "8000:8000"  # API port
-      - "8080:8080"  # Web server port for Flutter previews
+      - "8000:8000" # API port
+      - "8080:8080" # Web server port for Flutter previews
     volumes:
-      - ../integration:/app/integration  # Mount integration directory
-      - ../output:/app/output  # Mount output directory
+      - ../integration:/app/integration # Mount integration directory
+      - ../output:/app/output # Mount output directory
     env_file:
       - .env
     environment:
       # API Configuration
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL}
-      
+
       # Server Configuration
       - WEB_HOST=${WEB_HOST}
       - WEB_PORT=${WEB_PORT}
@@ -26,19 +24,19 @@ services:
       - BUILD_TIMEOUT=${BUILD_TIMEOUT}
       - PUBLIC_HOST=${PUBLIC_HOST}
       - API_URL=${API_URL}
-      
+
       # Frontend Configuration
       - FRONTEND_URL=${FRONTEND_URL}
       - FRONTEND_CALLBACK_PATH=${FRONTEND_CALLBACK_PATH}
-      
+
       # Supabase Configuration
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      
+
       # Security Configuration
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      
+
       # CORS Configuration
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-    restart: unless-stopped 
+    restart: unless-stopped
