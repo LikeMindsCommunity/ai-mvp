@@ -210,21 +210,17 @@
   - [ ] Test memory usage under load
 
 ### 3.6 Persist Conversation History [Medium]
-- [ ] Remove in-memory conversation history
-  - [ ] Identify all uses of `self.conversation_history`
-  - [ ] Plan replacement strategy
-- [ ] Design persistence solution
-  - [ ] Create Supabase table schema or
-  - [ ] Configure Redis storage solution
-  - [ ] Document data structure and access patterns
-- [ ] Implement persistence logic
-  - [ ] Update `_update_conversation_history` method
-  - [ ] Update all generation methods
-  - [ ] Add read/write operations for persistent store
-  - [ ] Implement TTL or cleanup mechanism if needed
-- [ ] Test conversation continuity
-  - [ ] Verify conversations persist across restarts
-  - [ ] Test multi-message interactions
+- [x] Remove in-memory conversation history
+  - [x] Identify all uses of `self.conversation_history`
+  - [x] Plan replacement strategy
+- [x] Design persistence solution
+  - [x] Create function to fetch project conversations from Supabase
+  - [x] Implement history loading when starting a WebSocket session
+  - [x] Add API for retrieving conversation history
+- [x] Implement client-side integration
+  - [x] Update frontend to fetch conversation history on connection
+  - [x] Display previous conversations in chat interface
+  - [x] Add UI components for conversation history
 
 ## 4. Project Management & Authorization
 

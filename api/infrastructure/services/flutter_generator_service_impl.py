@@ -104,13 +104,14 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             self.conversation_managers[session_id] = FlutterConversationManager()
         return self.conversation_managers[session_id]
     
-    def _update_conversation_history(self, session_id: str, user_query: str) -> str:
+    def _update_conversation_history(self, session_id: str, user_query: str, project_history: list = None) -> str:
         """
         Update conversation history and return the enhanced prompt with history.
         
         Args:
             session_id (str): Unique identifier for the user session
             user_query (str): The current user query
+            project_history (list, optional): List of previous conversations from the database
             
         Returns:
             str: Enhanced prompt with conversation history
@@ -118,6 +119,13 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         # Initialize history for new sessions
         if session_id not in self.conversation_history:
             self.conversation_history[session_id] = []
+            
+            # If we have project history from database, initialize with it
+            if project_history:
+                # Extract previous prompts from project history
+                for item in project_history:
+                    if item.get('prompt'):
+                        self.conversation_history[session_id].append(item.get('prompt'))
         
         # Add current query to history
         self.conversation_history[session_id].append(user_query)
@@ -134,7 +142,27 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         # If this is the first request, return the original query
         return user_query
     
-    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, project_id: str = None, access_token: str = None) -> Dict[str, Any]:
+    async def load_project_history(self, project_history: list, session_id: str = "default") -> None:
+        """
+        Load project conversation history into the session conversation history.
+        
+        Args:
+            project_history (list): List of previous conversations from the database
+            session_id (str, optional): Session ID to load history into. Defaults to "default".
+        """
+        # Initialize history for this session if it doesn't exist
+        if session_id not in self.conversation_history:
+            self.conversation_history[session_id] = []
+            
+        # Clear existing history and load from project history
+        self.conversation_history[session_id] = []
+        
+        # Extract previous prompts from project history
+        for item in project_history:
+            if item.get('prompt'):
+                self.conversation_history[session_id].append(item.get('prompt'))
+                
+    async def generate_flutter_code(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, project_id: str = None, access_token: str = None, project_history: list = None) -> Dict[str, Any]:
         """
         Generate Flutter code based on user query.
         
@@ -145,11 +173,16 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this instead of generating a UUID.
             project_id (str, optional): Project ID this generation belongs to.
             access_token (str, optional): User's JWT access token for database operations.
+            project_history (list, optional): List of previous conversations from the database.
             
         Returns:
             Dict[str, Any]: Response containing the generation result
         """
         try:
+            # Load project history if provided
+            if project_history:
+                await self.load_project_history(project_history, session_id)
+                
             # Use provided database generation ID or generate a new UUID
             generation_id = db_generation_id or str(uuid.uuid4())
             
@@ -392,7 +425,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             
             return {"success": False, "error": str(e)}
     
-    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, project_id: str = None, access_token: str = None) -> Dict[str, Any]:
+    async def generate_conversation(self, user_query: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", db_generation_id: str = None, project_id: str = None, access_token: str = None, project_history: list = None) -> Dict[str, Any]:
         """
         Generate conversational explanation and plan for Flutter code implementation.
         
@@ -403,11 +436,16 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             db_generation_id (str, optional): Database-generated ID for this generation. If provided, will use this to update the record.
             project_id (str, optional): Project ID this generation belongs to.
             access_token (str, optional): User's JWT access token for database operations.
+            project_history (list, optional): List of previous conversations from the database.
             
         Returns:
             Dict[str, Any]: The generated conversation result
         """
         try:
+            # Load project history if provided
+            if project_history:
+                await self.load_project_history(project_history, session_id)
+                
             # Get conversation manager for this session
             conversation_manager = self._get_conversation_manager(session_id)
             
@@ -480,7 +518,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             
             return {"success": False, "error": str(e)}
     
-    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None, project_id: str = None, access_token: str = None) -> Dict[str, Any]:
+    async def fix_flutter_code(self, user_query: str, error_message: str, on_chunk: Callable[[Dict[str, Any]], Awaitable[None]], session_id: str = "default", generation_id: str = None, project_id: str = None, access_token: str = None, project_history: list = None) -> Dict[str, Any]:
         """
         Fix Flutter code based on analysis errors.
         
@@ -492,11 +530,16 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             generation_id (str, optional): Generation ID to fix. If not provided, uses the latest generation.
             project_id (str, optional): Project ID this generation belongs to.
             access_token (str, optional): User's JWT access token for database operations.
+            project_history (list, optional): List of previous conversations from the database.
             
         Returns:
             Dict[str, Any]: Response containing the fixed code result
         """
         try:
+            # Load project history if provided
+            if project_history:
+                await self.load_project_history(project_history, session_id)
+                
             # Use existing generation ID or create a new one
             if not generation_id:
                 generation_id = str(uuid.uuid4())

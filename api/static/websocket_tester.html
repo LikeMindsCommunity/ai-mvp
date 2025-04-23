@@ -6,336 +6,1056 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flutter Integration Assistant - WebSocket Tester</title>
     <style>
+        :root {
+            --primary-color: #1565c0;
+            --primary-dark: #0d47a1;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             color: #333;
-            max-width: 1200px;
+            background-color: #f5f7f9;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
-        h1 {
-            color: #1565c0;
-            border-bottom: 2px solid #1565c0;
-            padding-bottom: 10px;
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 4px solid var(--primary-dark);
         }
 
-        .container {
+        .main-container {
             display: flex;
-            flex-wrap: wrap;
+            height: calc(100vh - 60px);
         }
 
-        .control-panel {
+        .sidebar {
+            width: 350px;
+            background-color: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-container {
             flex: 1;
-            min-width: 300px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            margin-right: 20px;
-            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            overflow: hidden;
         }
 
-        .output-panel {
-            flex: 2;
-            min-width: 450px;
+        /* Sidebar sections */
+        .connection-panel,
+        .project-panel,
+        .action-panel {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .connection-panel h3,
+        .project-panel h3,
+        .action-panel h3 {
+            margin-top: 0;
+            color: var(--primary-color);
         }
 
         .connection-status {
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding: 10px;
+            padding: 0.5rem;
             border-radius: 4px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-weight: bold;
             background-color: #f8d7da;
+            color: var(--error-color);
         }
 
         .connection-status.connected {
             background-color: #d4edda;
-            color: #155724;
+            color: var(--success-color);
         }
 
-        .connection-status.disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
+        /* Chat components */
+        .chat-header {
+            padding: 1rem;
+            background-color: white;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .message-log {
-            height: 500px;
+        .chat-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
             overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            background-color: #f5f7f9;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
+        .chat-input {
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Message types */
         .message {
-            margin-bottom: 8px;
-            padding: 8px;
-            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            max-width: 80%;
+            position: relative;
         }
 
-        .text-message {
-            background-color: #e2f3f5;
+        .user-message {
+            align-self: flex-end;
+            background-color: #dcf8c6;
+            border-top-right-radius: 0;
         }
 
-        .success-message {
-            background-color: #d4edda;
+        .assistant-message {
+            align-self: flex-start;
+            background-color: white;
+            border-top-left-radius: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
-        .error-message {
+        .system-message {
+            align-self: center;
+            background-color: #f8f9fa;
+            color: #6c757d;
+            max-width: 90%;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .message-error {
             background-color: #f8d7da;
+            color: var(--error-color);
         }
 
-        .analysis-error {
+        .message-warning {
             background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .message-success {
+            background-color: #d4edda;
+            color: var(--success-color);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+            text-align: right;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 0.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
         }
 
         button {
-            padding: 8px 16px;
-            margin: 5px;
-            background-color: #1565c0;
+            padding: 0.5rem 1rem;
+            background-color: var(--primary-color);
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            font-weight: 500;
         }
 
-        button:hover {
-            background-color: #0d47a1;
+        button:hover:not(:disabled) {
+            background-color: var(--primary-dark);
         }
 
         button:disabled {
-            background-color: #b0bec5;
+            background-color: #cccccc;
             cursor: not-allowed;
         }
 
-        textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
+        .btn-success {
+            background-color: var(--success-color);
+        }
+
+        .btn-danger {
+            background-color: var(--error-color);
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: #212529;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Token display */
+        .token-display {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            resize: vertical;
-            height: 100px;
-            margin-bottom: 10px;
+            font-size: 0.8rem;
+            word-break: break-all;
+            color: #6c757d;
         }
 
-        .controls {
-            margin-top: 20px;
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        pre {
+        .tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 0.25rem;
+            font-size: 0.9rem;
+            background-color: #f8f9fa;
+        }
+
+        .tab.active {
+            background-color: white;
+            border-color: var(--border-color);
+            margin-bottom: -1px;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* Loading indicator */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Conversation history styling */
+        .conversation-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .conversation-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .conversation-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .conversation-item .prompt {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .conversation-item .time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        /* Message content styling */
+        .message-content {
+            margin-bottom: 0.5rem;
+        }
+
+        .message-content pre {
             white-space: pre-wrap;
-            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background-color: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            margin: 0.5rem 0;
+            overflow-x: auto;
         }
     </style>
 </head>
 
 <body>
-    <h1>Flutter Integration Assistant - WebSocket Tester</h1>
-    <div class="container">
-        <div class="control-panel">
-            <div id="status" class="connection-status disconnected">Disconnected</div>
-
-            <div>
-                <h3>Connection</h3>
-                <div>
-                    <label for="wsUrl">WebSocket URL:</label>
-                    <input type="text" id="wsUrl" value="ws://localhost:8000/api/flutter"
-                        style="width: 100%; padding: 5px; margin-bottom: 10px;">
-                </div>
-                <button id="connectBtn">Connect</button>
-                <button id="disconnectBtn" disabled>Disconnect</button>
-            </div>
-
-            <div class="controls">
-                <h3>Request</h3>
-                <div>
-                    <label for="requestType">Request Type:</label>
-                    <select id="requestType" style="padding: 5px; width: 100%; margin-bottom: 10px;">
-                        <option value="GenerateCode">Generate Code</option>
-                        <option value="FixCode">Fix Code</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="userQuery">User Query:</label>
-                    <textarea id="userQuery"
-                        placeholder="E.g., Create a Flutter chat screen with LikeMinds SDK"></textarea>
-                </div>
-
-                <div id="errorMessageContainer" style="display: none;">
-                    <label for="errorMessage">Error Message:</label>
-                    <textarea id="errorMessage"
-                        placeholder="E.g., The method 'initializeLikeMinds' isn't defined for the class 'ChatScreen'"></textarea>
-                </div>
-
-                <button id="sendBtn" disabled>Send Request</button>
-                <button id="clearBtn">Clear Log</button>
-            </div>
+    <div class="app-container">
+        <div class="header">
+            <h1>Flutter Integration Assistant - WebSocket Tester</h1>
         </div>
 
-        <div class="output-panel">
-            <h3>Messages</h3>
-            <div id="messageLog" class="message-log"></div>
+        <div class="main-container">
+            <div class="sidebar">
+                <div class="connection-panel">
+                    <h3>Connection</h3>
+                    <div id="connectionStatus" class="connection-status">Disconnected</div>
+
+                    <div class="form-group">
+                        <label for="wsUrl">WebSocket URL:</label>
+                        <input type="text" id="wsUrl" value="ws://localhost:8000/api/flutter">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="authToken">Authentication Token:</label>
+                        <input type="password" id="authToken" placeholder="JWT Token">
+                        <div class="token-display" id="tokenDisplay">No token provided</div>
+                    </div>
+
+                    <button id="connectBtn">Connect</button>
+                    <button id="disconnectBtn" disabled>Disconnect</button>
+                </div>
+
+                <div class="project-panel">
+                    <h3>Project</h3>
+                    <div class="form-group">
+                        <label for="projectId">Project ID:</label>
+                        <input type="text" id="projectId" placeholder="Project ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Available Projects:</label>
+                        <select id="projectSelector">
+                            <option value="">Select a project</option>
+                        </select>
+                    </div>
+
+                    <button id="loadProjectsBtn">Load Projects</button>
+                    <button id="reloadHistoryBtn" disabled>Reload History</button>
+                </div>
+
+                <div class="action-panel">
+                    <h3>Actions</h3>
+                    <div class="form-group">
+                        <label for="messageType">Message Type:</label>
+                        <select id="messageType">
+                            <option value="GenerateCode">Generate Code</option>
+                            <option value="GenerateConversation">Generate Conversation</option>
+                            <option value="FixCode">Fix Code</option>
+                            <option value="CleanupProject">Cleanup Project</option>
+                        </select>
+                    </div>
+
+                    <div id="errorContainer" class="form-group" style="display: none;">
+                        <label for="errorMessage">Error Message:</label>
+                        <textarea id="errorMessage" rows="3" placeholder="Paste error message"></textarea>
+                    </div>
+
+                    <button id="cleanupBtn" class="btn-warning">Cleanup Project</button>
+                </div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>Conversation</h2>
+                    <button id="clearChatBtn" class="btn-sm">Clear Chat</button>
+                </div>
+
+                <div id="chatMessages" class="chat-messages">
+                    <div class="message system-message">
+                        Welcome to Flutter Integration Assistant. Connect to a WebSocket to start.
+                    </div>
+                </div>
+
+                <div class="chat-input">
+                    <div class="form-group">
+                        <label for="userQuery">Your Query:</label>
+                        <textarea id="userQuery" rows="3"
+                            placeholder="Enter your Flutter code generation request..."></textarea>
+                    </div>
+                    <button id="sendBtn" disabled>Send Message</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        // State management
+        const state = {
+            wsConnection: null,
+            accessToken: localStorage.getItem('wsAccessToken') || null,
+            projectId: localStorage.getItem('wsProjectId') || null,
+            isConnected: false,
+            projects: [],
+            conversations: [],
+            wsUrl: null
+        };
+
         // DOM Elements
-        const statusEl = document.getElementById('status');
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const tokenDisplay = document.getElementById('tokenDisplay');
         const wsUrlInput = document.getElementById('wsUrl');
-        const requestTypeSelect = document.getElementById('requestType');
+        const authTokenInput = document.getElementById('authToken');
+        const projectIdInput = document.getElementById('projectId');
+        const projectSelector = document.getElementById('projectSelector');
+        const loadProjectsBtn = document.getElementById('loadProjectsBtn');
+        const reloadHistoryBtn = document.getElementById('reloadHistoryBtn');
         const userQueryInput = document.getElementById('userQuery');
-        const errorMessageContainer = document.getElementById('errorMessageContainer');
-        const errorMessageInput = document.getElementById('errorMessage');
         const sendBtn = document.getElementById('sendBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const messageLogEl = document.getElementById('messageLog');
+        const clearChatBtn = document.getElementById('clearChatBtn');
+        const chatMessages = document.getElementById('chatMessages');
+        const messageTypeSelect = document.getElementById('messageType');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessageInput = document.getElementById('errorMessage');
+        const cleanupBtn = document.getElementById('cleanupBtn');
 
-        // WebSocket connection
-        let socket = null;
+        // Event Listeners
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendBtn.addEventListener('click', sendMessage);
+        clearChatBtn.addEventListener('click', clearChat);
+        messageTypeSelect.addEventListener('change', handleMessageTypeChange);
+        loadProjectsBtn.addEventListener('click', loadProjects);
+        reloadHistoryBtn.addEventListener('click', requestConversationHistory);
+        projectSelector.addEventListener('change', handleProjectSelection);
+        cleanupBtn.addEventListener('click', cleanupProject);
 
-        // Event handlers
-        requestTypeSelect.addEventListener('change', () => {
-            if (requestTypeSelect.value === 'FixCode') {
-                errorMessageContainer.style.display = 'block';
-            } else {
-                errorMessageContainer.style.display = 'none';
+        // Init
+        initializeApp();
+
+        function initializeApp() {
+            // Set initial values from localStorage
+            if (state.accessToken) {
+                authTokenInput.value = state.accessToken;
+                updateTokenDisplay();
             }
-        });
 
-        connectBtn.addEventListener('click', () => {
-            if (socket) {
-                appendMessage('Already connected', 'error-message');
+            if (state.projectId) {
+                projectIdInput.value = state.projectId;
+            }
+
+            // Initialize message type behavior
+            handleMessageTypeChange();
+        }
+
+        async function loadProjects() {
+            if (!state.accessToken) {
+                addSystemMessage('Please enter an authentication token first', 'message-error');
                 return;
             }
 
             try {
-                const wsUrl = wsUrlInput.value;
-                socket = new WebSocket(wsUrl);
+                const response = await fetch('http://localhost:8000/api/projects', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`
+                    }
+                });
 
-                socket.onopen = () => {
-                    statusEl.textContent = 'Connected';
-                    statusEl.className = 'connection-status connected';
+                if (!response.ok) {
+                    throw new Error(`Failed to load projects: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                state.projects = data;
+
+                // Clear and populate project selector
+                projectSelector.innerHTML = '<option value="">Select a project</option>';
+
+                data.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = project.name || project.id;
+                    projectSelector.appendChild(option);
+                });
+
+                addSystemMessage(`Loaded ${data.length} projects`, 'message-success');
+            } catch (error) {
+                addSystemMessage(`Error loading projects: ${error.message}`, 'message-error');
+            }
+        }
+
+        function handleProjectSelection() {
+            const selectedProjectId = projectSelector.value;
+            if (selectedProjectId) {
+                projectIdInput.value = selectedProjectId;
+                state.projectId = selectedProjectId;
+                localStorage.setItem('wsProjectId', selectedProjectId);
+
+                // If we're connected, reload the conversation history
+                if (state.isConnected) {
+                    requestConversationHistory();
+                }
+            }
+        }
+
+        function updateTokenDisplay() {
+            if (state.accessToken) {
+                // Show truncated token
+                const truncatedToken = state.accessToken.length > 20
+                    ? state.accessToken.substring(0, 10) + '...' + state.accessToken.substring(state.accessToken.length - 10)
+                    : state.accessToken;
+                tokenDisplay.textContent = truncatedToken;
+            } else {
+                tokenDisplay.textContent = 'No token provided';
+            }
+        }
+
+        function handleMessageTypeChange() {
+            const messageType = messageTypeSelect.value;
+
+            // Show error container only for FixCode
+            if (messageType === 'FixCode') {
+                errorContainer.style.display = 'block';
+            } else {
+                errorContainer.style.display = 'none';
+            }
+
+            // Disable user query for CleanupProject
+            if (messageType === 'CleanupProject') {
+                userQueryInput.disabled = true;
+                userQueryInput.placeholder = 'No query needed for cleanup operation';
+            } else {
+                userQueryInput.disabled = false;
+                userQueryInput.placeholder = 'Enter your Flutter code generation request...';
+            }
+        }
+
+        function connect() {
+            if (state.wsConnection) {
+                addSystemMessage('Already connected', 'message-warning');
+                return;
+            }
+
+            // Get token from input
+            const token = authTokenInput.value.trim();
+            if (token) {
+                state.accessToken = token;
+                localStorage.setItem('wsAccessToken', token);
+                updateTokenDisplay();
+            }
+
+            // Get project ID from input
+            const projectId = projectIdInput.value.trim();
+            if (projectId) {
+                state.projectId = projectId;
+                localStorage.setItem('wsProjectId', projectId);
+            }
+
+            // Validate required fields
+            if (!state.accessToken) {
+                addSystemMessage('Authentication token is required', 'message-error');
+                return;
+            }
+
+            if (!state.projectId) {
+                addSystemMessage('Project ID is required', 'message-error');
+                return;
+            }
+
+            // Build WebSocket URL with token and project ID
+            const wsUrl = `${wsUrlInput.value}?token=${encodeURIComponent(state.accessToken)}&project_id=${encodeURIComponent(state.projectId)}`;
+            state.wsUrl = wsUrl;
+
+            try {
+                addSystemMessage('Connecting to WebSocket...');
+
+                // Update UI to indicate connection attempt in progress
+                connectionStatus.textContent = 'Connecting...';
+                connectionStatus.style.backgroundColor = '#fff3cd';
+                connectBtn.disabled = true;
+
+                // Create the WebSocket connection
+                state.wsConnection = new WebSocket(wsUrl);
+
+                // Set up connection timeout
+                const connectionTimeout = setTimeout(() => {
+                    if (state.wsConnection && state.wsConnection.readyState !== WebSocket.OPEN) {
+                        // Connection is taking too long, close it
+                        if (state.wsConnection.readyState === WebSocket.CONNECTING) {
+                            state.wsConnection.close();
+                            state.wsConnection = null;
+
+                            // Reset UI
+                            connectionStatus.textContent = 'Disconnected';
+                            connectionStatus.classList.remove('connected');
+                            connectBtn.disabled = false;
+
+                            addSystemMessage('Connection timed out after 10 seconds. Please try again.', 'message-error');
+                        }
+                    }
+                }, 10000); // 10 second timeout
+
+                // Clear timeout when connected
+                state.wsConnection.onopen = () => {
+                    clearTimeout(connectionTimeout);
+
+                    state.isConnected = true;
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.classList.add('connected');
+
                     connectBtn.disabled = true;
                     disconnectBtn.disabled = false;
                     sendBtn.disabled = false;
-                    appendMessage('WebSocket connection established', 'success-message');
-                };
+                    reloadHistoryBtn.disabled = false;
 
-                socket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        let messageClass = 'text-message';
+                    addSystemMessage('Connected to WebSocket', 'message-success');
 
-                        if (data.type === 'Error') {
-                            messageClass = 'error-message';
-                        } else if (data.type === 'Success') {
-                            messageClass = 'success-message';
-                        } else if (data.type === 'AnalysisError') {
-                            messageClass = 'analysis-error';
+                    // Reset conversations
+                    state.conversations = [];
+
+                    // If we don't get conversation history after 5 seconds, show a message
+                    setTimeout(() => {
+                        if (state.conversations.length === 0) {
+                            addSystemMessage('No conversation history received automatically. You can try to reload history manually.', 'message-warning');
                         }
-
-                        if (data.type === 'Result') {
-                            appendMessage(`[${data.type}] ${JSON.stringify(data.value, null, 2)}`, messageClass);
-                        } else {
-                            appendMessage(`[${data.type}] ${data.value}`, messageClass);
-                        }
-                    } catch (e) {
-                        appendMessage(`Error parsing message: ${event.data}`, 'error-message');
-                    }
+                    }, 5000);
                 };
 
-                socket.onerror = (error) => {
-                    appendMessage(`WebSocket error: ${error}`, 'error-message');
-                };
+                // Set up the other WebSocket event handlers
+                setupOtherWebSocketHandlers();
+            } catch (error) {
+                addSystemMessage(`Failed to connect: ${error.message}`, 'message-error');
 
-                socket.onclose = (event) => {
-                    statusEl.textContent = 'Disconnected';
-                    statusEl.className = 'connection-status disconnected';
-                    connectBtn.disabled = false;
-                    disconnectBtn.disabled = true;
-                    sendBtn.disabled = true;
-                    socket = null;
-                    appendMessage(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`, 'error-message');
-                };
-            } catch (e) {
-                appendMessage(`Connection error: ${e.message}`, 'error-message');
+                // Reset UI
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.classList.remove('connected');
+                connectBtn.disabled = false;
             }
-        });
+        }
 
-        disconnectBtn.addEventListener('click', () => {
-            if (socket) {
-                socket.close();
+        function setupOtherWebSocketHandlers() {
+            if (!state.wsConnection) return;
+
+            state.wsConnection.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (error) {
+                    addSystemMessage(`Error parsing message: ${error.message}`, 'message-error');
+                    console.error('Raw message:', event.data);
+                }
+            };
+
+            state.wsConnection.onerror = (error) => {
+                addSystemMessage(`WebSocket error: ${error.message || 'Unknown error'}`, 'message-error');
+                // Try to provide more helpful information
+                if (!navigator.onLine) {
+                    addSystemMessage('You appear to be offline. Please check your internet connection.', 'message-error');
+                }
+            };
+
+            state.wsConnection.onclose = (event) => {
+                state.isConnected = false;
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.classList.remove('connected');
+
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                reloadHistoryBtn.disabled = true;
+
+                state.wsConnection = null;
+
+                // Add a message with the close code for debugging
+                let closeReason = `Disconnected from WebSocket (Code: ${event.code})`;
+                if (event.reason) {
+                    closeReason += ` - Reason: ${event.reason}`;
+                }
+
+                if (event.code === 1006) {
+                    closeReason += ' - Abnormal closure, connection dropped unexpectedly';
+                } else if (event.code === 1000) {
+                    closeReason += ' - Normal closure';
+                } else if (event.code === 1001) {
+                    closeReason += ' - Endpoint going away';
+                } else if (event.code === 1011) {
+                    closeReason += ' - Server error';
+                } else if (event.code === 1008) {
+                    closeReason += ' - Policy violation';
+                } else if (event.code === 1012) {
+                    closeReason += ' - Server restart';
+                } else if (event.code === 1013) {
+                    closeReason += ' - Try again later';
+                }
+
+                addSystemMessage(closeReason);
+
+                // If we got conversation history but disconnected, notify the user they can reconnect
+                if (state.conversations.length > 0) {
+                    addSystemMessage('Connection closed but conversation history was received. You can reconnect to continue working with this project.', 'message-warning');
+                }
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            const type = data.type;
+            const value = data.value;
+
+            switch (type) {
+                case 'Text':
+                    addSystemMessage(typeof value === 'string' ? value : JSON.stringify(value));
+                    break;
+
+                case 'Chat':
+                    addAssistantMessage(value);
+                    break;
+
+                case 'Code':
+                    addCodeMessage(value);
+                    break;
+
+                case 'Error':
+                    addSystemMessage(value, 'message-error');
+                    break;
+
+                case 'Success':
+                    addSystemMessage(value, 'message-success');
+                    break;
+
+                case 'AnalysisError':
+                    addSystemMessage(`Analysis Error: ${value}`, 'message-warning');
+                    // Auto-populate error message field for fixing
+                    errorMessageInput.value = value;
+                    messageTypeSelect.value = 'FixCode';
+                    handleMessageTypeChange();
+                    break;
+
+                case 'Result':
+                    handleResultMessage(value);
+                    break;
+
+                case 'ConversationHistory':
+                    handleConversationHistory(value);
+                    break;
+
+                case 'TokenExpired':
+                    addSystemMessage('Authentication token has expired. Please reconnect with a fresh token.', 'message-error');
+                    disconnect();
+                    break;
+
+                default:
+                    addSystemMessage(`Received message of type ${type}: ${JSON.stringify(value)}`);
             }
-        });
+        }
 
-        sendBtn.addEventListener('click', () => {
-            if (!socket) {
-                appendMessage('Not connected', 'error-message');
+        function handleResultMessage(result) {
+            if (result.success) {
+                let resultMessage = 'Operation completed successfully.';
+
+                if (result.web_url) {
+                    resultMessage += `\n\nWeb URL: <a href="${result.web_url}" target="_blank">${result.web_url}</a>`;
+                }
+
+                if (result.code_path) {
+                    resultMessage += `\n\nCode Path: ${result.code_path}`;
+                }
+
+                if (result.generation_id) {
+                    resultMessage += `\n\nGeneration ID: ${result.generation_id}`;
+                }
+
+                if (result.code) {
+                    resultMessage += `\n\nGenerated Code:\n`;
+                    const codeElement = document.createElement('div');
+                    codeElement.className = 'code-block';
+                    codeElement.textContent = result.code;
+
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message assistant-message';
+                    messageDiv.innerHTML = `<div class="message-content">${resultMessage}</div>`;
+                    messageDiv.appendChild(codeElement);
+
+                    addTimeToMessage(messageDiv);
+                    chatMessages.appendChild(messageDiv);
+                } else {
+                    addAssistantMessage(resultMessage);
+                }
+            } else {
+                addSystemMessage(`Operation failed: ${result.error || 'Unknown error'}`, 'message-error');
+            }
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleConversationHistory(conversations) {
+            if (!Array.isArray(conversations) || conversations.length === 0) {
+                addSystemMessage('No conversation history found');
                 return;
             }
 
-            const requestType = requestTypeSelect.value;
-            const userQuery = userQueryInput.value.trim();
+            state.conversations = conversations;
+
+            // Add a separator before showing history
+            addSystemMessage(`Loaded ${conversations.length} previous conversations`, 'message-success');
+
+            // Display each conversation entry
+            conversations.forEach(conv => {
+                if (conv.prompt) {
+                    const timestamp = new Date(conv.created_at).toLocaleString();
+                    addUserMessage(`${conv.prompt}`, true);
+                }
+
+                if (conv.ai_response) {
+                    addAssistantMessage(conv.ai_response, true);
+                }
+
+                if (conv.code_content) {
+                    const codeElement = document.createElement('div');
+                    codeElement.className = 'code-block';
+                    codeElement.textContent = conv.code_content;
+
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message assistant-message';
+                    messageDiv.innerHTML = '<div class="message-content">Generated Code:</div>';
+                    messageDiv.appendChild(codeElement);
+
+                    addTimeToMessage(messageDiv, new Date(conv.created_at));
+                    chatMessages.appendChild(messageDiv);
+                }
+            });
+
+            // Add a separator after showing history
+            addSystemMessage('End of conversation history');
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addTimeToMessage(messageElement, timestamp = null) {
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+
+            const date = timestamp || new Date();
+            timeDiv.textContent = date.toLocaleTimeString();
+
+            messageElement.appendChild(timeDiv);
+            return messageElement;
+        }
+
+        function addUserMessage(text, isHistory = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user-message';
+
+            if (isHistory) {
+                messageDiv.classList.add('history-message');
+            }
+
+            messageDiv.innerHTML = `<div class="message-content">${text}</div>`;
+            addTimeToMessage(messageDiv);
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addAssistantMessage(text, isHistory = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant-message';
+
+            if (isHistory) {
+                messageDiv.classList.add('history-message');
+            }
+
+            // Process the text to find and format code blocks
+            let content = text.replace(/```(\w*)([\s\S]*?)```/g, function (match, language, code) {
+                return `<div class="code-block">${code.trim()}</div>`;
+            });
+
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            addTimeToMessage(messageDiv);
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addCodeMessage(code) {
+            const codeElement = document.createElement('div');
+            codeElement.className = 'code-block';
+            codeElement.textContent = code;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant-message';
+            messageDiv.appendChild(codeElement);
+
+            addTimeToMessage(messageDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addSystemMessage(text, className = '') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message system-message ${className}`;
+            messageDiv.innerHTML = `<div class="message-content">${text}</div>`;
+
+            addTimeToMessage(messageDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function disconnect() {
+            if (state.wsConnection) {
+                state.wsConnection.close();
+                // onclose handler will update UI
+            }
+        }
+
+        function sendMessage() {
+            if (!state.wsConnection || !state.isConnected) {
+                addSystemMessage('Not connected to WebSocket', 'message-error');
+                return;
+            }
+
+            const messageType = messageTypeSelect.value;
+            let userQuery = userQueryInput.value.trim();
+
+            // For CleanupProject, no query is needed
+            if (messageType === 'CleanupProject') {
+                sendCleanupRequest();
+                return;
+            }
 
             if (!userQuery) {
-                appendMessage('Please enter a user query', 'error-message');
+                addSystemMessage('Please enter a query', 'message-error');
                 return;
             }
 
-            const request = {
-                type: requestType,
+            // Prepare the message based on type
+            const message = {
+                type: messageType,
                 user_query: userQuery
             };
 
-            if (requestType === 'FixCode') {
+            // For FixCode, add error message
+            if (messageType === 'FixCode') {
                 const errorMessage = errorMessageInput.value.trim();
                 if (!errorMessage) {
-                    appendMessage('Please enter an error message for FixCode request', 'error-message');
+                    addSystemMessage('Error message is required for FixCode', 'message-error');
                     return;
                 }
-                request.error_message = errorMessage;
+                message.error_message = errorMessage;
             }
 
-            try {
-                socket.send(JSON.stringify(request));
-                appendMessage(`Sent request: ${JSON.stringify(request)}`, 'text-message');
-            } catch (e) {
-                appendMessage(`Error sending message: ${e.message}`, 'error-message');
-            }
-        });
+            // Add the message to the UI
+            addUserMessage(userQuery);
 
-        clearBtn.addEventListener('click', () => {
-            messageLogEl.innerHTML = '';
-        });
+            // Send to WebSocket
+            state.wsConnection.send(JSON.stringify(message));
 
-        // Helper functions
-        function appendMessage(message, className) {
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${className}`;
+            // Clear the input
+            userQueryInput.value = '';
+        }
 
-            // Format JSON if it contains it
-            if (message.includes('{') && message.includes('}')) {
-                try {
-                    const parts = message.split('{');
-                    const prefix = parts.shift();
-                    const jsonText = '{' + parts.join('{');
+        function sendCleanupRequest() {
+            const message = {
+                type: 'CleanupProject'
+            };
 
-                    messageEl.innerHTML = `${prefix}<pre>${jsonText}</pre>`;
-                } catch (e) {
-                    messageEl.textContent = message;
-                }
-            } else {
-                messageEl.textContent = message;
+            addSystemMessage('Sending cleanup request...');
+            state.wsConnection.send(JSON.stringify(message));
+        }
+
+        function cleanupProject() {
+            if (!state.wsConnection || !state.isConnected) {
+                addSystemMessage('Not connected to WebSocket', 'message-error');
+                return;
             }
 
-            messageLogEl.appendChild(messageEl);
-            messageLogEl.scrollTop = messageLogEl.scrollHeight;
+            if (confirm('Are you sure you want to clean up this project? This will stop any running Flutter processes.')) {
+                sendCleanupRequest();
+            }
+        }
+
+        function requestConversationHistory() {
+            if (!state.wsConnection || !state.isConnected) {
+                addSystemMessage('Not connected to WebSocket', 'message-error');
+                return;
+            }
+
+            const message = {
+                type: 'GetProjectConversations'
+            };
+
+            addSystemMessage('Requesting conversation history...');
+            state.wsConnection.send(JSON.stringify(message));
+        }
+
+        function clearChat() {
+            // Keep only the first welcome message
+            while (chatMessages.childNodes.length > 1) {
+                chatMessages.removeChild(chatMessages.lastChild);
+            }
+
+            addSystemMessage('Chat cleared');
         }
     </script>
 </body>
