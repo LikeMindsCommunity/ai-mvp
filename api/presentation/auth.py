@@ -245,6 +245,31 @@ async def github_callback(code: str = Query(...)):
     except Exception as e:
         APIException.raise_server_error("GitHub callback", e)
 
+@router.get("/github/app/installation")
+async def github_app_installation():
+    """
+    Get the GitHub App installation ID & save it in Github App Installation in DB corresponding to user id.
+    """
+    settings = get_settings()
+    try:
+        #http://localhost:8000/api/auth/github/callback?code=9ac5da52f88528e072f0&installation_id=65173162&setup_action=install
+
+        # Fetch the installation ID and call the github integration to get the repositories
+        # Link it with the user account 
+        # store in the db
+        
+        # Redirect to frontend with session data
+        return RedirectResponse(
+            url=f"{callback_url}?session={session_json}"
+        )
+    except ValueError as e:
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("GitHub App installation", e)
+
+
 @router.post("/refresh", response_model=Token)
 async def refresh_auth_token(token_data: RefreshToken) -> Token:
     """

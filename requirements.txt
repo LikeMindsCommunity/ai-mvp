@@ -26,5 +26,5 @@ pydantic[email]>=2.4.2
 
 # Git
 gitingest>=0.1.4
-
+PyGithub>=2.6.1
 

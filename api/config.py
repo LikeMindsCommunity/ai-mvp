@@ -17,6 +17,24 @@ class TokenPayload(BaseModel):
     exp: int
     sub: str
 
+def read_private_key(file_path: str) -> Optional[str]:
+    """
+    Read the private key from a file.
+    
+    Args:
+        file_path (str): Path to the private key file.
+        
+    Returns:
+        Optional[str]: Private key content or None if not found.
+    """
+    try:
+        with open(file_path, "r") as file:
+            return file.read()
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        print(f"Error reading private key file: {e}")
+        return None
 class Settings(BaseSettings):
     """Settings model."""
     # Supabase settings
@@ -49,6 +67,14 @@ class Settings(BaseSettings):
     command_timeout: int = Field(default=int(os.getenv("COMMAND_TIMEOUT", "600")))
     build_timeout: int = Field(default=int(os.getenv("BUILD_TIMEOUT", "6000")))
 
+    # GitHub settings
+    github_app_id: str = Field(default=os.getenv("GITHUB_APP_ID", ""))
+
+    
+    # with open(os.getenv("GITHUB_PRIVATE_KEY_PATH"), "r") as key_file:
+    #         github_private_key = key_file.read()
+    # #github_private_key:str = read_private_key(os.getenv("", ""))
+    # # github_private_key: str = Field(default=)
 
     class Config:
         env_file = ".env"
@@ -64,3 +90,5 @@ def get_settings() -> Settings:
         Settings: Application settings
     """
     return Settings() 
+
+

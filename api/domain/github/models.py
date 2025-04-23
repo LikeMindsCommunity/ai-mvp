@@ -37,15 +37,11 @@ class GitHubAuthResponse(BaseModel):
 
 class GitHubRepository(BaseModel):
     """GitHub repository basic information."""
-    id: int
     name: str
-    full_name: str
     description: Optional[str] = None
     html_url: HttpUrl
-    default_branch: str
-    private: bool
     language: Optional[str] = None
-    owner: Dict[str, Any]
+    
 
 
 class GitHubRepositoryList(BaseModel):

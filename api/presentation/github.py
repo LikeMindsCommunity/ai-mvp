@@ -27,8 +27,86 @@ from api.infrastructure.github.service import (
 )
 from api.presentation.exceptions import APIException
 from pydantic import BaseModel
+from api.config import get_settings
+from github import Github, GithubIntegration, Auth
+
+settings = get_settings()  
 
 router = APIRouter(prefix="/api/github", tags=["github"])
+
+
+
+@router.get("/repositories", response_model=GitHubRepositoryList)
+async def get_github_repositories(
+    private_key: str = """-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAoCLcubDEIxw3Kizt1HrLZmjF4V/Uecioi1UoRfuL8qAP8Wcw
+9J/4Gwbg69wU0EwfX5/EpnWtYw7OYII49z/pJsSuUcYqMbC/T/FWDGryycJMH1yb
+uAlTcL/jLpqlFjDxmL55ooP8F48eZjDDYu591Pnqzrw7yHObjhGzYT3L0eYY9K6O
+PdqBdvCgSSERkumZpa18wCADizYFaoI6pdgn5b81p4s1+24shPWBk+bk600vxQab
+CeYpoUDsOr+j84oTnTJj8WyoW6k1TNCT7orlanhtsfg21uBzsMjXWwwgLXLrVsAs
+FQigllzaupWszBiiaCBDmp4c13u/2vz/UjJa9QIDAQABAoIBAGtN0RAQ1e0c/A4j
+2x41RlSSQn654zvT7LSo1HrIi0eCYAyH9DMHeo5Jtq/1YnENgTxnZ7OPSScGhd3/
+hMKRLd9Pjeu32RBA+oFMGzfo9lWh/7ZILQROI3565nWVJKhRFaMfh4wR2vvCaEFb
+zaFeZC0xZlkvovO4G/VAAS5Y5Vn5QTnJhyxZqGAPKeebIVQkbIjaZbPFweHomXNf
+vdYLIscn3xeUO+VaXMGOSdvWwjsdokEAX145zem04/EFHZ6G+rwrua7ctSMBbHm5
+DUfBxAADhW5HQS9GTP8h0AZ7OYMa04Q36HyVmLCY8nX5V58mKNkMvqwBukOk4N7C
+dN1yFyECgYEAzq3p9pQMkBYGwHO2KiThwkSwwgNO64T3YTAPjPx6jrQ49hBYxSfF
+6RFb4n1gargfzZDNp+uIFyIjfaArzq1WhcFm1HBuv3dF/udQF9CHSVv8EtoAbV1l
+VD7ccH2wCrsMInYBMXNzIGPI3GWE2LGb0Bey/kLe+xtDnGKvEhNTfk0CgYEAxlmd
+r9yt0wJB/JF+Ir+mbWjc+qORGCqPL1Go4RoSfi8W+XusoQDzVxpkUIkWdtTLJkYL
+lTJs8rwZEV5EBjhmTEPKLIuvxBwqjaaXI1X/8zs6wmYmXg1jeh6WOuW2OvaYBDuo
+1yxz1wglz5MlBiny07TId+Ku6CfY89D8XoMiM0kCgYA3q8bqoWRk51n4OvLllTuu
+bXxDNkrqy80qw5xcuKF2kPsK5MpUiOsZZZCfiHARLvl6ELgktB/bQ1nV++/w4uX8
+b2T4cjSSpFkZWUtMruHSE9HpbglRbCfgMnKEZoalzU5udeTKYjOvlNFE9J99ExJK
+UifnrzGK6AQlOru3nbcOvQKBgQCnLHje9Bv9MHX1LZsmJmla5Xr6NEniGFy+ARFZ
+R+Q2PfIbK8V/nZF65F+QETrBxO/Dvl2czfdNToPCQ7UJmRd/R9NqYAEwRJ0I7lOM
+ELu8gTsxBW9o7dfd4VG1Kk7Au328c5wGXwzzO4bCwL3/x/NFw6UChifsu0j7ljRe
+ZB+7IQKBgQC3uN4zv8Cp6KJPRrDqjZ37G1FH3BfAzfPOGl+BodI1VwxAakaOtZUB
+fkeQ/pwonstATDlKguJy39jugFAys/lTyCI2Kpw4Z1GPPHBFtrl9i7u05y2rY3Gj
+MQoTA69OUk+Hu7cn8Gxbo3Y3yMyTIz1BIvLkAdh8xbT9wmZ8f6PHEA==
+-----END RSA PRIVATE KEY-----
+""", # TODO: Get from Settings.py
+    app_id: str = settings.github_app_id,
+    ):
+    """
+    List GitHub repositories for a user
+    """
+    try:
+        
+        user = await get_current_user()
+        user_id = user["id"]
+
+        client = await get_supabase_client()
+        github_installation_id = client.from_('github_app_installations').select('installation_id').eq('user_id', user_id).execute()
+
+        # Get the GitHub token for the user
+
+
+        print(f"Installation ID: {github_installation_id}")
+        print(f"Private Key: {private_key}")
+        print(f"App ID: {app_id}")
+        auth = Auth.AppAuth(app_id, private_key)
+        gi = GithubIntegration(auth=auth)
+        # Get installation
+        git_installation = gi.get_app_installation(github_installation_id)
+        
+    
+        # List repositories
+        repos = []
+        for repo in git_installation.get_repos():
+            repos.append({
+                "name": repo.name,
+                "html_url": repo.html_url
+            })
+       
+        return GitHubRepositoryList(repositories=repos)
+    except ValueError as e:
+        APIException.raise_bad_request(str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        APIException.raise_server_error("GitHub repositories listing", e)
+
 
 @router.post("/connect", response_model=GitHubAuthResponse)
 async def connect_github_account():
@@ -83,27 +161,6 @@ async def disconnect_github_account(current_user: Dict[str, Any] = Depends(get_c
     except Exception as e:
         APIException.raise_server_error("GitHub account disconnection", e)
 
-
-@router.get("/repositories", response_model=GitHubRepositoryList)
-async def get_github_repositories(current_user: Dict[str, Any] = Depends(get_current_user)):
-    """
-    List GitHub repositories for the current user.
-    """
-    try:
-        user_id = current_user["id"]
-        token = await get_github_token(user_id)
-        
-        if not token:
-            APIException.raise_not_found("No GitHub account connected")
-            
-        repositories = await list_github_repositories(token.access_token)
-        return GitHubRepositoryList(repositories=repositories)
-    except ValueError as e:
-        APIException.raise_bad_request(str(e))
-    except HTTPException:
-        raise
-    except Exception as e:
-        APIException.raise_server_error("GitHub repositories listing", e)
 
 
 @router.post("/repositories/import", response_model=GitHubRepositoryImportResponse)
