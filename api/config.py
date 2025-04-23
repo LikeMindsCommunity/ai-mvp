@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     frontend_url: str = Field(default=os.getenv("FRONTEND_URL", "http://localhost:8080"))
     frontend_callback_path: str = Field(default=os.getenv("FRONTEND_CALLBACK_PATH", ""))
 
-        # JWT settings
+    # JWT settings
     jwt_secret: str = Field(default=os.getenv("JWT_SECRET", "your-secret-key-for-jwt-signing"))
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 1 day
@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # Timeout settings
     command_timeout: int = Field(default=int(os.getenv("COMMAND_TIMEOUT", "600")))
     build_timeout: int = Field(default=int(os.getenv("BUILD_TIMEOUT", "6000")))
+    
+    # GitHub App settings
+    github_app_id: str = Field(default=os.getenv("GITHUB_APP_ID", ""))
+    github_app_name: str = Field(default=os.getenv("GITHUB_APP_NAME", ""))
+    github_app_client_id: str = Field(default=os.getenv("GITHUB_APP_CLIENT_ID", ""))
+    github_app_client_secret: str = Field(default=os.getenv("GITHUB_APP_CLIENT_SECRET", ""))
+    github_app_private_key: str = Field(default=os.getenv("GITHUB_APP_PRIVATE_KEY", ""))
+    github_app_private_key_path: str = Field(default=os.getenv("GITHUB_APP_PRIVATE_KEY_PATH", ""))
 
 
     class Config:

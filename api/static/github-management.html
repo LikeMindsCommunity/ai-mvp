@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub App Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        header {
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button.danger {
+            background-color: #dc3545;
+        }
+
+        button.danger:hover {
+            background-color: #bd2130;
+        }
+
+        button.secondary {
+            background-color: #6c757d;
+        }
+
+        button.secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .github-button {
+            background-color: #24292e;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .github-button:hover {
+            background-color: #2f363d;
+        }
+
+        .github-button img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .info-group {
+            margin-bottom: 15px;
+        }
+
+        .label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .value {
+            font-family: monospace;
+        }
+
+        .repositories {
+            margin-top: 20px;
+        }
+
+        .repository-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .repository-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .repository-item:last-child {
+            border-bottom: none;
+        }
+
+        .repository-name {
+            font-weight: bold;
+        }
+
+        .repository-description {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .token-display {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: monospace;
+            word-break: break-all;
+            max-width: 100%;
+            margin: 10px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .token-display.expanded {
+            white-space: normal;
+            overflow: visible;
+        }
+
+        .response-log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            word-break: break-all;
+            margin-top: 20px;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>GitHub App Management</h1>
+        <div>
+            <a href="integration_tester.html">← Back to API Tester</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2 class="card-title">Authentication Status</h2>
+            <div id="authStatus" class="status disconnected">Not Authenticated</div>
+            <div id="tokenDisplay" class="token-display">No token available</div>
+            <button id="toggleTokenBtn">Toggle Token</button>
+            <div class="info-group">
+                <span class="label">Authenticated User:</span>
+                <span id="userInfo" class="value">Not logged in</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">GitHub App Installation</h2>
+            <div id="installationStatus" class="status disconnected">Not Installed</div>
+
+            <div id="installationDetails" style="display: none;">
+                <div class="info-group">
+                    <span class="label">Installation ID:</span>
+                    <span id="installationId" class="value">-</span>
+                </div>
+                <div class="info-group">
+                    <span class="label">Installed At:</span>
+                    <span id="installationDate" class="value">-</span>
+                </div>
+                <div class="info-group">
+                    <span class="label">Token Expires:</span>
+                    <span id="tokenExpiry" class="value">-</span>
+                </div>
+                <button id="refreshTokenBtn">Refresh Token</button>
+                <button id="unlinkAppBtn" class="danger">Unlink GitHub App</button>
+            </div>
+
+            <button id="installAppBtn" class="github-button">
+                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
+                Install GitHub App
+            </button>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">GitHub Repositories</h2>
+            <button id="fetchReposBtn">Fetch Repositories</button>
+            <div id="repositoriesContainer" style="display: none;">
+                <div class="repositories">
+                    <div id="repoCount">0 repositories found</div>
+                    <ul id="repositoryList" class="repository-list">
+                        <!-- Repositories will be populated here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Import Repository</h2>
+            <div class="info-group">
+                <span class="label">Repository Name:</span>
+                <input type="text" id="repoNameInput" placeholder="username/repository">
+            </div>
+            <div class="info-group">
+                <span class="label">Branch (optional):</span>
+                <input type="text" id="branchInput" placeholder="main">
+            </div>
+            <button id="importRepoBtn">Import Repository</button>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Response Log</h2>
+            <div id="responseLog" class="response-log"></div>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            accessToken: null,
+            userData: null,
+            installation: null,
+            repositories: [],
+        };
+
+        // DOM Elements
+        const authStatus = document.getElementById('authStatus');
+        const tokenDisplay = document.getElementById('tokenDisplay');
+        const toggleTokenBtn = document.getElementById('toggleTokenBtn');
+        const userInfo = document.getElementById('userInfo');
+        const installationStatus = document.getElementById('installationStatus');
+        const installationDetails = document.getElementById('installationDetails');
+        const installationId = document.getElementById('installationId');
+        const installationDate = document.getElementById('installationDate');
+        const tokenExpiry = document.getElementById('tokenExpiry');
+        const refreshTokenBtn = document.getElementById('refreshTokenBtn');
+        const unlinkAppBtn = document.getElementById('unlinkAppBtn');
+        const installAppBtn = document.getElementById('installAppBtn');
+        const fetchReposBtn = document.getElementById('fetchReposBtn');
+        const repositoriesContainer = document.getElementById('repositoriesContainer');
+        const repoCount = document.getElementById('repoCount');
+        const repositoryList = document.getElementById('repositoryList');
+        const repoNameInput = document.getElementById('repoNameInput');
+        const branchInput = document.getElementById('branchInput');
+        const importRepoBtn = document.getElementById('importRepoBtn');
+        const responseLog = document.getElementById('responseLog');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+
+        // API base URL
+        const apiBaseUrl = 'http://localhost:8000'; // Change this to your API URL
+
+        // Initialize the app
+        function initialize() {
+            // Check if the user is authenticated
+            const storedToken = localStorage.getItem('accessToken');
+            if (storedToken) {
+                state.accessToken = storedToken;
+                updateAuthStatus(true);
+                loadUserData();
+                checkGitHubAppInstallation();
+            } else {
+                updateAuthStatus(false);
+            }
+
+            // Add event listeners
+            toggleTokenBtn.addEventListener('click', toggleToken);
+            refreshTokenBtn.addEventListener('click', refreshToken);
+            unlinkAppBtn.addEventListener('click', unlinkApp);
+            installAppBtn.addEventListener('click', installApp);
+            fetchReposBtn.addEventListener('click', fetchRepositories);
+            importRepoBtn.addEventListener('click', importRepository);
+            clearLogBtn.addEventListener('click', clearLog);
+
+            // Handle URL parameters for callbacks
+            handleCallbacks();
+        }
+
+        // Update auth status UI
+        function updateAuthStatus(isAuthenticated) {
+            if (isAuthenticated) {
+                authStatus.textContent = 'Authenticated';
+                authStatus.classList.remove('disconnected');
+                authStatus.classList.add('connected');
+                updateTokenDisplay();
+            } else {
+                authStatus.textContent = 'Not Authenticated';
+                authStatus.classList.remove('connected');
+                authStatus.classList.add('disconnected');
+                tokenDisplay.textContent = 'No token available';
+                userInfo.textContent = 'Not logged in';
+            }
+        }
+
+        // Update token display
+        function updateTokenDisplay() {
+            if (state.accessToken) {
+                // Show truncated token
+                const truncatedToken = state.accessToken.length > 20 ?
+                    state.accessToken.substring(0, 10) + '...' + state.accessToken.substring(state.accessToken.length - 10) :
+                    state.accessToken;
+
+                tokenDisplay.textContent = truncatedToken;
+                tokenDisplay.title = state.accessToken; // Full token on hover
+            } else {
+                tokenDisplay.textContent = 'No token available';
+                tokenDisplay.title = '';
+            }
+        }
+
+        // Toggle token display
+        function toggleToken() {
+            tokenDisplay.classList.toggle('expanded');
+
+            if (tokenDisplay.classList.contains('expanded') && state.accessToken) {
+                tokenDisplay.textContent = state.accessToken;
+            } else if (state.accessToken) {
+                const truncatedToken = state.accessToken.length > 20 ?
+                    state.accessToken.substring(0, 10) + '...' + state.accessToken.substring(state.accessToken.length - 10) :
+                    state.accessToken;
+                tokenDisplay.textContent = truncatedToken;
+            }
+        }
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                const userData = localStorage.getItem('userData');
+                if (userData) {
+                    state.userData = JSON.parse(userData);
+                    userInfo.textContent = state.userData.email || state.userData.id;
+                } else {
+                    // Fetch user data from API
+                    const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${state.accessToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        state.userData = data;
+                        localStorage.setItem('userData', JSON.stringify(data));
+                        userInfo.textContent = data.email || data.id;
+                    } else {
+                        throw new Error('Failed to load user data');
+                    }
+                }
+            } catch (error) {
+                appendLog(`Error loading user data: ${error.message}`, true);
+            }
+        }
+
+        // Check GitHub App installation
+        async function checkGitHubAppInstallation() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/github/app/installation`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.installed) {
+                        state.installation = data.installation;
+                        updateInstallationStatus(true);
+                        appendLog('GitHub App is installed', false);
+                    } else {
+                        updateInstallationStatus(false);
+                        appendLog('GitHub App is not installed', false);
+                    }
+                } else {
+                    throw new Error('Failed to check GitHub App installation');
+                }
+            } catch (error) {
+                appendLog(`Error checking GitHub App installation: ${error.message}`, true);
+            }
+        }
+
+        // Update installation status UI
+        function updateInstallationStatus(isInstalled) {
+            if (isInstalled) {
+                installationStatus.textContent = 'Installed';
+                installationStatus.classList.remove('disconnected');
+                installationStatus.classList.add('connected');
+                installationDetails.style.display = 'block';
+                installAppBtn.style.display = 'none';
+
+                // Update installation details
+                installationId.textContent = state.installation.installation_id;
+                installationDate.textContent = new Date(state.installation.created_at).toLocaleString();
+
+                // Get token expiry
+                if (state.installation.token_expires_at) {
+                    tokenExpiry.textContent = new Date(state.installation.token_expires_at).toLocaleString();
+                } else {
+                    tokenExpiry.textContent = 'Unknown';
+                }
+            } else {
+                installationStatus.textContent = 'Not Installed';
+                installationStatus.classList.remove('connected');
+                installationStatus.classList.add('disconnected');
+                installationDetails.style.display = 'none';
+                installAppBtn.style.display = 'flex';
+            }
+        }
+
+        // Install GitHub App
+        async function installApp() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/github/app/install`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    appendLog(`Redirecting to GitHub App installation page...`, false);
+
+                    // Save current URL to return after installation
+                    localStorage.setItem('github_app_return_url', window.location.href);
+
+                    // Redirect to GitHub
+                    window.location.href = data.url;
+                } else {
+                    throw new Error('Failed to get GitHub App installation URL');
+                }
+            } catch (error) {
+                appendLog(`Error initiating GitHub App installation: ${error.message}`, true);
+            }
+        }
+
+        // Refresh GitHub App token
+        async function refreshToken() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/github/app/refresh-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    appendLog(`Token refreshed successfully`, false);
+
+                    // Update token expiry
+                    if (data.expires_at) {
+                        tokenExpiry.textContent = new Date(data.expires_at).toLocaleString();
+                    }
+                } else {
+                    throw new Error('Failed to refresh GitHub App token');
+                }
+            } catch (error) {
+                appendLog(`Error refreshing token: ${error.message}`, true);
+            }
+        }
+
+        // Unlink GitHub App
+        async function unlinkApp() {
+            if (!confirm('Are you sure you want to unlink the GitHub App? This will remove the connection between your account and the GitHub App.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/github/app/installation`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.success) {
+                        state.installation = null;
+                        updateInstallationStatus(false);
+                        appendLog('GitHub App unlinked successfully', false);
+                    } else {
+                        throw new Error('Failed to unlink GitHub App');
+                    }
+                } else {
+                    throw new Error('Failed to unlink GitHub App');
+                }
+            } catch (error) {
+                appendLog(`Error unlinking GitHub App: ${error.message}`, true);
+            }
+        }
+
+        // Fetch repositories
+        async function fetchRepositories() {
+            try {
+                appendLog('Fetching repositories...', false);
+                fetchReposBtn.disabled = true;
+
+                const loadingIndicator = document.createElement('span');
+                loadingIndicator.className = 'loading';
+                fetchReposBtn.appendChild(loadingIndicator);
+
+                const response = await fetch(`${apiBaseUrl}/api/github/repositories`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    state.repositories = data.repositories;
+
+                    // Update UI
+                    repoCount.textContent = `${state.repositories.length} repositories found`;
+                    repositoriesContainer.style.display = 'block';
+
+                    // Clear repository list
+                    repositoryList.innerHTML = '';
+
+                    // Add repositories to list
+                    state.repositories.forEach(repo => {
+                        const li = document.createElement('li');
+                        li.className = 'repository-item';
+
+                        const repoInfo = document.createElement('div');
+                        repoInfo.innerHTML = `
+                            <div class="repository-name">${repo.full_name}</div>
+                            ${repo.description ? `<div class="repository-description">${repo.description}</div>` : ''}
+                        `;
+
+                        const importBtn = document.createElement('button');
+                        importBtn.textContent = 'Import';
+                        importBtn.addEventListener('click', () => {
+                            repoNameInput.value = repo.full_name;
+                            // Scroll to import section
+                            document.querySelector('.card:nth-child(4)').scrollIntoView({ behavior: 'smooth' });
+                        });
+
+                        li.appendChild(repoInfo);
+                        li.appendChild(importBtn);
+                        repositoryList.appendChild(li);
+                    });
+
+                    appendLog(`Successfully retrieved ${state.repositories.length} repositories`, false);
+                } else {
+                    throw new Error('Failed to fetch repositories');
+                }
+            } catch (error) {
+                appendLog(`Error fetching repositories: ${error.message}`, true);
+            } finally {
+                fetchReposBtn.disabled = false;
+                const loadingIndicator = fetchReposBtn.querySelector('.loading');
+                if (loadingIndicator) {
+                    fetchReposBtn.removeChild(loadingIndicator);
+                }
+            }
+        }
+
+        // Import repository
+        async function importRepository() {
+            const repoName = repoNameInput.value.trim();
+            if (!repoName) {
+                appendLog('Please enter a repository name', true);
+                return;
+            }
+
+            try {
+                appendLog(`Importing repository ${repoName}...`, false);
+                importRepoBtn.disabled = true;
+
+                const loadingIndicator = document.createElement('span');
+                loadingIndicator.className = 'loading';
+                importRepoBtn.appendChild(loadingIndicator);
+
+                const response = await fetch(`${apiBaseUrl}/api/github/repositories/import`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        repository_name: repoName,
+                        branch: branchInput.value.trim() || 'main'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    appendLog(`Repository import queued with ID: ${data.id}`, false);
+
+                    // Clear inputs
+                    repoNameInput.value = '';
+                    branchInput.value = '';
+                } else {
+                    throw new Error('Failed to import repository');
+                }
+            } catch (error) {
+                appendLog(`Error importing repository: ${error.message}`, true);
+            } finally {
+                importRepoBtn.disabled = false;
+                const loadingIndicator = importRepoBtn.querySelector('.loading');
+                if (loadingIndicator) {
+                    importRepoBtn.removeChild(loadingIndicator);
+                }
+            }
+        }
+
+        // Handle callbacks
+        function handleCallbacks() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const installationId = urlParams.get('installation_id');
+            const setupAction = urlParams.get('setup_action');
+
+            if (installationId && setupAction === 'install') {
+                appendLog('GitHub App installation detected, linking to account...', false);
+
+                // Call the callback endpoint to link the installation to the user
+                (async () => {
+                    try {
+                        const response = await fetch(`${apiBaseUrl}/api/github/app/callback?installation_id=${installationId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${state.accessToken}`
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            appendLog('GitHub App successfully linked to your account', false);
+
+                            // Update state and UI
+                            state.installation = data.installation;
+                            updateInstallationStatus(true);
+
+                            // Clean up URL parameters
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        } else {
+                            throw new Error('Failed to link GitHub App installation');
+                        }
+                    } catch (error) {
+                        appendLog(`Error linking GitHub App: ${error.message}`, true);
+                    }
+                })();
+            }
+        }
+
+        // Append log entry
+        function appendLog(message, isError) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logItem = document.createElement('div');
+            logItem.className = isError ? 'error' : 'success';
+            logItem.textContent = `[${timestamp}] ${message}`;
+            responseLog.appendChild(logItem);
+
+            // Scroll to the bottom
+            responseLog.scrollTop = responseLog.scrollHeight;
+        }
+
+        // Clear log
+        function clearLog() {
+            responseLog.innerHTML = '';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+
+</html>

@@ -117,6 +117,7 @@ This document outlines the key tasks required to address the findings from the t
 -   **[High] OAuth Linking of GitHub Accounts:**
     -   Extend the auth module to allow users to connect their GitHub account via existing OAuth (`api/auth/github`).
     -   Persist GitHub access tokens securely (e.g., encrypted in database) associated with user.
+    -   Update the oAuth flow to use Github App installation.
 -   **[High] List and Select Repositories:**
     -   Add endpoint `GET /api/repos` that uses the stored GitHub token to fetch and return a list of user repositories.
     -   Add endpoint `POST /api/repos/import` to select a repository, specify branch/folder, and enqueue import.

@@ -356,3 +356,85 @@
   - [ ] Create model for `Error` messages
   - [ ] Create model for `AnalysisError` messages
   - [ ] Create model for `Result` messages
+
+
+## 8. GitHub Repository Integration
+
+### 8.1 OAuth Linking of GitHub Accounts [High]
+- [x] Extend auth module for GitHub integration
+  - [x] Replace existing GitHub OAuth flow with Github App installation
+  - [x] Create callback endpoints for Github App installation
+  - [x] Add API for installing Github App
+  - [x] Add API for accepting callback from Github App installation
+- [x] Implement secure token storage
+  - [x] Design database schema for storing GitHub tokens
+  - [x] Implement encryption for token storage
+  - [x] Create token refresh mechanism if needed
+- [ ] Add user account management
+  - [ ] Create UI for viewing linked GitHub accounts
+  - [ ] Implement unlinking functionality
+  - [x] Add error handling for OAuth failures
+
+### 8.2 List and Select Repositories [High]
+- [x] Create repository listing endpoint
+  - [x] Implement `GET /api/repos` endpoint
+  - [x] Add GitHub API integration to fetch user repositories
+  - [x] Implement pagination for large repository lists
+  - [x] Add filtering capabilities
+- [x] Implement repository import endpoint
+  - [x] Create `POST /api/repos/import` endpoint
+  - [x] Add validation for branch/folder specification
+  - [x] Implement background task queueing for imports
+  - [x] Add status tracking for import process
+
+### 8.3 Clone and Prepare Repository Workspace [High]
+- [ ] Implement GitHubRepoService
+  - [ ] Create service structure and interfaces
+  - [ ] Implement repository cloning functionality
+  - [ ] Add temporary workspace management
+  - [ ] Implement cleanup procedures
+- [ ] Add Flutter project detection
+  - [ ] Create logic to scan for pubspec.yaml files
+  - [ ] Implement entry point detection
+  - [ ] Add UI for selecting entry points
+- [ ] Implement codebase summary generation
+  - [ ] Research and integrate gitingest or similar tool
+  - [ ] Create codebase.txt generation process
+  - [ ] Optimize summary for LLM consumption
+- [ ] Add repository management
+  - [ ] Implement shallow clone optimization
+  - [ ] Add single branch filtering
+  - [ ] Create cleanup procedures for unused repositories
+
+### 8.4 Integrate Code Generation into Existing Codebase [Medium]
+- [ ] Refactor FlutterGeneratorServiceImpl
+  - [ ] Update service to use integration directory structure
+  - [ ] Modify code to utilize codebase.txt summary
+  - [ ] Add options for targeting specific paths
+- [ ] Implement code insertion
+  - [ ] Add functionality to apply changes to repo files
+  - [ ] Create smart insertion point detection
+  - [ ] Implement conflict resolution strategies
+- [ ] Add preview and diff capabilities
+  - [ ] Create diff generation for proposed changes
+  - [ ] Implement UI for reviewing changes
+  - [ ] Add options for accepting/rejecting specific changes
+- [ ] Implement GitHub integration
+  - [ ] Add branch creation functionality
+  - [ ] Implement commit generation
+  - [ ] Create PR creation capability if authorized
+
+### 8.5 Provide Feedback and Cleanup [Medium]
+- [ ] Implement status update streaming
+  - [ ] Add progress tracking during clone operations
+  - [ ] Create status updates for code generation phase
+  - [ ] Implement commit/push status updates
+- [ ] Add cleanup procedures
+  - [ ] Create automatic cleanup for successful operations
+  - [ ] Implement cleanup for failed operations
+  - [ ] Add user-triggered cleanup options
+- [ ] Create import metadata persistence
+  - [ ] Design repo_imports table structure
+  - [ ] Implement status tracking
+  - [ ] Add URL and branch information storage
+  - [ ] Create reporting and analytics capabilities

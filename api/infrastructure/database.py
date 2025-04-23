@@ -7,7 +7,7 @@ import json
 import os
 
 import httpx
-from supabase import create_client, Client
+from supabase import ClientOptions, create_client, Client
 
 from api.config import get_settings
 
@@ -23,7 +23,7 @@ def get_supabase_client() -> Client:
     if not settings.supabase_url or not settings.supabase_anon_key:
         raise ValueError("Supabase URL and anon key must be set in environment variables")
         
-    return create_client(settings.supabase_url, settings.supabase_anon_key)
+    return create_client(settings.supabase_url, settings.supabase_anon_key, options=ClientOptions(flow_type='pkce'))
 
 @lru_cache()
 def get_supabase_admin_client() -> Client:

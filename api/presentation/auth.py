@@ -219,22 +219,47 @@ async def github_sign_in():
         APIException.raise_server_error("GitHub sign in", e)
 
 @router.get("/github/callback")
-async def github_callback(code: str = Query(...)):
+async def github_callback(
+    code: str = Query(...),
+    installation_id: Optional[int] = Query(None),
+    setup_action: Optional[str] = Query(None)
+):
     """
     Handle the GitHub OAuth callback.
+    This endpoint handles both regular OAuth sign-in and GitHub App installations.
+    
+    Args:
+        code: The authorization code from GitHub
+        installation_id: Optional installation ID for GitHub App
+        setup_action: Optional setup action for GitHub App
     """
     settings = get_settings()
     try:
-        result = await handle_github_callback(code)
+        # Log the request parameters
+        print(f"GitHub callback with code: {code}, installation_id: {installation_id}, setup_action: {setup_action}")
         
-        # Properly format the redirect URL with the session data
-        # Integration tester is configured as the frontend for OAuth callback
+        # Determine if this is a GitHub App installation callback
+        is_app_installation = installation_id is not None and setup_action is not None
+        
+        # Handle the callback with the code
+        result = await handle_github_callback(code, is_app_installation=is_app_installation)
+        
+        # If installation_id is present, this is a GitHub App installation callback
+        if installation_id and setup_action:
+            # Use the full API URL to create the proper absolute redirect URL
+            api_url = settings.api_url
+            callback_url = f"{api_url}/api/github/app/callback"
+            print(f"Redirecting to GitHub App callback: {callback_url}?installation_id={installation_id}&setup_action={setup_action}")
+            return RedirectResponse(
+                url=f"{callback_url}?installation_id={installation_id}&setup_action={setup_action}"
+            )
+        
+        # Regular OAuth flow - redirect to frontend with session data
         callback_url = settings.frontend_url  # This already points to integration-tester
         
         # JSON stringify the session data for the frontend using custom encoder
         session_json = json.dumps(result, cls=DateTimeEncoder)
         
-        # Redirect to frontend with session data
         return RedirectResponse(
             url=f"{callback_url}?session={session_json}"
         )
