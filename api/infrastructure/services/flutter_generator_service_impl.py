@@ -17,6 +17,7 @@ import time
 import subprocess
 import threading
 from typing import Dict, Optional, Callable, Awaitable, Any, List, Tuple
+from google.genai import types
 
 from api.domain.interfaces.flutter_generator_service import FlutterGeneratorService
 from flutter_generator.core.generator import FlutterCodeGenerator
@@ -91,6 +92,9 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "type": "Text",
                 "value": "Generating Flutter code based on your request..."
             })
+
+            # understand user query and existing code from github
+            query_understanding_output = await self.code_generator.understand_user_query(user_query)
             
             # Generate code with the enhanced prompt
             generated_text = await self.code_generator.generate_code(enhanced_prompt, on_chunk)

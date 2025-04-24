@@ -11,7 +11,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
+from api.infrastructure.services.flutter_generator_service_impl import FlutterGeneratorServiceImpl
 from api.presentation.websocket_handler import WebSocketHandler
+from flutter_generator.core.generator import FlutterCodeGenerator
 
 # Create FastAPI app with custom OpenAPI URL
 app = FastAPI(
@@ -48,6 +50,11 @@ except Exception as e:
 
 # Initialize WebSocket handler
 websocket_handler = WebSocketHandler()
+
+
+@app.get("/understand")
+async def understand():
+    await FlutterGeneratorServiceImpl().code_generator.understand_user_query("Create a Flutter chat screen using LikeMinds SDK")
 
 @app.websocket("/api/flutter")
 async def websocket_endpoint(websocket: WebSocket):

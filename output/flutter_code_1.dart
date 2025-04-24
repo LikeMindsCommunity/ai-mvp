@@ -26,23 +26,26 @@ class LMSampleChat extends StatelessWidget {
       body: Center(
         child: ElevatedButton(
           onPressed: () async {
-            // TODO: Replace with YOUR_API_KEY
             // initiate user session with apiKey, uuid and userName
             // this is required to show the chat
+            // TODO: Replace with your API Key
+            const String apiKey = "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8";
+            // TODO: Replace with your User ID
+            const String uuid = "abc";
+            // TODO: Replace with your User Name
+            const String userName = "abc";
             LMResponse<void> response =
                 await LMChatCore.instance.showChatWithApiKey(
-              apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8",
-              // TODO: Replace with YOUR_USER_ID
-              uuid: "abc",
-              // TODO: Replace with YOUR_USER_NAME
-              userName: "abc",
+              apiKey: apiKey,
+              uuid: uuid,
+              userName: userName,
             );
             if (response.success) {
-              // create route with LMChatSocialScreen
+              // create route with LMChatHomeScreen
               MaterialPageRoute route = MaterialPageRoute(
                 builder: (context) => const LMChatHomeScreen(),
               );
-              // navigate to LMChatSocialScreen
+              // navigate to LMChatHomeScreen
               Navigator.pushReplacement(context, route);
             } else {
               debugPrint("Error opening chat: ${response.errorMessage}");
