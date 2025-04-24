@@ -52,10 +52,6 @@ except Exception as e:
 websocket_handler = WebSocketHandler()
 
 
-@app.get("/understand")
-async def understand():
-    await FlutterGeneratorServiceImpl().code_generator.understand_user_query("Create a Flutter chat screen using LikeMinds SDK")
-
 @app.websocket("/api/flutter")
 async def websocket_endpoint(websocket: WebSocket):
     """
