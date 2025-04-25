@@ -47,8 +47,8 @@ class Settings:
         if not self.model_name:
             raise ValueError("GEMINI_MODEL_NAME not found in environment variables or .env file")
         print(f"Model name from settings: {self.model_name}")
-        if self.model_name not in ["gemini-2.5-pro-exp-03-25"]:
-            raise ValueError("GEMINI_MODEL_NAME must be 'gemini-2.5-pro-exp-03-25'")
+        if self.model_name not in ["gemini-2.5-pro-exp-03-25", "gemini-2.5-pro-preview-03-25"]:
+            raise ValueError("GEMINI_MODEL_NAME must be either 'gemini-2.5-pro-exp-03-25' or 'gemini-2.5-pro-preview-03-25'")
             
         # Validate Template Repository URL
         if not self.template_repo_url:
