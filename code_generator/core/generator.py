@@ -381,9 +381,12 @@ class CodeGenerator:
             # Create project
             success, error_message = self.project_creator.create_project(project_data, on_chunk)
             
-            # If there are compilation errors, try to fix them
-            if not success and error_message:
-                print("\nAttempting to fix compilation errors...")
+            # Keep trying to fix errors until success is achieved or max attempts reached
+            max_attempts = 3  # Maximum number of fix attempts
+            attempt = 0
+            
+            while not success and error_message and attempt < max_attempts:
+                print(f"\nAttempting to fix compilation errors (attempt {attempt + 1}/{max_attempts})...")
                 fix_data = await self.fix_compilation_errors(
                     os.path.join(self.project_creator.output_dir, project_data["project_name"]),
                     error_message,
@@ -391,7 +394,7 @@ class CodeGenerator:
                 )
                 
                 if fix_data:
-                    # Update the project data with the fixe d files
+                    # Update the project data with the fixed files
                     for file_data in fix_data["files"]:
                         # Find and update the corresponding file in project_data
                         for i, existing_file in enumerate(project_data["files"]):
@@ -401,6 +404,16 @@ class CodeGenerator:
                     
                     # Try creating the project again with fixed files
                     success, error_message = self.project_creator.create_project(project_data, on_chunk)
+                
+                attempt += 1
+            
+            if not success and attempt >= max_attempts:
+                print("\nMaximum fix attempts reached. Could not resolve all errors.")
+                if on_chunk:
+                    await on_chunk({
+                        "type": "Error",
+                        "value": "Maximum fix attempts reached. Could not resolve all errors."
+                    })
             
             return success
             
