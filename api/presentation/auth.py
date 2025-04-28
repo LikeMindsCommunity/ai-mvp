@@ -13,7 +13,7 @@ import json
 
 from api.infrastructure.auth import get_current_user, create_access_token, user_to_dict
 from api.domain.auth.models import UserCreate, UserLogin, Token, RefreshToken, PasswordReset, PasswordChange
-from api.infrastructure.auth.service import sign_up, sign_in, sign_out, sign_in_with_github, handle_github_callback, refresh_token, request_password_reset, change_password
+from api.infrastructure.auth.service import sign_up, sign_in, sign_out, refresh_token, request_password_reset, change_password
 from api.config import get_settings
 from api.presentation.exceptions import APIException
 
@@ -202,48 +202,6 @@ async def logout(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, 
         raise
     except Exception as e:
         APIException.raise_server_error("Logout", e)
-
-@router.post("/github", response_model=Dict[str, Any])
-async def github_sign_in():
-    """
-    Get the GitHub OAuth URL for sign in.
-    """
-    try:
-        result = await sign_in_with_github()
-        return result
-    except ValueError as e:
-        APIException.raise_bad_request(str(e))
-    except HTTPException:
-        raise
-    except Exception as e:
-        APIException.raise_server_error("GitHub sign in", e)
-
-@router.get("/github/callback")
-async def github_callback(code: str = Query(...)):
-    """
-    Handle the GitHub OAuth callback.
-    """
-    settings = get_settings()
-    try:
-        result = await handle_github_callback(code)
-        
-        # Properly format the redirect URL with the session data
-        # Integration tester is configured as the frontend for OAuth callback
-        callback_url = settings.frontend_url  # This already points to integration-tester
-        
-        # JSON stringify the session data for the frontend using custom encoder
-        session_json = json.dumps(result, cls=DateTimeEncoder)
-        
-        # Redirect to frontend with session data
-        return RedirectResponse(
-            url=f"{callback_url}?session={session_json}"
-        )
-    except ValueError as e:
-        APIException.raise_bad_request(str(e))
-    except HTTPException:
-        raise
-    except Exception as e:
-        APIException.raise_server_error("GitHub callback", e)
 
 @router.post("/refresh", response_model=Token)
 async def refresh_auth_token(token_data: RefreshToken) -> Token:

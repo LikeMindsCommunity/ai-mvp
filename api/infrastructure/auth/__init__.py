@@ -10,7 +10,5 @@ __all__ = [
     'user_to_dict',
     'sign_up',
     'sign_in',
-    'sign_out',
-    'sign_in_with_github',
-    'handle_github_callback'
+    'sign_out'
 ] 

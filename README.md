@@ -129,15 +129,6 @@ POST /api/auth/logout
 Authorization: Bearer <access_token>
 ```
 
-#### OAuth Authentication (GitHub)
-```http
-POST /api/auth/github
-# Returns GitHub OAuth URL for sign-in
-
-GET /api/auth/github/callback?code=<code>
-# GitHub OAuth callback endpoint
-```
-
 #### User Profile Management
 ```http
 GET /api/users/me

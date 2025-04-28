@@ -35,8 +35,6 @@ This document outlines a detailed plan to add robust authentication, user manage
 - `POST   /api/auth/refresh`          — Refresh access token
 - `POST   /api/auth/reset-password`   — Request password reset
 - `POST   /api/auth/change-password`  — Change password (authenticated)
-- `POST   /api/auth/github`           — GitHub OAuth authentication
-- `POST   /api/auth/github/callback`  — GitHub OAuth callback
 
 ### **2.2. User Endpoints**
 - `GET    /api/users/me`              — Get current user profile
@@ -181,8 +179,6 @@ Content-Type: application/json
 |           | /api/auth/refresh                     | POST   | No            | Refresh token                |
 |           | /api/auth/reset-password              | POST   | No            | Request password reset       |
 |           | /api/auth/change-password             | POST   | Yes           | Change password (authenticated) |
-|           | /api/auth/github                      | POST   | No            | GitHub OAuth authentication   |
-|           | /api/auth/github/callback             | POST   | No            | GitHub OAuth callback        |
 | User      | /api/users/me                         | GET    | Yes           | Get own profile              |
 |           | /api/users/me                         | PUT    | Yes           | Update own profile           |
 |           | /api/users/{user_id}                  | GET    | Admin         | Get user by ID               |

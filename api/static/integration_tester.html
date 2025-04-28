@@ -209,28 +209,6 @@
             gap: 10px;
             margin: 15px 0;
         }
-
-        .github-button {
-            background-color: #24292e;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            border: none;
-            font-size: 14px;
-        }
-
-        .github-button:hover {
-            background-color: #2f363d;
-        }
-
-        .github-button img {
-            width: 20px;
-            height: 20px;
-        }
     </style>
 </head>
 
@@ -269,14 +247,6 @@
                         <input type="text" id="register-name" required>
                     </div>
                     <button id="registerBtn">Register</button>
-
-                    <div class="oauth-buttons">
-                        <button class="github-button" onclick="signInWithGithub()">
-                            <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-                                alt="GitHub Logo">
-                            Sign in with GitHub
-                        </button>
-                    </div>
 
                     <h3>Login</h3>
                     <div class="form-group">
@@ -1302,104 +1272,6 @@
                 profileAuthStatus.style.backgroundColor = '#f8d7da';
             }
         }
-
-        // GitHub OAuth handling
-        async function signInWithGithub() {
-            try {
-                const baseUrl = document.getElementById('authBaseUrl').value;
-                const response = await fetch(`${baseUrl}/api/auth/github`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to get GitHub OAuth URL');
-                }
-
-                const data = await response.json();
-                console.log('GitHub OAuth URL:', data);  // Add logging
-
-                // Store the current URL to return to after OAuth
-                localStorage.setItem('oauth_return_url', window.location.href);
-
-                // Redirect to GitHub
-                window.location.href = data.url;
-            } catch (error) {
-                console.error('GitHub sign in error:', error);
-                appendResponse('authResponseLog', `Failed to initiate GitHub sign in: ${error.message}`, false);
-            }
-        }
-
-        // Handle OAuth callback
-        function handleOAuthCallback() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const session = urlParams.get('session');
-            console.log('URL Parameters:', Object.fromEntries(urlParams.entries()));
-
-            if (session) {
-                console.log('Raw session data:', session);
-                try {
-                    // Parse the session data
-                    const sessionData = JSON.parse(decodeURIComponent(session));
-                    console.log('Parsed session data:', sessionData);
-
-                    // Store the session token
-                    if (sessionData.access_token) {
-                        state.accessToken = sessionData.access_token;
-                        localStorage.setItem('accessToken', sessionData.access_token);
-
-                        // Store user data if available
-                        if (sessionData.user) {
-                            localStorage.setItem('userData', JSON.stringify(sessionData.user));
-                        }
-
-                        // Update UI
-                        updateTokenDisplay();
-                        updateAuthIndicators();
-
-                        // Clear the session parameter from URL
-                        const returnUrl = localStorage.getItem('oauth_return_url') || window.location.origin;
-                        localStorage.removeItem('oauth_return_url');
-                        window.history.replaceState({}, document.title, returnUrl);
-
-                        // Show success message with user info
-                        let successMessage = 'Successfully authenticated with GitHub!';
-                        if (sessionData.user && sessionData.user.email) {
-                            successMessage += ` Logged in as: ${sessionData.user.email}`;
-                        }
-                        appendResponse('authResponseLog', successMessage, true);
-                    } else {
-                        throw new Error('No access token in session data');
-                    }
-                } catch (error) {
-                    console.error('Error handling OAuth callback:', error);
-                    console.error('Session string:', session);
-                    appendResponse('authResponseLog', `Failed to complete authentication: ${error.message}`, false);
-                }
-            } else {
-                // Check for error parameters
-                const error = urlParams.get('error');
-                const errorDescription = urlParams.get('error_description');
-                if (error || errorDescription) {
-                    console.error('OAuth Error:', error, errorDescription);
-                    appendResponse('authResponseLog', `Authentication error: ${errorDescription || error}`, false);
-                }
-            }
-        }
-
-        // Call handleOAuthCallback on page load
-        document.addEventListener('DOMContentLoaded', function () {
-            handleOAuthCallback();
-            // Initialize UI based on stored token
-            const storedToken = localStorage.getItem('accessToken');
-            if (storedToken) {
-                state.accessToken = storedToken;
-                updateTokenDisplay();
-                updateAuthIndicators();
-            }
-        });
     </script>
 </body>
 
