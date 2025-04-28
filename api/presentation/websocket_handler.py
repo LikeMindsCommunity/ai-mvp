@@ -22,7 +22,7 @@ from api.infrastructure.database import SupabaseManager
 from api.infrastructure.auth import get_current_user
 from api.infrastructure.auth.service import refresh_token
 from api.infrastructure.projects.service import get_project
-from api.infrastructure.code_generations.service import create_code_generation, update_code_generation, get_project_conversations
+from api.infrastructure.code_generations.service import create_code_generation, update_code_generation, get_project_conversations, get_pending_generation, get_generation_by_id
 from api.presentation.exceptions import APIException
 
 class WebSocketHandler:
@@ -331,25 +331,63 @@ class WebSocketHandler:
                         if message["type"] in ["GenerateCode", "GenerateConversation", "FixCode"]:
                             if "user_query" in message:
                                 try:
-                                    # Create a code generation record
-                                    generation_result = await create_code_generation(
-                                        project_id=project_id,
-                                        prompt=message["user_query"],
-                                        jwt=access_token
-                                    )
-                                    
-                                    if not generation_result or not generation_result.data:
+                                    # Check if we should update an existing generation (for GenerateCode)
+                                    generation_id = None
+                                    if message["type"] == "GenerateCode" and message.get("update_existing", False):
                                         try:
-                                            await websocket.send_json({
-                                                "type": "Error",
-                                                "value": "Failed to create code generation record"
-                                            })
-                                        except Exception:
-                                            print("Failed to send generation record creation error")
-                                        continue
+                                            # Try to get a pending generation to update
+                                            pending_result = await get_pending_generation(
+                                                project_id=project_id,
+                                                jwt=access_token
+                                            )
+                                            
+                                            if pending_result and pending_result['data']:
+                                                # We found a pending generation - use it
+                                                generation_id = pending_result['data']['id']
+                                                
+                                                # Update the prompt
+                                                await update_code_generation(
+                                                    generation_id=generation_id,
+                                                    update_data={
+                                                        'prompt': message["user_query"],
+                                                        'status': 'pending'  # Reset status if it was changed
+                                                    },
+                                                    jwt=access_token
+                                                )
+                                                
+                                                # Log that we're updating an existing generation
+                                                try:
+                                                    await websocket.send_json({
+                                                        "type": "Text",
+                                                        "value": f"Updating existing generation (ID: {generation_id})"
+                                                    })
+                                                except Exception:
+                                                    print("Failed to send update notification")
+                                        except Exception as e:
+                                            print(f"Error finding/updating pending generation: {str(e)}")
+                                            # Continue with creating a new generation
                                     
-                                    # Use the generation ID as part of the generation context
-                                    generation_id = generation_result.data[0]["id"]
+                                    # If no existing generation to update, create a new one
+                                    if not generation_id:
+                                        # Create a code generation record
+                                        generation_result = await create_code_generation(
+                                            project_id=project_id,
+                                            prompt=message["user_query"],
+                                            jwt=access_token
+                                        )
+                                        
+                                        if not generation_result or not generation_result.data:
+                                            try:
+                                                await websocket.send_json({
+                                                    "type": "Error",
+                                                    "value": "Failed to create code generation record"
+                                                })
+                                            except Exception:
+                                                print("Failed to send generation record creation error")
+                                            continue
+                                        
+                                        # Use the generation ID as part of the generation context
+                                        generation_id = generation_result.data["id"]
                                     
                                     # We only track projects now, not individual generations
                                     # since we're using project-based cleanup
