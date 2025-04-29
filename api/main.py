@@ -15,6 +15,7 @@ from api.presentation.websocket_handler import WebSocketHandler
 from api.presentation.auth import router as auth_router
 from api.presentation.users import router as users_router
 from api.presentation.projects import router as projects_router
+from api.presentation.github import router as github_router
 from api.infrastructure.auth import get_current_user
 
 # Create FastAPI app with custom OpenAPI URL
@@ -55,6 +56,7 @@ except Exception as e:
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(projects_router)
+app.include_router(github_router) 
 
 # Initialize WebSocket handler
 websocket_handler = WebSocketHandler()
