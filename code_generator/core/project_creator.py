@@ -76,14 +76,48 @@ class ProjectCreator:
             # Get project name from directory path
             project_name = os.path.basename(project_dir)
             
+            # Convert absolute project_dir to relative path from Dockerfile location
+            dockerfile_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            relative_project_dir = os.path.relpath(project_dir, dockerfile_dir)
+            
             # Build the Docker image with volume mount
             print(f"\nBuilding Docker image for project: {project_dir}")
-            build_cmd = [
+            copy_cmd = [
                 "docker", "build",
                 "-t", "likeminds-feed-builder",
                 "--build-arg", f"PROJECT_NAME={project_name}",
-                "-v", f"{project_dir}:/{project_name}",
+                "--build-arg", f"PROJECT_DIR={relative_project_dir}",
                 "."
+            ]
+            
+            result = subprocess.run(copy_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                return False, result.stderr
+
+            # Run Gradle build command
+            print("\nBuilding APK...")
+            # First refresh dependencies
+            refresh_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{project_dir}:/{project_name}",
+                "-w", f"/{project_name}",
+                "-t", "likeminds-feed-builder",
+                "./gradlew", "--refresh-dependencies"
+            ]
+            
+            result = subprocess.run(refresh_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                return False, result.stderr
+
+            # Then build the APK
+            build_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{project_dir}:/{project_name}",
+                "-w", f"/{project_name}",
+                "-t", "likeminds-feed-builder",
+                "./gradlew", "assembleDebug"
             ]
             
             result = subprocess.run(build_cmd, capture_output=True, text=True)
