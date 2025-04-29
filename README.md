@@ -79,6 +79,17 @@ To generate Flutter code, send a WebSocket message in this format:
 }
 ```
 
+To update/regenerate an existing pending generation rather than creating a new one:
+
+```json
+{
+  "type": "GenerateCode",
+  "user_query": "Create a Flutter chat screen using LikeMinds SDK",
+  "update_existing": true,
+  "session_id": "optional-session-identifier"
+}
+```
+
 To generate only a conversational explanation and plan:
 
 ```json
@@ -100,7 +111,19 @@ To fix code with errors:
 }
 ```
 
-The `session_id` is optional but recommended to maintain conversation history across requests.
+To fix code with errors, updating an existing pending generation:
+
+```json
+{
+  "type": "FixCode",
+  "user_query": "Original query text",
+  "error_message": "Flutter analysis error message",
+  "update_existing": true,
+  "session_id": "optional-session-identifier"
+}
+```
+
+ The `update_existing` flag, when set to `true`, will look for the most recent pending generation in the project and update it instead of creating a new one.
 
 ### Authentication APIs
 

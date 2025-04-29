@@ -44,7 +44,7 @@ async def create_code_generation(project_id: str, prompt: str, jwt: str) -> Dict
 
         # Fetch the inserted row with all columns
         data = client.from_('code_generations')\
-            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at')\
+            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at, analysis_results')\
             .eq('id', generation_id)\
             .single()\
             .execute()
@@ -85,13 +85,7 @@ async def update_code_generation(generation_id: str, update_data: Dict[str, Any]
         if not update_result or not update_result.data or len(update_result.data) == 0:
             raise ValueError("Failed to update code generation record")
         
-        # Fetch the updated row with all columns
-        data = client.from_('code_generations')\
-            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at')\
-            .eq('id', generation_id)\
-            .single()\
-            .execute()
-        return data
+        return update_result.data[0]
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Code generation update error: {str(e)}")
     except Exception as e:
@@ -120,7 +114,7 @@ async def get_project_conversations(project_id: str, jwt: str) -> Dict[str, Any]
             
         # Get all code generations for this project ordered by created_at
         data = client.from_('code_generations')\
-            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at')\
+            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at, analysis_results')\
             .eq('project_id', project_id)\
             .order('created_at', desc=False)\
             .execute()
@@ -154,7 +148,7 @@ async def get_generation_by_id(generation_id: str, jwt: str) -> Dict[str, Any]:
             
         # Get the generation by ID
         data = client.from_('code_generations')\
-            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at')\
+            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at, analysis_results')\
             .eq('id', generation_id)\
             .single()\
             .execute()
@@ -188,7 +182,7 @@ async def get_pending_generation(project_id: str, jwt: str) -> Dict[str, Any]:
             
         # Get the most recent pending generation for this project
         data = client.from_('code_generations')\
-            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at')\
+            .select('id, project_id, user_id, prompt, ai_response, code_content, conversation, status, output_path, web_url, created_at, updated_at, analysis_results')\
             .eq('project_id', project_id)\
             .eq('status', 'pending')\
             .order('created_at', desc=True)\
