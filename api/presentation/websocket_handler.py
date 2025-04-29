@@ -13,7 +13,8 @@ Response Types:
 
 import json
 import os
-from typing import Dict, Any, Optional
+import logging
+from typing import Dict, Any, Optional, Callable, Awaitable
 from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 import asyncio
 
@@ -25,6 +26,26 @@ from api.infrastructure.projects.service import get_project
 from api.infrastructure.code_generations.service import create_code_generation, update_code_generation, get_project_conversations, get_pending_generation, get_generation_by_id
 from api.presentation.exceptions import APIException
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Message types
+MSG_REFRESH_TOKEN = "RefreshToken"
+MSG_CLEANUP_PROJECT = "CleanupProject"
+MSG_GET_PROJECT_CONVERSATIONS = "GetProjectConversations"
+MSG_GENERATE_CODE = "GenerateCode"
+MSG_GENERATE_CONVERSATION = "GenerateConversation"
+MSG_FIX_CODE = "FixCode"
+
+# Response types
+RESP_ERROR = "Error"
+RESP_TEXT = "Text"
+RESP_TOKEN_EXPIRED = "TokenExpired"
+RESP_TOKEN_REFRESHED = "TokenRefreshed"
+RESP_SUCCESS = "Success"
+RESP_RESULT = "Result"
+RESP_CONVERSATION_HISTORY = "ConversationHistory"
+
 class WebSocketHandler:
     """Handler for WebSocket connections."""
     
@@ -34,31 +55,399 @@ class WebSocketHandler:
         self.supabase_manager = SupabaseManager()  # Eventually this can be removed once all methods are migrated to services
         # Track active project IDs for cleanup on disconnect
         self.active_projects = {}
+        # Define message handlers map
+        self._message_handlers = {
+            MSG_REFRESH_TOKEN: self._handle_token_refresh,
+            MSG_CLEANUP_PROJECT: self._handle_cleanup_project,
+            MSG_GET_PROJECT_CONVERSATIONS: self._handle_get_project_conversations,
+            MSG_GENERATE_CODE: self._handle_generate_code,
+            MSG_GENERATE_CONVERSATION: self._handle_generate_conversation,
+            MSG_FIX_CODE: self._handle_fix_code
+        }
+    
+    async def send_json_response(self, websocket: WebSocket, response_type: str, value: Any) -> bool:
+        """
+        Send a JSON response to the client.
+        
+        Args:
+            websocket: The WebSocket connection
+            response_type: The type of response
+            value: The response value
+            
+        Returns:
+            bool: True if the message was sent successfully, False otherwise
+        """
+        try:
+            await websocket.send_json({
+                "type": response_type,
+                "value": value
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error sending {response_type} message: {str(e)}")
+            return False
     
     async def send_error(self, websocket: WebSocket, message: str) -> None:
         """Send an error message and close the connection."""
         try:
-            # Try to send error without checking state first
-            await websocket.send_json({
-                "type": "Error",
-                "value": message
-            })
+            await self.send_json_response(websocket, RESP_ERROR, message)
             await websocket.close()
         except Exception as e:
-            # Log the error but don't try to send any more messages
-            print(f"Error sending error message: {str(e)}")
+            logger.error(f"Error sending error message: {str(e)}")
     
     async def send_token_expired(self, websocket: WebSocket) -> None:
         """Send a token expired message without closing the connection."""
+        await self.send_json_response(
+            websocket, 
+            RESP_TOKEN_EXPIRED, 
+            "Authentication token has expired. Please refresh the token."
+        )
+    
+    async def create_chunk_callback(self, websocket: WebSocket) -> Callable[[Dict[str, Any]], Awaitable[None]]:
+        """
+        Create a callback function for streaming responses.
+        
+        Args:
+            websocket: The WebSocket connection
+            
+        Returns:
+            A callback function that sends chunks to the client
+        """
+        async def on_chunk(response: Dict[str, Any]):
+            try:
+                await websocket.send_json(response)
+                # Add a tiny delay to ensure chunks are processed individually
+                # Small enough not to be noticeable but helps prevent buffering
+                if response.get("type") == RESP_TEXT:
+                    await asyncio.sleep(0.02)  # Slightly longer delay for text chunks
+                elif response.get("type") == "Chat":
+                    await asyncio.sleep(0.02)  # Similar delay for chat chunks
+                else:
+                    await asyncio.sleep(0.005)  # Minimal delay for other message types
+            except Exception as e:
+                logger.error(f"Error sending chunk: {str(e)}")
+                raise  # Re-raise to stop generation process
+        
+        return on_chunk
+    
+    async def _handle_token_refresh(self, websocket: WebSocket, message: Dict[str, Any], 
+                                  context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle token refresh message."""
+        if "refresh_token" not in message:
+            await self.send_json_response(
+                websocket, 
+                RESP_ERROR, 
+                "Missing 'refresh_token' field in request"
+            )
+            return context
+        
         try:
-            # Try to send without checking state first
-            await websocket.send_json({
-                "type": "TokenExpired",
-                "value": "Authentication token has expired. Please refresh the token."
-            })
+            # Refresh the token
+            refresh_result = await refresh_token(message["refresh_token"])
+            access_token = refresh_result["access_token"]
+            
+            # Update the user in context
+            user = await get_current_user(access_token)
+            context["access_token"] = access_token
+            context["user"] = user
+            
+            # Notify client of successful refresh
+            if not await self.send_json_response(
+                websocket,
+                RESP_TOKEN_REFRESHED,
+                {
+                    "access_token": access_token,
+                    "refresh_token": refresh_result["refresh_token"]
+                }
+            ):
+                return context
+            
+            # Re-verify project access with new token
+            project = await get_project(context["project_id"], access_token)
+            if not project or not project.data:
+                await self.send_error(websocket, "Project not found or you don't have access")
+            
+            return context
         except Exception as e:
-            # Log the error but don't try to send any more messages
-            print(f"Error sending token expired message: {str(e)}")
+            await self.send_error(websocket, f"Token refresh failed: {str(e)}")
+            raise
+    
+    async def _handle_cleanup_project(self, websocket: WebSocket, message: Dict[str, Any], 
+                                     context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle project cleanup message."""
+        try:
+            # Clean up resources for this project
+            project_id = context["project_id"]
+            success = self.flutter_generator_service.cleanup_generation(project_id)
+            
+            # Notify client of result
+            response_type = RESP_SUCCESS if success else RESP_ERROR
+            await self.send_json_response(
+                websocket,
+                response_type,
+                f"Project {project_id} cleanup {'completed' if success else 'failed'}"
+            )
+            
+            return context
+        except Exception as e:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                f"Cleanup failed: {str(e)}"
+            )
+            return context
+    
+    async def _handle_get_project_conversations(self, websocket: WebSocket, message: Dict[str, Any], 
+                                              context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get project conversations message."""
+        try:
+            # Fetch all conversations for this project
+            conversations = await get_project_conversations(
+                project_id=context["project_id"],
+                jwt=context["access_token"]
+            )
+            
+            # Send conversation history to the client
+            await self.send_json_response(
+                websocket,
+                RESP_CONVERSATION_HISTORY,
+                conversations.data if conversations else []
+            )
+            
+            return context
+        except Exception as e:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                f"Failed to fetch project conversations: {str(e)}"
+            )
+            return context
+    
+    async def _prepare_generation_record(self, websocket: WebSocket, message: Dict[str, Any], 
+                                        context: Dict[str, Any]) -> Optional[str]:
+        """Prepare a generation record for code/conversation generation."""
+        if "user_query" not in message:
+            return None
+        
+        try:
+            # Check if we should update an existing generation (for GenerateCode)
+            generation_id = None
+            if message["type"] == MSG_GENERATE_CODE and message.get("update_existing", False):
+                try:
+                    # Try to get a pending generation to update
+                    pending_result = await get_pending_generation(
+                        project_id=context["project_id"],
+                        jwt=context["access_token"]
+                    )
+                    
+                    if pending_result and pending_result['data']:
+                        # We found a pending generation - use it
+                        generation_id = pending_result['data']['id']
+                        
+                        # Update the prompt
+                        await update_code_generation(
+                            generation_id=generation_id,
+                            update_data={
+                                'prompt': message["user_query"],
+                                'status': 'pending'  # Reset status if it was changed
+                            },
+                            jwt=context["access_token"]
+                        )
+                        
+                        # Log that we're updating an existing generation
+                        await self.send_json_response(
+                            websocket,
+                            RESP_TEXT,
+                            f"Updating existing generation (ID: {generation_id})"
+                        )
+                except Exception as e:
+                    logger.error(f"Error finding/updating pending generation: {str(e)}")
+                    # Continue with creating a new generation
+            
+            # If no existing generation to update, create a new one
+            if not generation_id:
+                # Create a code generation record
+                generation_result = await create_code_generation(
+                    project_id=context["project_id"],
+                    prompt=message["user_query"],
+                    jwt=context["access_token"]
+                )
+                
+                if not generation_result or not generation_result.data:
+                    await self.send_json_response(
+                        websocket,
+                        RESP_ERROR,
+                        "Failed to create code generation record"
+                    )
+                    return None
+                
+                # Use the generation ID as part of the generation context
+                generation_id = generation_result.data["id"]
+            
+            return generation_id
+        except HTTPException as e:
+            if e.status_code == 401:
+                # Token expired during operation
+                await self.send_token_expired(websocket)
+            else:
+                await self.send_json_response(
+                    websocket,
+                    RESP_ERROR,
+                    f"Failed to create generation record: {e.detail}"
+                )
+            return None
+        except Exception as e:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                f"Failed to create generation record: {str(e)}"
+            )
+            return None
+    
+    async def _handle_generate_code(self, websocket: WebSocket, message: Dict[str, Any], 
+                                   context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle generate code message."""
+        if "user_query" not in message:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                "Missing 'user_query' field in GenerateCode request"
+            )
+            return context
+        
+        # Prepare generation record
+        generation_id = await self._prepare_generation_record(websocket, message, context)
+        if not generation_id:
+            return context
+        
+        # Generate Flutter code
+        on_chunk = await self.create_chunk_callback(websocket)
+        try:
+            result = await self.flutter_generator_service.generate_flutter_code(
+                user_query=message["user_query"],
+                on_chunk=on_chunk,
+                session_id=message.get("session_id", context["project_id"]),
+                db_generation_id=generation_id,
+                project_id=context["project_id"],
+                access_token=context["access_token"],
+                project_history=context.get("project_history")
+            )
+            
+            # Send final result to the frontend
+            if result.get("success", False):
+                await self.send_json_response(
+                    websocket,
+                    RESP_RESULT,
+                    result
+                )
+            else:
+                error_message = result.get("error", "Unknown error")
+                await self.send_json_response(
+                    websocket,
+                    RESP_ERROR,
+                    f"Code generation failed: {error_message}"
+                )
+        except Exception as e:
+            logger.error(f"Error generating code: {str(e)}")
+        
+        return context
+    
+    async def _handle_generate_conversation(self, websocket: WebSocket, message: Dict[str, Any], 
+                                           context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle generate conversation message."""
+        if "user_query" not in message:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                "Missing 'user_query' field in GenerateConversation request"
+            )
+            return context
+        
+        # Prepare generation record
+        generation_id = await self._prepare_generation_record(websocket, message, context)
+        if not generation_id:
+            return context
+        
+        # Generate conversation
+        on_chunk = await self.create_chunk_callback(websocket)
+        try:
+            result = await self.flutter_generator_service.generate_conversation(
+                user_query=message["user_query"],
+                on_chunk=on_chunk,
+                session_id=message.get("session_id", context["project_id"]),
+                db_generation_id=generation_id,
+                project_id=context["project_id"],
+                access_token=context["access_token"],
+                project_history=context.get("project_history")
+            )
+            
+            # Send final result to the frontend
+            if result.get("success", False):
+                await self.send_json_response(
+                    websocket,
+                    RESP_RESULT,
+                    result
+                )
+            else:
+                error_message = result.get("error", "Unknown error")
+                await self.send_json_response(
+                    websocket,
+                    RESP_ERROR,
+                    f"Conversation generation failed: {error_message}"
+                )
+        except Exception as e:
+            logger.error(f"Error generating conversation: {str(e)}")
+        
+        return context
+    
+    async def _handle_fix_code(self, websocket: WebSocket, message: Dict[str, Any], 
+                              context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle fix code message."""
+        if "user_query" not in message or "error_message" not in message:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                "Missing 'user_query' or 'error_message' field in FixCode request"
+            )
+            return context
+        
+        # Prepare generation record
+        generation_id = await self._prepare_generation_record(websocket, message, context)
+        if not generation_id:
+            return context
+        
+        # Fix Flutter code
+        on_chunk = await self.create_chunk_callback(websocket)
+        try:
+            result = await self.flutter_generator_service.fix_flutter_code(
+                user_query=message["user_query"],
+                error_message=message["error_message"],
+                on_chunk=on_chunk,
+                session_id=message.get("session_id", context["project_id"]),
+                generation_id=generation_id,
+                project_id=context["project_id"],
+                access_token=context["access_token"],
+                project_history=context.get("project_history")
+            )
+            
+            # Send final result to the frontend
+            if result.get("success", False):
+                await self.send_json_response(
+                    websocket,
+                    RESP_RESULT,
+                    result
+                )
+            else:
+                error_message = result.get("error", "Unknown error")
+                await self.send_json_response(
+                    websocket,
+                    RESP_ERROR,
+                    f"Code fixing failed: {error_message}"
+                )
+        except Exception as e:
+            logger.error(f"Error fixing code: {str(e)}")
+        
+        return context
     
     async def handle_websocket(self, websocket: WebSocket, token: str, project_id: str):
         """
@@ -72,9 +461,14 @@ class WebSocketHandler:
         await websocket.accept()
         
         try:
-            # Track authentication state
-            access_token = token
-            user = None
+            # Initialize context dictionary to track state
+            context = {
+                "project_id": project_id,
+                "access_token": token,
+                "user": None,
+                "project": None,
+                "project_history": None
+            }
             
             # Initialize session tracking
             websocket_id = str(id(websocket))
@@ -89,11 +483,14 @@ class WebSocketHandler:
                     await self.send_error(websocket, "Invalid authentication token")
                     return
                 
-                # Extract the access token
+                # Extract the access token and update context
                 access_token = user.get('access_token')
                 if not access_token:
                     await self.send_error(websocket, "Invalid or missing access token")
                     return
+                
+                context["access_token"] = access_token
+                context["user"] = user
                 
                 # Verify project access
                 project = await get_project(project_id, access_token)
@@ -101,24 +498,24 @@ class WebSocketHandler:
                     await self.send_error(websocket, "Project not found or you don't have access")
                     return
 
+                context["project"] = project.data
+                
                 # Create project output directory if it doesn't exist
                 project_output_dir = os.path.join("output", project_id)
                 os.makedirs(project_output_dir, exist_ok=True)
                 
-                # Send connection confirmation first before doing any potentially time-consuming operations
-                try:
-                    await websocket.send_json({
-                        "type": "Text",
-                        "value": {
-                            "message": "Connected successfully",
-                            "project": {
-                                "id": project_id,
-                                "name": project.data.get("name")
-                            }
+                # Send connection confirmation
+                if not await self.send_json_response(
+                    websocket,
+                    RESP_TEXT,
+                    {
+                        "message": "Connected successfully",
+                        "project": {
+                            "id": project_id,
+                            "name": project.data.get("name")
                         }
-                    })
-                except Exception as e:
-                    print(f"Error sending connection confirmation: {str(e)}")
+                    }
+                ):
                     return
                 
                 # Fetch conversation history after confirming connection
@@ -128,52 +525,33 @@ class WebSocketHandler:
                         jwt=access_token
                     )
                     
-                    # Send conversation history without checking state
-                    try:
-                        # Send conversation history automatically if available
-                        if conversation_history and conversation_history.data:
-                            await websocket.send_json({
-                                "type": "ConversationHistory",
-                                "value": conversation_history.data
-                            })
-                    except Exception as send_error:
-                        print(f"Failed to send conversation history: {str(send_error)}")
+                    context["project_history"] = conversation_history.data if conversation_history else []
+                    
+                    # Send conversation history
+                    if context["project_history"]:
+                        await self.send_json_response(
+                            websocket,
+                            RESP_CONVERSATION_HISTORY,
+                            context["project_history"]
+                        )
                 except Exception as e:
-                    # Just log the error without trying to send to client in case the connection is closed
-                    print(f"Failed to fetch initial project history: {str(e)}")
+                    logger.error(f"Failed to fetch initial project history: {str(e)}")
+                    # Continue even if we can't fetch history
                 
             except HTTPException as e:
                 if e.status_code == 401:
                     # Token likely expired, notify client
-                    try:
-                        await self.send_token_expired(websocket)
-                    except Exception:
-                        print("Failed to send token expired notification")
+                    await self.send_token_expired(websocket)
                 else:
-                    try:
-                        await self.send_error(websocket, e.detail)
-                    except Exception:
-                        print("Failed to send error details")
-                    return
+                    await self.send_error(websocket, e.detail)
+                return
             except WebSocketDisconnect:
-                # Client disconnected during initialization, just clean up
-                if websocket_id in self.active_projects:
-                    try:
-                        project_id = self.active_projects[websocket_id]
-                        # self.flutter_generator_service.cleanup_generation(project_id)
-                    except Exception as cleanup_error:
-                        print(f"Error during disconnect cleanup: {str(cleanup_error)}")
-                    
-                    # Remove tracking for this websocket
-                    del self.active_projects[websocket_id]
+                # Client disconnected during initialization, clean up
+                self._handle_disconnect(websocket_id)
                 return
             except Exception as e:
                 # Unexpected error during initialization
-                try:
-                    await self.send_error(websocket, f"Authentication error: {str(e)}")
-                except Exception:
-                    # Connection might be closed now, just log
-                    print(f"Cannot send error to client: {str(e)}")
+                await self.send_error(websocket, f"Authentication error: {str(e)}")
                 return
             
             # Process incoming messages
@@ -185,452 +563,98 @@ class WebSocketHandler:
                     
                     # Validate message structure
                     if "type" not in message:
-                        try:
-                            await websocket.send_json({
-                                "type": "Error",
-                                "value": "Missing 'type' field in request"
-                            })
-                        except Exception:
-                            print("Failed to send message validation error")
+                        await self.send_json_response(
+                            websocket,
+                            RESP_ERROR,
+                            "Missing 'type' field in request"
+                        )
                         continue
                     
-                    # Handle token refresh
-                    if message["type"] == "RefreshToken":
-                        if "refresh_token" not in message:
-                            try:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": "Missing 'refresh_token' field in request"
-                                })
-                            except Exception:
-                                print("Failed to send missing refresh token error")
-                            continue
-                        
+                    # Get the appropriate handler for this message type
+                    message_type = message["type"]
+                    handler = self._message_handlers.get(message_type)
+                    
+                    if handler:
                         try:
-                            # Refresh the token
-                            refresh_result = await refresh_token(message["refresh_token"])
-                            access_token = refresh_result["access_token"]
-                            
-                            # Update the user
-                            user = await get_current_user(access_token)
-                            
-                            # Notify client of successful refresh
-                            try:
-                                await websocket.send_json({
-                                    "type": "TokenRefreshed",
-                                    "value": {
-                                        "access_token": access_token,
-                                        "refresh_token": refresh_result["refresh_token"]
-                                    }
-                                })
-                            except Exception:
-                                print("Failed to send token refresh confirmation")
-                                return
-                            
-                            # Re-verify project access with new token
-                            project = await get_project(project_id, access_token)
-                            if not project or not project.data:
-                                await self.send_error(websocket, "Project not found or you don't have access")
-                                return
-                                
-                            continue
-                        except Exception as e:
-                            await self.send_error(websocket, f"Token refresh failed: {str(e)}")
-                            return
-                    
-                    # Handle cleanup for a specific project
-                    if message["type"] == "CleanupProject":
-                        try:
-                            # Clean up resources for this project
-                            success = self.flutter_generator_service.cleanup_generation(project_id)
-                            
-                            # Notify client of result
-                            try:
-                                await websocket.send_json({
-                                    "type": "Success" if success else "Error",
-                                    "value": f"Project {project_id} cleanup {'completed' if success else 'failed'}"
-                                })
-                            except Exception:
-                                print("Failed to send cleanup result")
-                            
-                            continue
-                        except Exception as e:
-                            try:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": f"Cleanup failed: {str(e)}"
-                                })
-                            except Exception:
-                                print("Failed to send cleanup error")
-                            continue
-                    
-                    # Handle manual refreshing of project conversation history
-                    if message["type"] == "GetProjectConversations":
-                        try:
-                            # Fetch all conversations for this project
-                            conversations = await get_project_conversations(
-                                project_id=project_id,
-                                jwt=access_token
-                            )
-                            
-                            # Send conversation history to the client
-                            try:
-                                await websocket.send_json({
-                                    "type": "ConversationHistory",
-                                    "value": conversations.data if conversations else []
-                                })
-                            except Exception:
-                                print("Failed to send conversation history response")
-                            
-                            continue
-                        except Exception as e:
-                            try:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": f"Failed to fetch project conversations: {str(e)}"
-                                })
-                            except Exception:
-                                print("Failed to send conversation fetch error")
-                            continue
-                    
-                    # Define callback for streaming responses
-                    async def on_chunk(response: Dict[str, Any]):
-                        try:
-                            await websocket.send_json(response)
-                            # Add a tiny delay to ensure chunks are processed individually
-                            # Small enough not to be noticeable but helps prevent buffering
-                            if response.get("type") == "Text":
-                                await asyncio.sleep(0.02)  # Slightly longer delay for text chunks
-                            elif response.get("type") == "Chat":
-                                await asyncio.sleep(0.02)  # Similar delay for chat chunks
-                            else:
-                                await asyncio.sleep(0.005)  # Minimal delay for other message types
-                        except Exception as e:
-                            print(f"Error sending chunk: {str(e)}")
-                            raise  # Re-raise to stop generation process
-                    
-                    # Extract session ID if available, otherwise use project_id
-                    session_id = message.get("session_id", project_id)
-                    
-                    # Fetch project conversation history for context if needed
-                    project_history = None
-                    if message["type"] in ["GenerateCode", "GenerateConversation", "FixCode"]:
-                        try:
-                            # Get project history automatically for these operations
-                            history_result = await get_project_conversations(
-                                project_id=project_id,
-                                jwt=access_token
-                            )
-                            project_history = history_result.data if history_result else []
-                        except Exception as e:
-                            print(f"Failed to fetch project history: {str(e)}")
-                            # Continue even if we can't fetch history
-                    
-                    try:
-                        # Create a code generation record in the database
-                        if message["type"] in ["GenerateCode", "GenerateConversation", "FixCode"]:
-                            if "user_query" in message:
+                            # Load project history if needed and not already loaded
+                            if message_type in [MSG_GENERATE_CODE, MSG_GENERATE_CONVERSATION, MSG_FIX_CODE] and not context.get("project_history"):
                                 try:
-                                    # Check if we should update an existing generation (for GenerateCode)
-                                    generation_id = None
-                                    if message["type"] == "GenerateCode" and message.get("update_existing", False):
-                                        try:
-                                            # Try to get a pending generation to update
-                                            pending_result = await get_pending_generation(
-                                                project_id=project_id,
-                                                jwt=access_token
-                                            )
-                                            
-                                            if pending_result and pending_result['data']:
-                                                # We found a pending generation - use it
-                                                generation_id = pending_result['data']['id']
-                                                
-                                                # Update the prompt
-                                                await update_code_generation(
-                                                    generation_id=generation_id,
-                                                    update_data={
-                                                        'prompt': message["user_query"],
-                                                        'status': 'pending'  # Reset status if it was changed
-                                                    },
-                                                    jwt=access_token
-                                                )
-                                                
-                                                # Log that we're updating an existing generation
-                                                try:
-                                                    await websocket.send_json({
-                                                        "type": "Text",
-                                                        "value": f"Updating existing generation (ID: {generation_id})"
-                                                    })
-                                                except Exception:
-                                                    print("Failed to send update notification")
-                                        except Exception as e:
-                                            print(f"Error finding/updating pending generation: {str(e)}")
-                                            # Continue with creating a new generation
-                                    
-                                    # If no existing generation to update, create a new one
-                                    if not generation_id:
-                                        # Create a code generation record
-                                        generation_result = await create_code_generation(
-                                            project_id=project_id,
-                                            prompt=message["user_query"],
-                                            jwt=access_token
-                                        )
-                                        
-                                        if not generation_result or not generation_result.data:
-                                            try:
-                                                await websocket.send_json({
-                                                    "type": "Error",
-                                                    "value": "Failed to create code generation record"
-                                                })
-                                            except Exception:
-                                                print("Failed to send generation record creation error")
-                                            continue
-                                        
-                                        # Use the generation ID as part of the generation context
-                                        generation_id = generation_result.data["id"]
-                                    
-                                    # We only track projects now, not individual generations
-                                    # since we're using project-based cleanup
-                                    
-                                    # Update the message with context
-                                    message["generation_id"] = generation_id
-                                except HTTPException as e:
-                                    if e.status_code == 401:
-                                        # Token expired during operation
-                                        await self.send_token_expired(websocket)
-                                        continue
-                                    else:
-                                        try:
-                                            await websocket.send_json({
-                                                "type": "Error",
-                                                "value": f"Failed to create generation record: {e.detail}"
-                                            })
-                                        except Exception:
-                                            print("Failed to send HTTP exception error")
-                                        continue
+                                    history_result = await get_project_conversations(
+                                        project_id=project_id,
+                                        jwt=context["access_token"]
+                                    )
+                                    context["project_history"] = history_result.data if history_result else []
                                 except Exception as e:
-                                    try:
-                                        await websocket.send_json({
-                                            "type": "Error",
-                                            "value": f"Failed to create generation record: {str(e)}"
-                                        })
-                                    except Exception:
-                                        print("Failed to send generation record error")
-                                    continue
-                                    
-                        # Handle different message types
-                        if message["type"] == "GenerateCode":
-                            if "user_query" not in message:
-                                try:
-                                    await websocket.send_json({
-                                        "type": "Error",
-                                        "value": "Missing 'user_query' field in GenerateCode request"
-                                    })
-                                except Exception:
-                                    print("Failed to send missing user query error")
-                                continue
+                                    logger.error(f"Failed to fetch project history: {str(e)}")
+                                    # Continue even if we can't fetch history
                             
-                            # Generate Flutter code
-                            result = await self.flutter_generator_service.generate_flutter_code(
-                                user_query=message["user_query"],
-                                on_chunk=on_chunk,
-                                session_id=session_id,
-                                db_generation_id=message.get("generation_id"),
-                                project_id=project_id,  # Pass project_id to the service
-                                access_token=access_token,
-                                project_history=project_history  # Pass the loaded project history
+                            # Call the handler
+                            context = await handler(websocket, message, context)
+                        except HTTPException as e:
+                            if e.status_code == 401:
+                                # Token expired during operation
+                                await self.send_token_expired(websocket)
+                            else:
+                                await self.send_json_response(
+                                    websocket,
+                                    RESP_ERROR,
+                                    e.detail
+                                )
+                        except Exception as e:
+                            await self.send_json_response(
+                                websocket,
+                                RESP_ERROR,
+                                f"Error processing request: {str(e)}"
                             )
-                            
-                            # Send final result to the frontend
-                            try:
-                                if result.get("success", False):
-                                    await websocket.send_json({
-                                        "type": "Result",
-                                        "value": result
-                                    })
-                                else:
-                                    error_message = result.get("error", "Unknown error")
-                                    await websocket.send_json({
-                                        "type": "Error",
-                                        "value": f"Code generation failed: {error_message}"
-                                    })
-                            except Exception:
-                                print("Failed to send generation result")
-                        
-                        elif message["type"] == "GenerateConversation":
-                            if "user_query" not in message:
-                                try:
-                                    await websocket.send_json({
-                                        "type": "Error",
-                                        "value": "Missing 'user_query' field in GenerateConversation request"
-                                    })
-                                except Exception:
-                                    print("Failed to send missing user query error")
-                                continue
-                            
-                            # Generate conversation
-                            result = await self.flutter_generator_service.generate_conversation(
-                                user_query=message["user_query"],
-                                on_chunk=on_chunk,
-                                session_id=session_id,
-                                db_generation_id=message.get("generation_id"),
-                                project_id=project_id,  # Pass project_id to the service
-                                access_token=access_token,
-                                project_history=project_history  # Pass the loaded project history
-                            )
-                            
-                            # Send final result to the frontend
-                            try:
-                                if result.get("success", False):
-                                    await websocket.send_json({
-                                        "type": "Result",
-                                        "value": result
-                                    })
-                                else:
-                                    error_message = result.get("error", "Unknown error")
-                                    await websocket.send_json({
-                                        "type": "Error",
-                                        "value": f"Conversation generation failed: {error_message}"
-                                    })
-                            except Exception:
-                                print("Failed to send conversation result")
-                        
-                        elif message["type"] == "FixCode":
-                            if "user_query" not in message or "error_message" not in message:
-                                try:
-                                    await websocket.send_json({
-                                        "type": "Error",
-                                        "value": "Missing 'user_query' or 'error_message' field in FixCode request"
-                                    })
-                                except Exception:
-                                    print("Failed to send missing fields error")
-                                continue
-                            
-                            # Fix Flutter code
-                            result = await self.flutter_generator_service.fix_flutter_code(
-                                user_query=message["user_query"],
-                                error_message=message["error_message"],
-                                on_chunk=on_chunk,
-                                session_id=session_id,
-                                generation_id=message.get("generation_id"),
-                                project_id=project_id,
-                                access_token=access_token,
-                                project_history=project_history  # Pass the loaded project history
-                            )
-                            
-                            # Send final result to the frontend
-                            try:
-                                if result.get("success", False):
-                                    await websocket.send_json({
-                                        "type": "Result",
-                                        "value": result
-                                    })
-                                else:
-                                    error_message = result.get("error", "Unknown error")
-                                    await websocket.send_json({
-                                        "type": "Error",
-                                        "value": f"Code fixing failed: {error_message}"
-                                    })
-                            except Exception:
-                                print("Failed to send fix result")
-                        
-                        # Handle other message types if needed
-                    
-                    except HTTPException as e:
-                        if e.status_code == 401:
-                            # Token expired during operation
-                            await self.send_token_expired(websocket)
-                            continue
-                        else:
-                            try:
-                                await websocket.send_json({
-                                    "type": "Error",
-                                    "value": e.detail
-                                })
-                            except Exception:
-                                print("Failed to send HTTP exception")
-                    except Exception as e:
-                        try:
-                            await websocket.send_json({
-                                "type": "Error",
-                                "value": f"Error processing request: {str(e)}"
-                            })
-                        except Exception:
-                            print("Failed to send general error")
+                    else:
+                        # Unknown message type
+                        await self.send_json_response(
+                            websocket,
+                            RESP_ERROR,
+                            f"Unknown message type: {message_type}"
+                        )
                 
                 except WebSocketDisconnect:
-                    print(f"WebSocket disconnect detected during message processing for ID: {websocket_id}")
-                    # Client disconnected during message processing, clean up resources
-                    if websocket_id in self.active_projects:
-                        try:
-                            project_id = self.active_projects[websocket_id]
-                            # print(f"Cleaning up resources for project: {project_id}")
-                            # self.flutter_generator_service.cleanup_generation(project_id)
-                            # print(f"Cleanup completed for project: {project_id}")
-                        except Exception as cleanup_error:
-                            print(f"Error during disconnect cleanup: {str(cleanup_error)}")
-                        
-                        # Remove tracking for this websocket
-                        del self.active_projects[websocket_id]
-                        print(f"Removed tracking for websocket: {websocket_id}")
-                    # Exit the loop and end the handler
+                    logger.info(f"WebSocket disconnect detected during message processing for ID: {websocket_id}")
+                    self._handle_disconnect(websocket_id)
                     break
                 except json.JSONDecodeError:
                     # Invalid JSON message
-                    try:
-                        await websocket.send_json({
-                            "type": "Error",
-                            "value": "Invalid JSON message"
-                        })
-                    except Exception as e:
-                        print(f"Error sending JSON decode error: {str(e)}")
-                        break  # Exit the loop if we can't send messages
+                    await self.send_json_response(
+                        websocket,
+                        RESP_ERROR,
+                        "Invalid JSON message"
+                    )
                 except Exception as e:
                     # Unexpected error
-                    print(f"Unexpected error processing message: {str(e)}")
-                    try:
-                        await websocket.send_json({
-                            "type": "Error",
-                            "value": f"Error processing request: {str(e)}"
-                        })
-                    except Exception as send_error:
-                        print(f"Failed to send error message: {str(send_error)}")
-                        break  # Exit the loop if we can't send messages
+                    logger.error(f"Unexpected error processing message: {str(e)}")
+                    await self.send_json_response(
+                        websocket,
+                        RESP_ERROR,
+                        f"Error processing request: {str(e)}"
+                    )
         
         except WebSocketDisconnect:
-            # Client disconnected, clean up resources
-            print(f"WebSocket disconnect detected for ID: {websocket_id}")
-            if websocket_id in self.active_projects:
-                try:
-                    project_id = self.active_projects[websocket_id]
-                    print(f"Cleaning up resources for project: {project_id}")
-                    self.flutter_generator_service.cleanup_generation(project_id)
-                    print(f"Cleanup completed for project: {project_id}")
-                except Exception as cleanup_error:
-                    print(f"Error during disconnect cleanup: {str(cleanup_error)}")
-                
-                # Remove tracking for this websocket
-                del self.active_projects[websocket_id]
-                print(f"Removed tracking for websocket: {websocket_id}")
+            # Client disconnected
+            logger.info(f"WebSocket disconnect detected for ID: {websocket_id}")
+            self._handle_disconnect(websocket_id)
         except Exception as e:
             # Unexpected error
-            print(f"Unexpected error in WebSocket handler: {str(e)}")
+            logger.error(f"Unexpected error in WebSocket handler: {str(e)}")
+            await self.send_error(websocket, f"Unexpected error: {str(e)}")
+            self._handle_disconnect(websocket_id)
+    
+    def _handle_disconnect(self, websocket_id: str) -> None:
+        """Handle websocket disconnect and cleanup."""
+        if websocket_id in self.active_projects:
             try:
-                await self.send_error(websocket, f"Unexpected error: {str(e)}")
-            except Exception as send_error:
-                print(f"Failed to send error message: {str(send_error)}")
+                project_id = self.active_projects[websocket_id]
+                logger.info(f"Cleaning up resources for project: {project_id}")
+                self.flutter_generator_service.cleanup_generation(project_id)
+                logger.info(f"Cleanup completed for project: {project_id}")
+            except Exception as cleanup_error:
+                logger.error(f"Error during disconnect cleanup: {str(cleanup_error)}")
             
-            # Clean up resources even on error
-            if websocket_id in self.active_projects:
-                try:
-                    project_id = self.active_projects[websocket_id]
-                    # print(f"Cleaning up resources for project on error: {project_id}")
-                    # self.flutter_generator_service.cleanup_generation(project_id)
-                    # print(f"Cleanup completed for project on error: {project_id}")
-                except Exception as cleanup_error:
-                    print(f"Error during error cleanup: {str(cleanup_error)}")
-                
-                # Remove tracking for this websocket
-                del self.active_projects[websocket_id]
-                print(f"Removed tracking for websocket on error: {websocket_id}")
-            return 
+            # Remove tracking for this websocket
+            del self.active_projects[websocket_id]
+            logger.info(f"Removed tracking for websocket: {websocket_id}") 
