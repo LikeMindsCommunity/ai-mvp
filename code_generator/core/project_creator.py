@@ -48,7 +48,7 @@ class ProjectCreator:
                 "docker", "run", "--rm",                    # Run a container and remove it after completion
                 "-v", f"{project_dir}:/{project_name}",     # Mount the project directory to /[project_name]
                 "-w", f"/{project_name}",                   # Set working directory to /[project_name]
-                "likeminds-feed-builder",                   # Use the builder image
+                "-t", "likeminds-feed-builder",             # Use the builder image
                 "./gradlew", "compileDebugJavaWithJavac"    # Run Gradle compile command
             ]
             
@@ -62,7 +62,7 @@ class ProjectCreator:
         except Exception as e:
             return False, str(e)
 
-    def _build_docker_image(self, project_dir: str) -> bool:
+    def _build_docker_image(self, project_dir: str) -> tuple[bool, str]:
         """
         Build the Docker image for the project.
         
@@ -70,13 +70,13 @@ class ProjectCreator:
             project_dir (str): Path to the project directory
             
         Returns:
-            bool: True if build was successful, False otherwise
+            tuple[bool, str]: (success, error_message)
         """
         try:
             # Get project name from directory path
             project_name = os.path.basename(project_dir)
             
-            # Build the Docker image
+            # Build the Docker image with volume mount
             print(f"\nBuilding Docker image for project: {project_dir}")
             build_cmd = [
                 "docker", "build",
@@ -89,15 +89,13 @@ class ProjectCreator:
             result = subprocess.run(build_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
-                print(f"Error building Docker image: {result.stderr}")
-                return False
+                return False, result.stderr
                 
-            print("Docker image built successfully!")
-            return True
+            print("Project built successfully!")
+            return True, ""
             
         except Exception as e:
-            print(f"Error in Docker build process: {str(e)}")
-            return False
+            return False, str(e)
     
     def _copy_template_resources(self, template_dir: str, project_dir: str, llm_generated_files: List[str]) -> None:
         """
@@ -235,15 +233,10 @@ class ProjectCreator:
                         "value": file_path
                     })
             
-            # Compile project first
-            compile_success, compile_error = self._compile_project(project_dir)
-            if not compile_success:
-                return False, compile_error
-            
             # Build Docker image and get APK
-            build_success = self._build_docker_image(project_dir)
+            build_success, error_message = self._build_docker_image(project_dir)
             if not build_success:
-                return False, "Failed to build Docker image"
+                return False, error_message
             
             return True, ""
             

@@ -386,6 +386,7 @@ class CodeGenerator:
             attempt = 0
             
             while not success and error_message and attempt < max_attempts:
+                print(f"\nError: {error_message}")
                 print(f"\nAttempting to fix compilation errors (attempt {attempt + 1}/{max_attempts})...")
                 fix_data = await self.fix_compilation_errors(
                     os.path.join(self.project_creator.output_dir, project_data["project_name"]),
