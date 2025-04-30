@@ -14,5 +14,6 @@ BUILD_CONFIG_FILES = [
     'gradle/wrapper/gradle-wrapper.properties',
     'gradle/wrapper/gradle-wrapper.jar',
     'gradle/libs.versions.toml',
-    'app/proguard-rules.pro'
+    'app/proguard-rules.pro',
+    'app/src/main/res/font/roboto.ttf'
 ] 

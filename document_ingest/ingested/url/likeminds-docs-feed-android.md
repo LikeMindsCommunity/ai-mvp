@@ -3,9 +3,9 @@
 
 # Summary
 Directory: document_ingest/private_repo/likeminds-docs-feed-android
-Files analyzed: 78
+Files analyzed: 79
 
-Estimated tokens: 61.1k
+Estimated tokens: 61.5k
 
 # Tree
 Directory structure:
@@ -22,6 +22,7 @@ Directory structure:
                 ├── Guides/
                 │   ├── _category_.json
                 │   ├── how-to-enable-personalised-feed.md
+                │   ├── how-to-start-feed-with-specific-post_ids.md
                 │   └── how-to-render-custom-post-ui/
                 │       ├── how-to-render-custom-post-ui.md
                 │       └── video-feed-example.md
@@ -246,7 +247,7 @@ Implement `likeminds-feed-core` project in your app level `build.gradle`.
 ```groovy
 dependencies {
     ...
-    implementation 'community.likeminds:likeminds-feed-core:1.7.0'
+    implementation 'community.likeminds:likeminds-feed-core:1.8.0'
 }
 ```
 
@@ -879,54 +880,13 @@ Before you begin, ensure the following
 2. Navigate to [Feed Settings](https://dashboard.likeminds.community/feed/settings)
 3. Enable "Personalised Feed" Settings.
 
+![LikeMinds Dashboard](../../../../static/img/dashboard-enable-personalized-feed.png)
+
 ### Step 2: Set weigths for different metrics
 
-1. **Initiate a user session**: Authenticated API calls to the LikeMinds backend require an authorization token. This token can be generated using this [Getting Started Guide](../../../../rest-api/authentication). Make sure to log in with the Community Manager's credentials.
-2. **Configure weights on different metrics**: The personalized feed relies on various metrics such as likes, comments, recency, and user interactions. Set the weights for these metrics using the following cURL request:
+Once, Personalized Feed is enabled, you can edit all the weights to the various metric to rank the feed as your user group and requirements.
 
-```bash
-curl --location --request PATCH 'https://auth.likeminds.community/community/configurations' \
---header 'Content-Type: application/json' \
---header 'Authorization: {cm_access_token}' \
---data '{
-    "description": "Personalised feed weights metadata for the community",
-    "type": "personalised_feed_weights",
-    "value": {
-        "comments_metrics": {
-            "max_threshold": 200,
-            "weight": 10
-        },
-        "likes_metrics": {
-            "max_threshold": 100,
-            "weight": 5
-        },
-        "post_dampening_metrics": {
-            "max_threshold": 100,
-            "weight": 5
-        },
-        "recency_metrics": {
-            "max_threshold": 100,
-            "weight": 5
-        },
-        "user_groups_metrics": {
-            "max_threshold": 50,
-            "weight": 2
-        },
-        "user_topics_metrics": {
-            "max_threshold": 100,
-            "weight": 5
-        },
-        "user_connection_metrics": {
-            "max_threshold": 100,
-            "weight": 5
-        }
-    }
-}'
-```
-
-:::info
-The sample values in the cURL are subjective in nature, please change it as per your user group.
-:::
+![LikeMinds Dashboard](../../../../static/img/dashboard-add-weights.png)
 
 ### Step 3: Configure in Android Feed SDK
 
@@ -1059,6 +1019,65 @@ val successCallback = { response : UserResponse? ->
 
 </TabItem>
 </Tabs>
+
+
+
+================================================
+File: feed/Android/Core/Guides/how-to-start-feed-with-specific-post_ids.md
+================================================
+---
+sidebar_position: 3
+title: How to start video feed with specific posts?
+slug: /android/core/guide/how-to-start-feed-with-specific-posts
+---
+
+# How to Start Feed with Specific Posts?
+
+Starting the feed from a specific post improves content discovery, especially when users land via shared links or post thumbnails. This guide shows how to use the LikeMinds Feed Android SDK to launch a feed that begins from a defined list of posts—ideal for video feed experiences.
+
+## Prerequisites
+
+Before you begin, ensure the following:
+
+- **LikeMinds Feed Android SDK**: The SDK must be properly installed and initialized in your Android project. Refer to the [installation guide](../../getting-started.md) if needed.
+- **Basic Understanding of Android**: Familiarity with Android Fragments and concepts of **Object-Oriented Programming (OOPS)**
+- **Post ID(s)**: You must have the post ids of the specific posts you want to start the feed with.
+
+## Steps to start the feed with specific post
+
+### Step 1: Create instance of Video Feed Screen
+
+1. Create an instance of [`LMFeedVideoFeedProps`](../Screens/LMFeedVideoFeedFragment.md#props) and pass the `postIds` you want to start the feed in `startFeedWithPostIds()`
+2. Pass the created instance of [`LMFeedVideoFeedProps`](../Screens/LMFeedVideoFeedFragment.md#props) in `getInstance()` function to create an instance of the [**Video Feed Screen**](../Screens/LMFeedVideoFeedFragment.md).
+
+```kotlin
+val props = LMFeedVideoFeedProps.Builder()
+        .startFeedWithPostIds(listOf(startFeedWithPostId))
+        .build()
+
+val fragment = LMFeedVideoFeedFragment.getInstance(
+        feedType = LMFeedType.UNIVERSAL_FEED, // change to LMFeedType.PERSONALIZED_FEED based on your preference
+        props = props
+    )
+```
+
+### Step 2: Use the created instance to render the feed
+
+Use the instance of fragment created in above step in `successCallback`, as mentioned in the last step of [Getting Started Guide](../../getting-started.md#step-4---navigation-to-the-feed).
+
+```kotlin
+// pass this successCallback to LMFeedCore.showFeed()
+val successCallback = { response : UserResponse? ->
+  // inflate video feed fragment in your activity
+  val containerViewId = R.id.frame_layout
+  val transaction = supportFragmentManager.beginTransaction()
+  transaction.replace(containerViewId, fragment, containerViewId.toString())
+  transaction.commit()
+  Unit
+} // callback triggered when the initiate user call is successful
+```
+
+You can pass one or multiple post ids depending on your requirement. The feed will start from the first post in the list and flow naturally afterward.
 
 
 
@@ -2827,6 +2846,16 @@ The `LMFeedVideoFeedConfig` defines few configs options for the video feed fragm
 | `reelViewedAnalyticThreshold` | Int  | threshold for sending reel viewed event in secs | 2             |
 
 [View on GitHub](https://github.com/LikeMindsCommunity/likeminds-feed-android/blob/master/likeminds-feed-android-core/src/main/java/com/likeminds/feed/android/core/videofeed/model/LMFeedVideoFeedConfig.kt)
+
+---
+
+## Props
+
+The `LMFeedVideoFeedProps` defines few extra properties which can be shared to the video feed fragment to complete certain requirements
+
+| Props                  | Type               | Description                              | Default Value |
+| ---------------------- | ------------------ | ---------------------------------------- | ------------- |
+| `startFeedWithPostIds` | List&lt;String&gt; | specific post ids to start the feed from | `null`        |
 
 ---
 

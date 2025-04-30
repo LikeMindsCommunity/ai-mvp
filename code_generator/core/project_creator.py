@@ -28,40 +28,6 @@ class ProjectCreator:
         self.output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), self.settings.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
     
-    def _compile_project(self, project_dir: str) -> tuple[bool, str]:
-        """
-        Compile the Android project to check for errors.
-        
-        Args:
-            project_dir (str): Path to the project directory
-            
-        Returns:
-            tuple[bool, str]: (success, error_message)
-        """
-        try:
-            # Get project name from directory path
-            project_name = os.path.basename(project_dir)
-            
-            # Compile the project
-            print(f"\nCompiling project: {project_dir}")
-            compile_cmd = [
-                "docker", "run", "--rm",                    # Run a container and remove it after completion
-                "-v", f"{project_dir}:/{project_name}",     # Mount the project directory to /[project_name]
-                "-w", f"/{project_name}",                   # Set working directory to /[project_name]
-                "-t", "likeminds-feed-builder",             # Use the builder image
-                "./gradlew", "compileDebugJavaWithJavac"    # Run Gradle compile command
-            ]
-            
-            result = subprocess.run(compile_cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                return False, result.stderr
-                
-            return True, ""
-            
-        except Exception as e:
-            return False, str(e)
-
     def _build_docker_image(self, project_dir: str) -> tuple[bool, str]:
         """
         Build the Docker image for the project.
@@ -107,6 +73,21 @@ class ProjectCreator:
             ]
             
             result = subprocess.run(refresh_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                return False, result.stderr
+
+            # Compile the project
+            print(f"\nCompiling project: {project_dir}")
+            compile_cmd = [
+                "docker", "run", "--rm",                    # Run a container and remove it after completion
+                "-v", f"{project_dir}:/{project_name}",     # Mount the project directory to /[project_name]
+                "-w", f"/{project_name}",                   # Set working directory to /[project_name]
+                "-t", "likeminds-feed-builder",             # Use the builder image
+                "./gradlew", "compileDebugJavaWithJavac"    # Run Gradle compile command
+            ]
+            
+            result = subprocess.run(compile_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
                 return False, result.stderr
