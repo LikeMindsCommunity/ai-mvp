@@ -5,6 +5,14 @@ import subprocess
 import shutil
 import asyncio
 
+# Directory constants
+DOCUMENT_INGEST_DIR = 'document_ingest'
+PRIVATE_REPO_DIR = 'private_repo'
+LOCAL_REPO_DIR = 'local_repo'
+INGESTED_DIR = 'ingested'
+URL_SUBDIR = 'url'
+LOCAL_SUBDIR = 'local'
+
 def get_repo_name(repo_url):
     """Extract repository name from GitHub URL"""
     print(f"\n=== Starting get_repo_name ===")
@@ -33,7 +41,7 @@ async def clone_repo(repo_url, repo_name):
     print(f"- repo_name: {repo_name}")
     
     try:
-        private_repo_dir = os.path.join('document_ingest', 'private_repo', repo_name)
+        private_repo_dir = os.path.join(DOCUMENT_INGEST_DIR, PRIVATE_REPO_DIR, repo_name)
         print(f"Target directory: {private_repo_dir}")
         
         os.makedirs(os.path.dirname(private_repo_dir), exist_ok=True)
@@ -88,7 +96,7 @@ async def create_local_repo(source_path: str, repo_name: str) -> str:
     print(f"- repo_name: {repo_name}")
     
     try:
-        local_repo_dir = os.path.join('document_ingest', 'local_repo', repo_name)
+        local_repo_dir = os.path.join(DOCUMENT_INGEST_DIR, LOCAL_REPO_DIR, repo_name)
         print(f"Target directory: {local_repo_dir}")
         
         os.makedirs(os.path.dirname(local_repo_dir), exist_ok=True)
@@ -168,7 +176,7 @@ def filter_directories(repo_path, include_dirs=None, exclude_dirs=None):
                 else:
                     shutil.rmtree(exclude_dir)
 
-async def ingest_repo(repo_path_or_url: str, is_private: bool = False, include_dirs: list = None, exclude_dirs: list = None, private_repo_name: str = None) -> tuple[str, str, str, str]:
+async def ingest_repo(repo_path_or_url: str, is_private: bool = False, include_dirs: list = None, exclude_dirs: list = None, repo_name: str = None) -> tuple[str, str, str, str]:
     """
     Ingest a GitHub repository or local directory and save its summary, tree, and content.
     
@@ -177,7 +185,7 @@ async def ingest_repo(repo_path_or_url: str, is_private: bool = False, include_d
         is_private (bool): Whether the repository is private
         include_dirs (list): List of directories to include
         exclude_dirs (list): List of directories to exclude
-        private_repo_name (str): Custom name for the repository (optional)
+        repo_name (str): Custom name for the repository (optional)
         
     Returns:
         tuple[str, str, str, str]: (summary, tree, content, output_file_path)
@@ -188,26 +196,27 @@ async def ingest_repo(repo_path_or_url: str, is_private: bool = False, include_d
     print(f"- is_private: {is_private}")
     print(f"- include_dirs: {include_dirs}")
     print(f"- exclude_dirs: {exclude_dirs}")
-    print(f"- private_repo_name: {private_repo_name}")
-    
-    # Create ingested directory if it doesn't exist
-    os.makedirs('document_ingest/ingested', exist_ok=True)
-    
-    # Determine if the input is a URL or local path
-    is_url = bool(urlparse(repo_path_or_url).scheme)
-    print(f"\n- is_url: {is_url}")
-    
-    # Initialize variables
-    repo_name = private_repo_name
-    repo_path = None
-    
-    # Determine repository name if not provided
-    if repo_name is None:
-        repo_name = get_repo_name(repo_path_or_url) if is_url else os.path.basename(os.path.normpath(repo_path_or_url))
     print(f"- repo_name: {repo_name}")
     
+    # Initialize variables
+    repo_name = repo_name
+    repo_path = None
+    
     try:
-        # Handle URL case
+        # Determine if the input is a URL or local path and set up accordingly
+        is_url = bool(urlparse(repo_path_or_url).scheme)
+        print(f"\n- is_url: {is_url}")
+        
+        # Set up output directory and repository name
+        output_subdir = URL_SUBDIR if is_url else LOCAL_SUBDIR
+        output_dir = os.path.join(DOCUMENT_INGEST_DIR, INGESTED_DIR, output_subdir)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        if repo_name is None:
+            repo_name = get_repo_name(repo_path_or_url) if is_url else os.path.basename(os.path.normpath(repo_path_or_url))
+        print(f"- repo_name: {repo_name}")
+        
+        # Process repository based on type
         if is_url:
             print("\nHandling URL case...")
             if include_dirs or exclude_dirs or is_private:
@@ -228,8 +237,6 @@ async def ingest_repo(repo_path_or_url: str, is_private: bool = False, include_d
                 print("Getting content directly from URL...")
                 # Get content directly from URL
                 summary, tree, content = await asyncio.to_thread(gitingest.ingest, repo_path_or_url)
-        
-        # Handle local path case
         else:
             print("\nHandling local path case...")
             if include_dirs or exclude_dirs:
@@ -250,8 +257,8 @@ async def ingest_repo(repo_path_or_url: str, is_private: bool = False, include_d
                 # Get content directly from local path
                 summary, tree, content = await asyncio.to_thread(gitingest.ingest, repo_path_or_url)
         
-        # Create output file
-        output_file = os.path.join('document_ingest/ingested', f'{repo_name}.md')
+        # Create output file in appropriate subdirectory
+        output_file = os.path.join(output_dir, f'{repo_name}.md')
         print(f"\n- output_file: {output_file}")
         
         # Write content to file
