@@ -2,25 +2,16 @@
 
 A Python package for ingesting and processing documentation and SDK code for the LikeMinds Feed SDK.
 
-## Environment Variables
+## Dependencies
 
-The package requires the following environment variables to be set in your `.env` file:
-
-- `DOCS_PATH` (Required): The path to the documentation file that will be used for code generation.
-- `SDK_CODE_PATH` (Required): The path to the SDK code reference file.
-
-Example `.env` file:
-```
-# Document Ingest Configuration
-DOCS_PATH=document_ingest/ingested/likeminds-docs-feed-android.md
-SDK_CODE_PATH=document_ingest/ingested/likeminds-feed-android.md
-```
+The package requires the following Python packages:
+- gitingest>=0.1.0 - For Git repository operations
 
 ## Package Usage
 
 1. Create and activate a virtual environment:
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
@@ -31,20 +22,27 @@ pip install -r requirements.txt
 
 3. Use the package in your Python code:
 ```python
-from document_ingest.core import DocumentIngest
-from document_ingest.config import Settings
+import asyncio
+from document_ingest.ingest import ingest_repo
 
-# Initialize settings and ingest
-settings = Settings()
-ingest = DocumentIngest(settings)
+async def main():
+    # Initialize and run the ingest process
+    await ingest_repo(
+        repo_url="https://github.com/LikeMindsCommunity/likeminds-docs",
+        is_private=False,
+        include_dirs=["feed/Android"],
+        exclude_dirs=["feed/Android/Data"],
+        repo_name="likeminds-docs-feed-android"
+    )
 
-# Process documentation and SDK code
-ingest.process()
+# Run the async function
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-Or run it directly from the command line with the following arguments:
+Or run it directly from the command line:
 ```bash
-python -m document_ingest https://github.com/LikeMindsCommunity/likeminds-docs --include feed/Android --exclude feed/Android/Data
+python3 -m document_ingest https://github.com/LikeMindsCommunity/likeminds-docs --include feed/Android --exclude feed/Android/Data --repo-name likeminds-docs-feed-android
 ```
 
 Command-line Arguments:
@@ -52,16 +50,26 @@ Command-line Arguments:
 - `--private` (Optional, flag): Indicates if the repository is private
 - `--include` (Optional): List of directories to include in the documentation processing
 - `--exclude` (Optional): List of directories to exclude from the documentation processing
-- `--private-repo-name` (Optional): Custom name for the private repository
+- `--repo-name` (Optional): Custom name for the repository
 
 Example with all arguments:
 ```bash
-python -m document_ingest https://github.com/LikeMindsCommunity/likeminds-docs \
+python3 -m document_ingest https://github.com/LikeMindsCommunity/likeminds-docs \
     --private \
     --include feed/Android feed/iOS \
     --exclude feed/Android/Data feed/iOS/Data \
-    --private-repo-name likeminds-docs
+    --repo-name likeminds-docs-feed-android
 ```
+
+## Directory Structure
+
+The package creates and uses the following directory structure:
+
+- `document_ingest/private_repo/` - Stores cloned repositories
+- `document_ingest/local_repo/` - Stores local repositories
+- `document_ingest/ingested/` - Contains processed documentation files
+  - `url/` - For documentation processed from URLs
+  - `local/` - For documentation processed from local files
 
 ## Functionality
 
@@ -71,6 +79,7 @@ The Document Ingest package provides the following features:
    - Reads and processes LikeMinds Feed SDK documentation
    - Extracts relevant information for code generation
    - Maintains proper structure and formatting
+   - Supports both public and private repositories
 
 2. **SDK Code Processing**:
    - Processes SDK code reference files
@@ -78,7 +87,7 @@ The Document Ingest package provides the following features:
    - Maintains proper code structure
 
 3. **Output Generation**:
-   - Creates processed documentation files
+   - Creates processed documentation files in the `ingested` directory
    - Generates SDK code reference files
    - Ensures proper file organization
 
@@ -89,6 +98,7 @@ The package includes comprehensive error handling for:
 - File content processing
 - Output generation
 - File system operations
+- Git repository operations
 
 All errors are logged with descriptive messages to help with debugging.
 
@@ -96,13 +106,18 @@ All errors are logged with descriptive messages to help with debugging.
 
 A Python package for generating Android projects using the Gemini model based on documentation.
 
+## Dependencies
+
+The package requires the following Python packages:
+- google-genai>=0.3.0 - For accessing the Gemini model
+- python-dotenv>=1.0.0 - For loading environment variables
+
 ## Environment Variables
 
 The package requires the following environment variables to be set in your `.env` file:
 
 - `GEMINI_API_KEY` (Required): The API key for accessing the Gemini model.
-- `GEMINI_MODEL_NAME` (Required): The name of the Gemini model to use (currently only supports "gemini-2.5-pro-exp-03-25").
-- `TEMPLATE_REPO_URL` (Required): The URL of the template repository containing the base Android project structure.
+- `GEMINI_MODEL_NAME` (Required): The name of the Gemini model to use (currently supports "gemini-2.5-pro-preview-03-25", "gemini-2.5-pro-exp-03-25").
 - `OUTPUT_DIR` (Required): The directory where generated projects will be saved.
 - `DOCS_PATH` (Required): The path to the documentation file that will be used for code generation.
 - `SDK_CODE_PATH` (Required): The path to the SDK code reference file.
@@ -111,18 +126,17 @@ Example `.env` file:
 ```
 # Code Generator Configuration
 GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL_NAME=gemini-2.5-pro-exp-03-25
-TEMPLATE_REPO_URL=https://github.com/LikeMindsCommunity/likeminds-feed-android-social-feed-theme
+GEMINI_MODEL_NAME=gemini-2.5-pro-preview-03-25
 OUTPUT_DIR=code_generator/generated_projects
-DOCS_PATH=document_ingest/ingested/likeminds-docs-feed-android.md
-SDK_CODE_PATH=document_ingest/ingested/likeminds-feed-android.md
+DOCS_PATH=document_ingest/ingested/url/likeminds-docs-feed-android.md
+SDK_CODE_PATH=document_ingest/ingested/url/likeminds-feed-android.md
 ```
 
 ## Package Usage
 
 1. Create and activate a virtual environment:
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
@@ -133,20 +147,26 @@ pip install -r requirements.txt
 
 3. Use the package in your Python code:
 ```python
-from code_generator.core import CodeGenerator
-from code_generator.config import Settings
+import asyncio
+from code_generator.core.generator import CodeGenerator
+from code_generator.config.settings import Settings
 
-# Initialize settings and generator
-settings = Settings()
-generator = CodeGenerator(settings)
+async def main():
+    # Initialize settings and generator
+    settings = Settings()
+    generator = CodeGenerator(settings)
+    
+    # Run the generator in interactive mode
+    generator.run()
 
-# Run the generator in interactive mode
-generator.run()
+# Run the async function
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 Or run it directly from the command line:
 ```bash
-python -m code_generator
+python3 -m code_generator
 ```
 
 ## Functionality
@@ -154,17 +174,20 @@ python -m code_generator
 The Code Generator package provides the following features:
 
 1. **Documentation Processing**: Reads and processes documentation to understand the LikeMinds Feed SDK requirements.
-2. **Template Management**: Uses a template repository to maintain consistent project structure.
-3. **Code Generation**:
+2. **Code Generation**:
    - Uses Gemini AI model to generate Android project code
    - Ensures proper method signatures and return types
    - Handles callback implementations correctly
    - Follows Android best practices
-4. **Project Creation**:
-   - Creates complete Android projects
+3. **Project Creation**:
+   - Creates complete Android projects in the `generated_projects` directory
    - Sets up proper package structure
    - Configures build files
    - Handles dependencies
+4. **Error Handling**:
+   - Automatically fixes compilation errors
+   - Provides detailed error messages
+   - Supports multiple fix attempts
 
 ## Error Handling
 
@@ -174,18 +197,26 @@ The package includes comprehensive error handling for:
 - Model response parsing
 - File system operations
 - Project generation errors
+- Compilation error fixing
 
-All errors are logged with descriptive messages to help with debugging. 
+All errors are logged with descriptive messages to help with debugging.
 
 # API
 
 A FastAPI-based WebSocket API for generating Android projects using the code generator package.
 
+## Dependencies
+
+The package requires the following Python packages:
+- fastapi>=0.104.0 - For the API server
+- uvicorn>=0.24.0 - For running the API server
+- websockets>=12.0 - For WebSocket communication
+
 ## Deployment
 
 1. Create and activate a virtual environment:
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
@@ -285,4 +316,4 @@ The API handles various error cases:
 - Code generation failures
 - WebSocket connection issues
 
-All errors are returned with a descriptive message in the Error response format. 
+All errors are returned with a descriptive message in the Error response format.

@@ -20,11 +20,11 @@ from document_ingest.ingest import ingest_repo
 class CodeGenerator:
     """Generates code using the Gemini model based on documentation."""
 
-    def __init__(self, settings: Settings, docs_path: str, sdk_code_path: str):
+    def __init__(self, settings: Settings):
         """Initialize the code generator with settings."""
         self.settings = settings
-        self.docs_path = docs_path
-        self.sdk_code_path = sdk_code_path
+        self.docs_path = settings.docs_path
+        self.sdk_code_path = settings.sdk_code_path
         self.project_creator = ProjectCreator(settings)
         
         # Configure Gemini

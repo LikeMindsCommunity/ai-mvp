@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Callable
-from code_generator.core import CodeGenerator
-from code_generator.config import Settings
+from code_generator.config.settings import Settings
+from code_generator.core.generator import CodeGenerator
 from api.domain import CodeGeneratorService
 
 class CodeGeneratorServiceImpl(CodeGeneratorService):
