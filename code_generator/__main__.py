@@ -18,7 +18,7 @@ async def main():
         generator = CodeGenerator(settings)
         
         # Run the generator
-        generator.run()
+        await generator.run()
         
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)

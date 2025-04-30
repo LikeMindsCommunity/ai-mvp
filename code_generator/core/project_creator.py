@@ -48,6 +48,7 @@ class ProjectCreator:
             
             # Build the Docker image with volume mount
             print(f"\nBuilding Docker image for project: {project_dir}")
+            print(f"Using relative project path: {relative_project_dir}")
             copy_cmd = [
                 "docker", "build",
                 "-t", "likeminds-feed-builder",
@@ -56,13 +57,16 @@ class ProjectCreator:
                 "."
             ]
             
+            print(f"Running Docker build command to create image likeminds-feed-builder and copy project to container: {' '.join(copy_cmd)}")
             result = subprocess.run(copy_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
+                print(f"Docker build failed with error:\n{result.stderr}")
+                print(f"Docker build stdout:\n{result.stdout}")
                 return False, result.stderr
 
             # Run Gradle build command
-            print("\nBuilding APK...")
+            print("\nBuilding APK...\n\n")
             # First refresh dependencies
             refresh_cmd = [
                 "docker", "run", "--rm",
@@ -72,13 +76,15 @@ class ProjectCreator:
                 "./gradlew", "--refresh-dependencies"
             ]
             
+            print(f"Running Docker run command to refresh dependencies: {' '.join(refresh_cmd)}")
             result = subprocess.run(refresh_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
+                print(f"Gradle refresh failed with error:\n{result.stderr}")
+                print(f"Gradle refresh stdout:\n{result.stdout}")
                 return False, result.stderr
 
             # Compile the project
-            print(f"\nCompiling project: {project_dir}")
             compile_cmd = [
                 "docker", "run", "--rm",                    # Run a container and remove it after completion
                 "-v", f"{project_dir}:/{project_name}",     # Mount the project directory to /[project_name]
@@ -87,9 +93,12 @@ class ProjectCreator:
                 "./gradlew", "compileDebugJavaWithJavac"    # Run Gradle compile command
             ]
             
+            print(f"Running Docker run command to compile project: {' '.join(compile_cmd)}")
             result = subprocess.run(compile_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
+                print(f"Gradle compile failed with error:\n{result.stderr}")
+                print(f"Gradle compile stdout:\n{result.stdout}")
                 return False, result.stderr
 
             # Then build the APK
@@ -101,15 +110,19 @@ class ProjectCreator:
                 "./gradlew", "assembleDebug"
             ]
             
+            print(f"Running Docker run command to build APK: {' '.join(build_cmd)}")
             result = subprocess.run(build_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
+                print(f"Gradle build failed with error:\n{result.stderr}")
+                print(f"Gradle build stdout:\n{result.stdout}")
                 return False, result.stderr
                 
             print("Project built successfully!")
             return True, ""
             
         except Exception as e:
+            print(f"Unexpected error during build: {str(e)}")
             return False, str(e)
     
     def _copy_template_resources(self, template_dir: str, project_dir: str, llm_generated_files: List[str]) -> None:

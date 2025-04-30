@@ -33,7 +33,7 @@ class CodeGenerator:
             http_options=types.HttpOptions(api_version='v1alpha')
         )
 
-    def run(self):
+    async def run(self):
         """Run the code generator in interactive mode."""
         print("Welcome to the LikeMinds Android Feed SDK Code Generator!")
         print("Type 'exit' to quit.")
@@ -47,7 +47,7 @@ class CodeGenerator:
                 
             try:
                 print("\nGenerating project...")
-                success = self.create_project(user_input)
+                success = await self.create_project(user_input)
                 
                 if success:
                     print("\nProject generated successfully!")
@@ -191,6 +191,8 @@ class CodeGenerator:
         13. Do not generate any font files
         14. Do not add any logging, debugging, or error handling code unless it is explicitly shown in the SDK code reference. This includes Log statements, TAG constants, try-catch blocks, and any other debugging or error handling code.
         15. Use Theme.Material3.Light.NoActionBar as the parent theme for the app
+        16. For drawables, ONLY generate XML files (vector drawables, shape drawables, etc.). DO NOT generate any WebP, PNG, or other image format files.
+        17. All drawables must be created using XML definitions (vector, shape, layer-list, etc.)
 
         Documentation Reference:
         {documentation}
@@ -205,22 +207,38 @@ class CodeGenerator:
         CRITICAL JSON FORMATTING RULES:
         1. The response must be a single, valid JSON object on ONE LINE
         2. All special characters in string content must be properly escaped:
-           * Newlines must be escaped as \\n
-           * Double quotes must be escaped as \\"
-           * Backslashes must be escaped as \\\\
-           * Tabs must be escaped as \\t
-           * Any other special characters must be properly escaped
-        3. For XML content:
-           * All XML attributes must have their quotes escaped
-           * All XML tags must have their angle brackets escaped
-           * All XML content must be on a single line with escaped newlines
-           * Example: "<vector xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:width=\\"108dp\\"\\n    android:height=\\"108dp\\"\\n    android:viewportWidth=\\"108\\"\\n    android:viewportHeight=\\"108\\">"
+            * Newlines must be escaped as \\n
+            * Double quotes must be escaped as \\"
+            * Backslashes must be escaped as \\\\
+            * Tabs must be escaped as \\t
+            * Any other special characters must be properly escaped
+        3. For XML content (very important):
+            * All XML attributes must use consistently escaped double quotes (\\" at both start and end)
+            * Never mix quote styles within XML attributes (e.g., no "value\\" or \"value")
+            * All XML tags must use proper angle brackets (< and >)
+            * All XML content must be on a single line with escaped newlines (\\n)
+            * Example: "<vector xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:width=\\"108dp\\"\\n    android:height=\\"108dp\\"\\n    android:viewportWidth=\\"108\\"\\n    android:viewportHeight=\\"108\\">"
         4. Do not include any trailing commas
         5. Ensure all strings are properly quoted with double quotes
         6. Do not include any comments in the JSON
         7. The entire response should be on a single line with no line breaks
         8. Do not include any markdown formatting or code blocks
         9. Do not include any whitespace between JSON elements except for readability in the example
+        10. After each file object in the files array, there MUST be a comma (,) except for the last one
+        11. The JSON must be valid and parseable - validate EACH file's content individually before assembling the final JSON
+        12. The response must start with {{ and end with }}
+        13. All property names must be in double quotes
+        14. All string values must be in double quotes
+        15. No trailing commas after the last element in arrays or objects
+        16. Before returning the final response, verify that all XML attributes have properly matched opening and closing quotes
+        17. Pay special attention to XML attributes like android:id, android:layout_width, etc. to ensure quote consistency
+
+        IMPORTANT: Before finalizing your response, verify that:
+        - All XML attributes have properly escaped opening AND closing quotes
+        - There are no unbalanced quotes in any string
+        - Every open bracket has a matching close bracket
+        - All file paths are properly escaped
+        - Each file's content is valid for its file type
 
         Return a JSON object with the following structure:
         {{
@@ -228,6 +246,10 @@ class CodeGenerator:
             "namespace": "string",
             "application_id": "string",
             "files": [
+                {{
+                    "path": "string",
+                    "content": "string"
+                }},
                 {{
                     "path": "string",
                     "content": "string"
@@ -248,6 +270,10 @@ class CodeGenerator:
                 {{
                     "path": "app/src/main/res/layout/activity_main.xml",
                     "content": "<?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\n<FrameLayout xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:layout_width=\\"match_parent\\"\\n    android:layout_height=\\"match_parent\\">\\n</FrameLayout>"
+                }},
+                {{
+                    "path": "app/src/main/res/drawable/ic_background.xml",
+                    "content": "<?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\n<vector xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:width=\\"24dp\\"\\n    android:height=\\"24dp\\"\\n    android:viewportWidth=\\"24\\"\\n    android:viewportHeight=\\"24\\">\\n    <path android:fillColor=\\"#FF000000\\" android:pathData=\\"M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2z\\"/>\\n</vector>"
                 }}
             ]
         }}"""
@@ -263,7 +289,7 @@ class CodeGenerator:
             # Generate content with streaming
             print("\nGenerating code...")
             response = self.client.models.generate_content_stream(
-                model=self.settings.model_name,
+                model=self.settings.gemini_model_name,
                 contents=prompt,
             )
             
@@ -328,7 +354,7 @@ class CodeGenerator:
             # Generate content with streaming
             print("\nFixing compilation errors...")
             response = self.client.models.generate_content_stream(
-                model=self.settings.model_name,
+                model=self.settings.gemini_model_name,
                 contents=prompt,
             )
             
@@ -402,11 +428,16 @@ class CodeGenerator:
             max_attempts = 3  # Maximum number of fix attempts
             attempt = 0
             
-            while not success and error_message and attempt < max_attempts:
+            while not success and attempt < max_attempts:
                 print(f"\nError: {error_message}")
                 print(f"\nAttempting to fix compilation errors (attempt {attempt + 1}/{max_attempts})...")
+                
+                # Get the project directory
+                project_dir = os.path.join(self.project_creator.output_dir, project_data["project_name"])
+                
+                # Try to fix the errors
                 fix_data = await self.fix_compilation_errors(
-                    os.path.join(self.project_creator.output_dir, project_data["project_name"]),
+                    project_dir,
                     error_message,
                     on_chunk
                 )
@@ -422,6 +453,9 @@ class CodeGenerator:
                     
                     # Try creating the project again with fixed files
                     success, error_message = self.project_creator.create_project(project_data, on_chunk)
+                else:
+                    print("Failed to generate fix data. Moving to next attempt...")
+                    error_message = "Failed to generate fix data"
                 
                 attempt += 1
             
