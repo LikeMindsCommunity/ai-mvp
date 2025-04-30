@@ -24,6 +24,9 @@ from flutter_generator.core.generator import FlutterCodeGenerator
 from flutter_generator.core.code_manager import FlutterCodeManager
 from flutter_generator.core.integration_manager import FlutterIntegrationManager
 from flutter_generator.core.conversation import FlutterConversationManager
+from flutter_generator.core.existing_project_conversation import ExistingProjectConversationManager
+from flutter_generator.utils.ingest import get_ingest_text
+from flutter_generator.config import Settings
 from api.infrastructure.code_generations.service import update_code_generation
 
 class FlutterGeneratorServiceImpl(FlutterGeneratorService):
@@ -31,6 +34,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
     
     def __init__(self):
         """Initialize the Flutter generator service."""
+        self.settings = Settings()
         self.code_generator = FlutterCodeGenerator()
         self.root_dir = os.getcwd()
         # Dictionary to store conversation history by session ID
@@ -41,6 +45,10 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         self.integration_managers = {}
         # Dictionary to store conversation managers by session ID
         self.conversation_managers = {}
+        
+        # Initialize both conversation managers (regular and for GitHub projects)
+        self.standard_conversation_manager = FlutterConversationManager()
+        self.github_conversation_manager = ExistingProjectConversationManager(self.settings)
     
     def _get_code_manager(self, project_id: str, generation_id: str = None) -> FlutterCodeManager:
         """
@@ -104,7 +112,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             self.conversation_managers[session_id] = FlutterConversationManager()
         return self.conversation_managers[session_id]
     
-    def _update_conversation_history(self, session_id: str, user_query: str, project_history: list = None) -> str:
+    def _update_conversation_history(self, session_id: str, user_query: str, project_history: list = None, code_manager = None) -> str:
         """
         Update conversation history and return the enhanced prompt with history.
         
@@ -112,9 +120,10 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             session_id (str): Unique identifier for the user session
             user_query (str): The current user query
             project_history (list, optional): List of previous conversations from the database
+            code_manager (FlutterCodeManager, optional): Code manager that might contain project analysis
             
         Returns:
-            str: Enhanced prompt with conversation history
+            str: Enhanced prompt with conversation history and project analysis if available
         """
         # Initialize history for new sessions
         if session_id not in self.conversation_history:
@@ -131,16 +140,29 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
         self.conversation_history[session_id].append(user_query)
         
         # Build enhanced prompt with history context
+        history_text = ""
         if len(self.conversation_history[session_id]) > 1:
             # Format history as conversation context
             history = "\n\n".join(
                 [f"Previous request {i+1}: {query}" for i, query in enumerate(self.conversation_history[session_id][:-1])]
             )
-            enhanced_prompt = f"Previous requests for context:\n{history}\n\nCurrent request: {user_query}"
-            return enhanced_prompt
+            history_text = f"Previous requests for context:\n{history}\n\n"
         
-        # If this is the first request, return the original query
-        return user_query
+        # Include project analysis if available
+        project_analysis_text = ""
+        if code_manager and code_manager.is_existing_project and code_manager.existing_project_analysis:
+            project_analysis_text = f"""
+            Project analysis for existing Flutter project:
+            {code_manager.existing_project_analysis}
+            
+            Based on this project structure, please adapt your integration to work with the existing code rather than creating a new project from scratch.
+            Respect the existing architecture, patterns, and naming conventions.
+            
+            """
+        
+        # Combine all elements
+        enhanced_prompt = f"{history_text}{project_analysis_text}Current request: {user_query}"
+        return enhanced_prompt
     
     async def load_project_history(self, project_history: list, session_id: str = "default") -> None:
         """
@@ -194,6 +216,22 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 })
                 return {"success": False, "error": "Project ID is required"}
             
+            # Check if this is a GitHub project (if we have access_token)
+            is_github_project = False
+            ingest_text = None
+            if access_token:
+                is_github_project = await self._is_imported_project(project_id, access_token)
+                
+                # If it's a GitHub project, try to get the ingested text
+                if is_github_project:
+                    ingest_text = get_ingest_text(project_id)
+                    if not ingest_text:
+                        # Inform user, but continue without blocking
+                        await on_chunk({
+                            "type": "Text",
+                            "value": "Note: Repository ingestion data not found. Generation may be less context-aware."
+                        })
+            
             # Get managers for this generation
             code_manager = self._get_code_manager(project_id, generation_id)
             integration_manager = self._get_integration_manager(project_id, generation_id)
@@ -217,10 +255,35 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 await original_on_chunk(chunk)
             
             # First, generate a conversation plan
-            conversation_result = await conversation_manager.generate_conversation(user_query, capture_response_on_chunk)
+            if is_github_project:
+                # Use GitHub conversation manager for imported projects
+                conversation_result = await self.github_conversation_manager.generate_conversation(
+                    user_query, 
+                    project_id,
+                    capture_response_on_chunk
+                )
+                
+                # Set existing project mode flag for use in code generation
+                code_manager.set_existing_project_mode(True)
+                
+                # If we have ingest text, store it in the code manager for reference
+                if ingest_text:
+                    code_manager.set_existing_project_code(ingest_text)
+                
+                # Store the conversation analysis for reference in code generation
+                code_manager.set_existing_project_analysis(conversation_result)
+            else:
+                # Use standard conversation manager for regular projects
+                conversation_result = await conversation_manager.generate_conversation(
+                    user_query, 
+                    capture_response_on_chunk
+                )
+                
+                # Reset any existing project settings
+                code_manager.set_existing_project_mode(False)
             
             # Update conversation history and get enhanced prompt
-            enhanced_prompt = self._update_conversation_history(session_id, user_query)
+            enhanced_prompt = self._update_conversation_history(session_id, user_query, project_history, code_manager)
             
             # Inform starting generation
             await on_chunk({
@@ -229,7 +292,21 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             
             # Generate code with the enhanced prompt
-            generated_text = await self.code_generator.generate_code(enhanced_prompt, capture_response_on_chunk)
+            if is_github_project and ingest_text:
+                # Use project-aware code generation for GitHub projects
+                generated_text = await self.code_generator.generate_code(
+                    enhanced_prompt, 
+                    capture_response_on_chunk,
+                    is_imported_project=True,
+                    ingest_text=ingest_text
+                )
+            else:
+                # Use standard code generation for regular projects
+                generated_text = await self.code_generator.generate_code(
+                    enhanced_prompt, 
+                    capture_response_on_chunk
+                )
+                
             if not generated_text:
                 await on_chunk({
                     "type": "Error",
@@ -445,9 +522,11 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Load project history if provided
             if project_history:
                 await self.load_project_history(project_history, session_id)
-                
-            # Get conversation manager for this session
-            conversation_manager = self._get_conversation_manager(session_id)
+            
+            # Check if this is a GitHub project (if we have a project_id and access_token)
+            is_github_project = False
+            if project_id and access_token:
+                is_github_project = await self._is_imported_project(project_id, access_token)
             
             # Store the complete AI response
             full_ai_response = ""
@@ -464,10 +543,29 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 await original_on_chunk(chunk)
             
             # Use the conversation history for context if available
-            enhanced_prompt = self._update_conversation_history(session_id, user_query)
+            enhanced_prompt = self._update_conversation_history(session_id, user_query, project_history)
             
-            # Generate conversation response
-            conversation_text = await conversation_manager.generate_conversation(enhanced_prompt, capture_response_on_chunk)
+            # Generate conversation response using the appropriate manager
+            if is_github_project:
+                # Inform the user we're analyzing a GitHub project
+                await on_chunk({
+                    "type": "Text",
+                    "value": "Analyzing GitHub project structure..."
+                })
+                
+                # Use the GitHub conversation manager with project context
+                conversation_text = await self.github_conversation_manager.generate_conversation(
+                    enhanced_prompt, 
+                    project_id,
+                    capture_response_on_chunk
+                )
+            else:
+                # Use the standard conversation manager for regular projects
+                conversation_manager = self._get_conversation_manager(session_id)
+                conversation_text = await conversation_manager.generate_conversation(
+                    enhanced_prompt, 
+                    capture_response_on_chunk
+                )
             
             # Update the generation record with the conversation
             if db_generation_id and access_token:
@@ -492,7 +590,8 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 "conversation": [
                     {"role": "user", "content": user_query},
                     {"role": "assistant", "content": full_ai_response}
-                ]
+                ],
+                "is_github_project": is_github_project
             }
             
         except Exception as e:
@@ -543,6 +642,22 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             # Use existing generation ID or create a new one
             if not generation_id:
                 generation_id = str(uuid.uuid4())
+            
+            # Check if this is a GitHub project (if we have project_id and access_token)
+            is_github_project = False
+            ingest_text = None
+            if project_id and access_token:
+                is_github_project = await self._is_imported_project(project_id, access_token)
+                
+                # If it's a GitHub project, try to get the ingested text
+                if is_github_project:
+                    ingest_text = get_ingest_text(project_id)
+                    if not ingest_text:
+                        # Inform user, but continue without blocking
+                        await on_chunk({
+                            "type": "Text",
+                            "value": "Note: Repository ingestion data not found. Fix may be less context-aware."
+                        })
                 
             # Get managers for this generation
             code_manager = self._get_code_manager(project_id, generation_id)
@@ -568,7 +683,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 
             # Update conversation history with error context
             error_prompt = f"{user_query}\n\nI'm getting these Flutter errors:\n{error_message}\n\nPlease fix them."
-            enhanced_prompt = self._update_conversation_history(session_id, error_prompt)
+            enhanced_prompt = self._update_conversation_history(session_id, error_prompt, project_history, code_manager)
             
             # Inform the user about the fix attempt
             await on_chunk({
@@ -577,7 +692,21 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             })
             
             # Generate fixed code with the enhanced prompt
-            generated_text = await self.code_generator.generate_code(enhanced_prompt, capture_response_on_chunk)
+            if is_github_project and ingest_text:
+                # Use project-aware code generation for GitHub projects
+                generated_text = await self.code_generator.generate_code(
+                    enhanced_prompt, 
+                    capture_response_on_chunk,
+                    is_imported_project=True,
+                    ingest_text=ingest_text
+                )
+            else:
+                # Use standard code generation for regular projects
+                generated_text = await self.code_generator.generate_code(
+                    enhanced_prompt, 
+                    capture_response_on_chunk
+                )
+                
             if not generated_text:
                 await on_chunk({
                     "type": "Error",
@@ -829,7 +958,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                                 "code_content": full_code_content,
                                 "ai_response": full_ai_response,
                                 "output_path": latest_file,
-                                "web_url": web_url if 'web_url' in locals() else None
+                                "web_url": web_url
                             },
                             access_token
                         )
@@ -838,7 +967,7 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
                 
                 return {
                     "success": True,
-                    "web_url": web_url if 'web_url' in locals() else None,
+                    "web_url": web_url,
                     "code_path": latest_file,
                     "generation_id": generation_id,
                     "code": full_code_content
@@ -893,4 +1022,33 @@ class FlutterGeneratorServiceImpl(FlutterGeneratorService):
             return True
         except Exception as e:
             print(f"Error cleaning up project {project_id}: {str(e)}")
+            return False
+    
+    async def _is_imported_project(self, project_id: str, access_token: str) -> bool:
+        """
+        Check if the project is an imported GitHub project.
+        
+        Args:
+            project_id (str): The project ID to check
+            access_token (str): The access token for API calls
+            
+        Returns:
+            bool: True if the project is imported from GitHub
+        """
+        try:
+            # Import at function level to avoid circular dependencies
+            from api.infrastructure.projects.service import get_project
+            
+            # Get project details
+            project_result = await get_project(project_id, access_token)
+            
+            if project_result and project_result.data:
+                # Check if project name starts with "GitHub: "
+                project_name = project_result.data.get("name", "")
+                return project_name.startswith("GitHub: ")
+                
+            return False
+        except Exception as e:
+            # If we can't determine, assume it's not an imported project
+            print(f"Error checking if project is imported: {str(e)}")
             return False 

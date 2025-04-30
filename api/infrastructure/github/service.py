@@ -385,10 +385,17 @@ async def clone_repository(clone_url: str, destination_path: str, access_token: 
         f"https://x-access-token:{access_token}@"
     )
     
+    # Define the integration directory within the project folder
+    integration_path = os.path.join(destination_path, "integration")
+    
+    # Make sure the parent directory exists
+    os.makedirs(os.path.dirname(integration_path), exist_ok=True)
+    
     # Use git clone --depth 1 to get only latest commit
     try:
+        # Clone the repository directly to the integration directory
         subprocess.run(
-            ["git", "clone", "--depth", "1", auth_url, destination_path],
+            ["git", "clone", "--depth", "1", auth_url, integration_path],
             check=True,
             capture_output=True
         )

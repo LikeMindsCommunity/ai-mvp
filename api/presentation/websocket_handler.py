@@ -36,6 +36,7 @@ MSG_GET_PROJECT_CONVERSATIONS = "GetProjectConversations"
 MSG_GENERATE_CODE = "GenerateCode"
 MSG_GENERATE_CONVERSATION = "GenerateConversation"
 MSG_FIX_CODE = "FixCode"
+MSG_RUN_PREVIEW = "RunPreview"  # New message type for running Flutter preview
 
 # Response types
 RESP_ERROR = "Error"
@@ -62,7 +63,8 @@ class WebSocketHandler:
             MSG_GET_PROJECT_CONVERSATIONS: self._handle_get_project_conversations,
             MSG_GENERATE_CODE: self._handle_generate_code,
             MSG_GENERATE_CONVERSATION: self._handle_generate_conversation,
-            MSG_FIX_CODE: self._handle_fix_code
+            MSG_FIX_CODE: self._handle_fix_code,
+            MSG_RUN_PREVIEW: self._handle_run_preview  # New handler for running preview
         }
     
     async def send_json_response(self, websocket: WebSocket, response_type: str, value: Any) -> bool:
@@ -448,6 +450,62 @@ class WebSocketHandler:
             logger.error(f"Error fixing code: {str(e)}")
         
         return context
+    
+    async def _handle_run_preview(self, websocket: WebSocket, message: Dict[str, Any], 
+                                 context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle run preview message."""
+        try:
+            # Get the project directory
+            project_id = context["project_id"]
+            project_root = os.path.join("output", project_id)
+            
+            # First, notify client that we're starting the preview
+            await self.send_json_response(
+                websocket,
+                RESP_TEXT,
+                f"Starting Flutter preview for project {project_id}..."
+            )
+            
+            # Check if the project directory exists
+            if not os.path.exists(project_root):
+                await self.send_json_response(
+                    websocket,
+                    RESP_ERROR,
+                    f"Project directory not found: {project_root}"
+                )
+                return context
+                
+            # Determine the proper directory to run from
+            run_dir = project_root
+            if os.path.exists(os.path.join(project_root, "generation")):
+                run_dir = os.path.join(project_root, "generation")
+            elif os.path.exists(os.path.join(project_root, "integration")):
+                run_dir = os.path.join(project_root, "integration")
+            
+            # Check if the directory contains a Flutter project
+            if not os.path.exists(os.path.join(run_dir, "pubspec.yaml")):
+                await self.send_json_response(
+                    websocket,
+                    RESP_ERROR,
+                    f"Not a valid Flutter project directory: {run_dir}"
+                )
+                return context
+            
+            # For now, just confirm we found the directory - we'll implement the actual preview later
+            await self.send_json_response(
+                websocket,
+                RESP_SUCCESS,
+                f"Flutter project found at {run_dir}. Preview functionality will be implemented in a future update."
+            )
+            
+            return context
+        except Exception as e:
+            await self.send_json_response(
+                websocket,
+                RESP_ERROR,
+                f"Error running Flutter preview: {str(e)}"
+            )
+            return context
     
     async def handle_websocket(self, websocket: WebSocket, token: str, project_id: str):
         """

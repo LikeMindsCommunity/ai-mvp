@@ -34,6 +34,40 @@ class FlutterCodeManager:
         self.project_dir = self._create_project_dir()
         self.generations_dir = self._create_generations_dir()
         self.integration_path = os.path.join(self.project_dir, "integration")
+        # Initialize integration directory immediately
+        self._setup_integration_dir()
+        
+        # Properties for existing project mode
+        self.is_existing_project = False
+        self.existing_project_code = None
+        self.existing_project_analysis = None
+    
+    def set_existing_project_mode(self, is_existing_project: bool) -> None:
+        """
+        Set whether this is an existing project or new project mode.
+        
+        Args:
+            is_existing_project (bool): True if working with an existing project
+        """
+        self.is_existing_project = is_existing_project
+        
+    def set_existing_project_code(self, code: str) -> None:
+        """
+        Set the existing project code for reference.
+        
+        Args:
+            code (str): The ingested code from the existing project
+        """
+        self.existing_project_code = code
+        
+    def set_existing_project_analysis(self, analysis: str) -> None:
+        """
+        Set the analysis of the existing project.
+        
+        Args:
+            analysis (str): The analysis text from the conversation manager
+        """
+        self.existing_project_analysis = analysis
     
     def _create_project_dir(self) -> str:
         """
@@ -68,8 +102,8 @@ class FlutterCodeManager:
         # Create integration directory within project directory
         integration_dir = os.path.join(self.project_dir, "integration")
         
-        # Skip if already set up
-        if os.path.exists(integration_dir):
+        # Skip if already set up (check for pubspec.yaml to verify it's a valid Flutter project)
+        if os.path.exists(os.path.join(integration_dir, 'pubspec.yaml')):
             return integration_dir
             
         # Create the directory
