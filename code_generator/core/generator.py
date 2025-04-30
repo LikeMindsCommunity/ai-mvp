@@ -113,20 +113,25 @@ class CodeGenerator:
             SDK Code Reference:
             {sdk_code}
 
-            IMPORTANT RESPONSE FORMAT:
-            - Return ONLY a valid JSON object
-            - The response must be a single, valid JSON object on ONE LINE
-            - Do NOT include any markdown formatting, code blocks, or explanations
-            - Do not include any line breaks or newlines in the JSON
-            - CRITICAL: All special characters in string content must be properly escaped:
-              * Newlines must be escaped as \\n
-              * Double quotes must be escaped as \\"
-              * Backslashes must be escaped as \\\\
-              * Tabs must be escaped as \\t
-            - Do not include any trailing commas
-            - Ensure all strings are properly quoted with double quotes
-            - Do not include any comments in the JSON
-            - The entire response should be on a single line with no line breaks
+            CRITICAL JSON FORMATTING RULES:
+            1. The response must be a single, valid JSON object on ONE LINE
+            2. All special characters in string content must be properly escaped:
+               * Newlines must be escaped as \\n
+               * Double quotes must be escaped as \\"
+               * Backslashes must be escaped as \\\\
+               * Tabs must be escaped as \\t
+               * Any other special characters must be properly escaped
+            3. For XML content:
+               * All XML attributes must have their quotes escaped
+               * All XML tags must have their angle brackets escaped
+               * All XML content must be on a single line with escaped newlines
+               * Example: "<vector xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:width=\\"108dp\\"\\n    android:height=\\"108dp\\"\\n    android:viewportWidth=\\"108\\"\\n    android:viewportHeight=\\"108\\">"
+            4. Do not include any trailing commas
+            5. Ensure all strings are properly quoted with double quotes
+            6. Do not include any comments in the JSON
+            7. The entire response should be on a single line with no line breaks
+            8. Do not include any markdown formatting or code blocks
+            9. Do not include any whitespace between JSON elements except for readability in the example
 
             Return a JSON object with the following structure:
             {{
@@ -144,6 +149,10 @@ class CodeGenerator:
                     {{
                         "path": "app/src/main/java/com/example/socialfeedapp/MainActivity.kt",
                         "content": "package com.example.socialfeedapp\\n\\nimport com.likeminds.feed.android.core.LMFeedCore\\n..."
+                    }},
+                    {{
+                        "path": "app/src/main/res/layout/activity_main.xml",
+                        "content": "<?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\n<FrameLayout xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:layout_width=\\"match_parent\\"\\n    android:layout_height=\\"match_parent\\">\\n</FrameLayout>"
                     }}
                 ]
             }}"""
@@ -181,6 +190,7 @@ class CodeGenerator:
         12. Don't use View binding in any xml file
         13. Do not generate any font files
         14. Do not add any logging, debugging, or error handling code unless it is explicitly shown in the SDK code reference. This includes Log statements, TAG constants, try-catch blocks, and any other debugging or error handling code.
+        15. Use Theme.Material3.Light.NoActionBar as the parent theme for the app
 
         Documentation Reference:
         {documentation}
@@ -192,22 +202,25 @@ class CodeGenerator:
         - Username: {self.settings.default_username}
         - API Key: {self.settings.default_api_key}
 
-        IMPORTANT RESPONSE FORMAT:
-        - Return ONLY a valid JSON object
-        - Do NOT include any markdown formatting, code blocks, or explanations
-        - The response must be a single, valid JSON object
-        - Do not include any line breaks or newlines in the JSON
-        - CRITICAL: All special characters in string content must be properly escaped:
-          * Newlines must be double-escaped as \\n
-          * Quotes must be escaped as \\"
-          * Backslashes must be escaped as \\\\
-          * Tabs must be escaped as \\t
-          * Any other special characters must be properly escaped
-        - Do not include any trailing commas
-        - Ensure all strings are properly quoted with double quotes
-        - Do not include any comments in the JSON
-        - The entire response should be on a single line
-        - Do not include any whitespace between JSON elements except for readability in the example
+        CRITICAL JSON FORMATTING RULES:
+        1. The response must be a single, valid JSON object on ONE LINE
+        2. All special characters in string content must be properly escaped:
+           * Newlines must be escaped as \\n
+           * Double quotes must be escaped as \\"
+           * Backslashes must be escaped as \\\\
+           * Tabs must be escaped as \\t
+           * Any other special characters must be properly escaped
+        3. For XML content:
+           * All XML attributes must have their quotes escaped
+           * All XML tags must have their angle brackets escaped
+           * All XML content must be on a single line with escaped newlines
+           * Example: "<vector xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:width=\\"108dp\\"\\n    android:height=\\"108dp\\"\\n    android:viewportWidth=\\"108\\"\\n    android:viewportHeight=\\"108\\">"
+        4. Do not include any trailing commas
+        5. Ensure all strings are properly quoted with double quotes
+        6. Do not include any comments in the JSON
+        7. The entire response should be on a single line with no line breaks
+        8. Do not include any markdown formatting or code blocks
+        9. Do not include any whitespace between JSON elements except for readability in the example
 
         Return a JSON object with the following structure:
         {{
@@ -231,6 +244,10 @@ class CodeGenerator:
                 {{
                     "path": "app/src/main/java/com/example/socialfeedapp/MainActivity.kt",
                     "content": "package com.example.socialfeedapp\\n\\nimport com.likeminds.feed.android.core.LMFeedCore\\n..."
+                }},
+                {{
+                    "path": "app/src/main/res/layout/activity_main.xml",
+                    "content": "<?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\n<FrameLayout xmlns:android=\\"http://schemas.android.com/apk/res/android\\"\\n    android:layout_width=\\"match_parent\\"\\n    android:layout_height=\\"match_parent\\">\\n</FrameLayout>"
                 }}
             ]
         }}"""
