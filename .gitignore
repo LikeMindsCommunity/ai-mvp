@@ -39,7 +39,3 @@ logs/
 # Environment variables
 .env
 
-# Generated files
-document_parser/single_file/
-document_ingest/local/
-
