@@ -56,8 +56,9 @@ if __name__ == "__main__":
     
     # Check if integration directory exists
     if not os.path.exists('integration'):
-        print("Error: 'integration' directory not found")
-        sys.exit(1)
+        print("Warning: 'integration' directory not found, will be created automatically")
+        # Create a basic integration directory structure
+        os.makedirs('integration/lib', exist_ok=True)
     
     # Create output directory if it doesn't exist
     os.makedirs('output', exist_ok=True)

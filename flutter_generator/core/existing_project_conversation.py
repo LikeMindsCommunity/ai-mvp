@@ -53,23 +53,14 @@ class ExistingProjectConversationManager:
             if os.path.exists(prompt_path):
                 with open(prompt_path, 'r', encoding='utf-8') as prompt_file:
                     prompt_content = prompt_file.read()
-            else:
-                # Fallback prompt if file doesn't exist
-                prompt_content = """You are a helpful Flutter development assistant that analyzes existing Flutter projects and 
-                explains their architecture and functionality. For each request, provide:
-                1. A brief overview of the project structure and architecture
-                2. Key Flutter components and features used in the project
-                3. Suggestions for improvements or enhancements
-                
-                Keep explanations clear, concise and focused on Flutter development best practices."""
             
             with open('docs.txt', 'r', encoding='utf-8') as docs_file:
                 docs_content = docs_file.read()
             
             return [
                 types.Part.from_text(text="""You are a helpful Flutter development assistant that analyzes existing 
-                GitHub project and explains both the current functionality and approaches to extend them.
-                You have access to the full ingested source code and documentation.
+                GitHub project and explains the approaches to extend them by integrating the LikeMinds Flutter Chat SDK.
+                You have access to the full ingested project source code and documentation.
                 Focus on helping users understand the existing codebase and suggesting approaches for new features."""),
                 types.Part.from_text(text=prompt_content),
                 types.Part.from_text(text="""<flutter-docs>

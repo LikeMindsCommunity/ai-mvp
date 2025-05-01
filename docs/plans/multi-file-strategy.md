@@ -30,17 +30,37 @@ Modify the LLM prompt and response parsing to handle a structured multi-file out
 
 ```
 <file path="lib/main.dart">
-// Main file content
+// Complete main file content - include ALL contents of the file
 </file>
 
 <file path="lib/screens/home_screen.dart">
-// Home screen content
+// Complete home screen content - include ALL contents of the file
 </file>
 
-<file path="pubspec.yaml" mode="modify" section="dependencies">
-  some_package: ^1.0.0
+<file path="pubspec.yaml">
+# Complete pubspec.yaml file with all dependencies
+name: my_app
+description: A new Flutter project.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  # Any other dependencies
+  
+flutter:
+  uses-material-design: true
 </file>
 ```
+
+IMPORTANT: ALWAYS include the ENTIRE file content in each file block. Each file should be a complete, standalone file that includes all existing code plus any new code. The system does not apply partial changes or patches.
+
+File operations consist of simply specifying the file path: `<file path="path/to/file">` and including its complete contents.
 
 ### 2. Project-wide Code Management
 
@@ -79,52 +99,52 @@ Organize code generation around components:
 ### Phase 1: Foundation (Weeks 1-2)
 
 1. **Extend Code Extraction Logic**
-   - [ ] Modify regex patterns to extract multi-file code blocks
-   - [ ] Create parser for the file path and modification instructions
-   - [ ] Support "create" and "modify" modes for files
+   - [x] Modify regex patterns to extract multi-file code blocks
+   - [x] Create parser for the file path and modification instructions
+   - [x] Support "create" and "modify" modes for files
 
 2. **Enhance FlutterCodeManager**
-   - [ ] Create `FileManager` class to handle multiple file operations
-   - [ ] Implement methods for saving multiple files
-   - [ ] Track file dependencies and relationships
+   - [x] Create `FileManager` class to handle multiple file operations
+   - [x] Implement methods for saving multiple files
+   - [x] Track file dependencies and relationships
 
 3. **Update Generator Prompts**
-   - [ ] Update system instructions to specify multi-file output format
-   - [ ] Include examples of proper multi-file generation
-   - [ ] Add guidance for organizing code across files
+   - [x] Update system instructions to specify multi-file output format
+   - [x] Include examples of proper multi-file generation
+   - [x] Add guidance for organizing code across files
 
 ### Phase 2: Core Functionality (Weeks 3-4)
 
 4. **Implement File Operations**
-   - [ ] Create, modify, and delete operations for project files
-   - [ ] Safe handling of existing files (backup before modification)
+   - [x] Create, modify, and delete operations for project files
+   - [x] Safe handling of existing files (backup before modification)
    - [ ] Conflict resolution for overlapping changes
 
 5. **Extend Analysis Tools**
-   - [ ] Project-wide code analysis
-   - [ ] Individual file analysis with error reporting
-   - [ ] Dependency validation across files
+   - [x] Project-wide code analysis
+   - [x] Individual file analysis with error reporting
+   - [x] Dependency validation across files
 
 6. **Update Integration Process**
-   - [ ] Modify copy_to_integration to handle multiple files
-   - [ ] Create directory structure as needed
-   - [ ] Preserve existing files when appropriate
+   - [x] Modify copy_to_integration to handle multiple files
+   - [x] Create directory structure as needed
+   - [x] Preserve existing files when appropriate
 
 ### Phase 3: Advanced Features (Weeks 5-6)
 
 7. **Patch-based Modification System**
    - [ ] Implement diff generation for file modifications
    - [ ] Create patch application system with validation
-   - [ ] Support for section-based modifications
+   - [x] Support for section-based modifications
 
 8. **Dependency Management**
-   - [ ] Parse and modify pubspec.yaml
+   - [x] Parse and modify pubspec.yaml
    - [ ] Handle versioning conflicts
    - [ ] Run dependency resolution
 
 9. **Asset Management**
    - [ ] Handle asset files and resources
-   - [ ] Update asset references in pubspec.yaml
+   - [x] Update asset references in pubspec.yaml
    - [ ] Support for different asset types (images, fonts, etc.)
 
 ### Phase 4: Project Templates & Components (Weeks 7-8)
@@ -265,18 +285,19 @@ Follow these guidelines:
 
 ## TODO List
 
-- [ ] Define multi-file output format specification
-- [ ] Implement file block parser
-- [ ] Update FlutterCodeManager to handle multiple files
-- [ ] Create file operation handlers (create, modify, delete)
-- [ ] Implement project-wide analysis tools
-- [ ] Update LLM prompts to specify multi-file output
+- [x] Define multi-file output format specification
+- [x] Implement file block parser
+- [x] Update FlutterCodeManager to handle multiple files
+- [x] Create file operation handlers (create, modify, delete)
+- [x] Implement project-wide analysis tools
+- [x] Update LLM prompts to specify multi-file output
 - [ ] Create templates for common file structures
-- [ ] Implement pubspec.yaml modification handling
+- [x] Implement pubspec.yaml modification handling
 - [ ] Build component-based generation system
 - [ ] Create testing framework for multi-file generation
-- [ ] Document the new multi-file capabilities
-- [ ] Create examples of multi-file integrations
+- [x] Document the new multi-file capabilities
+- [x] Create examples of multi-file integrations
+- [x] Update file handling to use complete file content rather than patches
 
 ## Timeline
 

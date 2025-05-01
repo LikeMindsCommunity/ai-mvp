@@ -46,14 +46,89 @@ class Settings:
         # Create required directories if they don't exist
         os.makedirs(self.output_path, exist_ok=True)
         
-        # Ensure integration directory exists
+        # Ensure integration directory exists, create it if it doesn't
         if not os.path.exists(self.integration_path):
-            raise ValueError(f"Integration directory not found at: {self.integration_path}")
+            print(f"Integration directory not found at: {self.integration_path}, creating a new one")
+            os.makedirs(self.integration_path, exist_ok=True)
             
-        # Validate model name
-        if self.gemini_model not in ["gemini-2.5-pro-preview-03-25"]:
-            raise ValueError("GEMINI_MODEL must be 'gemini-2.5-pro-preview-03-25'")
+            # Create basic Flutter structure
+            lib_dir = os.path.join(self.integration_path, "lib")
+            os.makedirs(lib_dir, exist_ok=True)
             
+            # Create a basic pubspec.yaml file
+            pubspec_path = os.path.join(self.integration_path, "pubspec.yaml")
+            with open(pubspec_path, "w") as f:
+                f.write("""name: flutter_integration
+description: A new Flutter project for integration testing.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+""")
+            
+            # Create a basic main.dart file
+            main_dart_path = os.path.join(lib_dir, "main.dart")
+            with open(main_dart_path, "w") as f:
+                f.write("""import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Integration',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const MyHomePage(title: 'Flutter Integration Home Page'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
+
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: Center(
+        child: const Text('Ready for integration'),
+      ),
+    );
+  }
+}
+""")
+
         # Validate port number
         if not (1024 <= self.web_port <= 65535):
             raise ValueError(f"Invalid web port number: {self.web_port}")

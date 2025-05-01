@@ -204,7 +204,8 @@ class FlutterIntegrationManager:
                 integration_dir = os.path.join(self.root_dir, self.settings.integration_path)
             
             # Ensure we're in the integration directory
-            os.chdir(integration_dir)
+            os.chdir(self.root_dir)
+            os.chdir(integration_dir + "/lib")
             
             # Create or append to the log file
             log_file = os.path.join(self.log_path, "flutter.log")
