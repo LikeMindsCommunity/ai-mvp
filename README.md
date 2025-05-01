@@ -106,6 +106,22 @@ All errors are logged with descriptive messages to help with debugging.
 
 A Python package for generating Android projects using the Gemini model based on documentation.
 
+## Project Setup
+
+1. Clone the repository with submodules:
+```bash
+git clone --recursive https://github.com/LikeMindsCommunity/ai-mvp.git
+```
+
+If you've already cloned the repository without submodules, initialize and update them with:
+```bash
+git submodule init
+git submodule update
+```
+
+This will clone the main repository and set up all required submodules, including:
+- `code_generator/likeminds-feed-android-social-feed-theme`
+
 ## Dependencies
 
 The package requires the following Python packages:
