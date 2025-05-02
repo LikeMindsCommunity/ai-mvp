@@ -31,7 +31,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development - restrict in production
+    allow_origins=["https://ai-mvp-frontend.pages.dev"],  # Specific origin instead of wildcard
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Content-Type", "Authorization", "Accept"],
