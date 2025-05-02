@@ -7,7 +7,7 @@ import json
 import yaml
 from fastapi import FastAPI, WebSocket, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -17,9 +17,6 @@ from api.presentation.users import router as users_router
 from api.presentation.projects import router as projects_router
 from api.presentation.github import router as github_router
 from api.infrastructure.auth import get_current_user
-from api.config import get_settings
-
-settings = get_settings()
 
 # Create FastAPI app with custom OpenAPI URL
 app = FastAPI(
@@ -31,69 +28,15 @@ app = FastAPI(
     openapi_url=None  # Disable default OpenAPI schema
 )
 
-# Add proper CORS middleware with correct settings
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ai-mvp-frontend.pages.dev"],
+    allow_origins=["https://ai-mvp-frontend.pages.dev"],  # Specific origin instead of wildcard
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
-    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
-    expose_headers=["Content-Type", "Authorization"],
-    max_age=1728000,
+    allow_methods=["*"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    expose_headers=["Authorization"],
 )
-
-# Add a catch-all exception handler to ensure CORS headers are present even on errors
-@app.exception_handler(Exception)
-async def universal_exception_handler(request: Request, exc: Exception):
-    """Ensure all error responses include CORS headers"""
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc)},
-        headers={
-            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
-            "Access-Control-Allow-Credentials": "true",
-        },
-    )
-
-# Add a dedicated OPTIONS route handler for all paths
-@app.options("/{path:path}")
-async def options_handler(request: Request, path: str):
-    """Handle all OPTIONS requests explicitly"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "1728000",
-        }
-    )
-
-
-# Add middleware to handle trailing slashes for API endpoints
-@app.middleware("http")
-async def add_trailing_slash_middleware(request: Request, call_next):
-    """Ensure consistent trailing slash behavior for API endpoints"""
-    path = request.url.path
-    
-    # Only process API paths that don't end with a slash
-    if path.startswith("/api/") and not path.endswith("/") and "." not in path.split("/")[-1]:
-        # Skip for OPTIONS requests
-        if request.method == "OPTIONS":
-            return await call_next(request)
-            
-        # Create new URL with trailing slash
-        new_url = str(request.url.replace(path=f"{path}/"))
-        response = RedirectResponse(new_url, status_code=307)
-        
-        # Add CORS headers to the redirect
-        response.headers["Access-Control-Allow-Origin"] = "https://ai-mvp-frontend.pages.dev"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        
-        return response
-        
-    return await call_next(request)
 
 # Try to mount static files directory for SwaggerUI
 try:
@@ -255,27 +198,6 @@ async def get_integration_tester():
             return HTMLResponse(content=html_content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading Integration tester: {str(e)}")
-
-# Add specific GET route for /api/projects without trailing slash to avoid 405 errors
-@app.get("/api/projects")
-async def get_projects_redirect():
-    """Redirect GET requests from /api/projects to /api/projects/ to avoid 405 errors"""
-    return RedirectResponse(url="/api/projects/", status_code=307)
-
-@app.post("/api/projects")
-async def post_projects_redirect(request: Request):
-    """Redirect POST requests from /api/projects to /api/projects/ to avoid 405 errors"""
-    return RedirectResponse(url="/api/projects/", status_code=307)
-
-@app.put("/api/projects/{project_id}")
-async def put_project_redirect(project_id: str):
-    """Redirect PUT requests for project updates to avoid 405 errors"""
-    return RedirectResponse(url=f"/api/projects/{project_id}/", status_code=307)
-
-@app.delete("/api/projects/{project_id}")
-async def delete_project_redirect(project_id: str):
-    """Redirect DELETE requests for project deletion to avoid 405 errors"""
-    return RedirectResponse(url=f"/api/projects/{project_id}/", status_code=307)
 
 def start(reload=True):
     """Start the FastAPI application with Uvicorn."""
