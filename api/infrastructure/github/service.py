@@ -95,9 +95,10 @@ async def get_installation_url(user_id: str, redirect_url: Optional[str] = None)
     
     url = f"https://github.com/apps/{slug}/installations/new"
     
-    # Add redirect URL if provided
+    # Add redirect URL as a state parameter if provided
+    # GitHub uses 'state' parameter for redirects after installation
     if redirect_url:
-        url += f"?redirect_uri={redirect_url}"
+        url += f"?state={redirect_url}"
     
     return url
 
