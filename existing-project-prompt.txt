@@ -63,6 +63,13 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.2
   # Add any additional dependencies here
+
+  #For LikeMinds SDK, MAKE SURE TO ALWAYS SUGGEST THIS VERSION ONLY
+  likeminds_chat_flutter_core: ^0.17.0
+
+#MAKE SURE TO ALWAYS SUGGEST THIS PART TOO, as it is necessary for LikeMinds SDK
+dependency_overrides:
+  extended_text_field: ^16.0.0
   
 flutter:
   uses-material-design: true
