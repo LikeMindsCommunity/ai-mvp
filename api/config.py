@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24  # 1 day
     
     # API settings
-    api_url: str = Field(default=os.getenv("API_URL", "http://localhost:8000"))
+    api_url: str = Field(default=os.getenv("API_URL", "https://ai-mvp-flutter.likeminds.community"))
     google_api_key: str = Field(default=os.getenv("GOOGLE_API_KEY", ""))
     gemini_model: str = Field(default=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-exp-03-25"))
     

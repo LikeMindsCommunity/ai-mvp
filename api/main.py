@@ -7,7 +7,7 @@ import json
 import yaml
 from fastapi import FastAPI, WebSocket, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -17,6 +17,9 @@ from api.presentation.users import router as users_router
 from api.presentation.projects import router as projects_router
 from api.presentation.github import router as github_router
 from api.infrastructure.auth import get_current_user
+from api.config import get_settings
+
+settings = get_settings()
 
 # Create FastAPI app with custom OpenAPI URL
 app = FastAPI(
@@ -37,6 +40,35 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "Accept"],
     expose_headers=["Authorization"],
 )
+
+# Add middleware to redirect HTTP to HTTPS and fix Location headers
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    """Redirect HTTP requests to HTTPS and fix Location headers in responses"""
+    # Skip for local development
+    host = request.headers.get("host", "")
+    if "localhost" in host or "127.0.0.1" in host:
+        response = await call_next(request)
+        return response
+    
+    # Use HTTPS for production domains
+    if "ai-mvp-flutter.likeminds.community" in host:
+        # If not already HTTPS, redirect
+        if request.url.scheme != "https" and request.headers.get("x-forwarded-proto") != "https":
+            https_url = request.url.replace(scheme="https")
+            return RedirectResponse(str(https_url), status_code=301)
+        
+    # Process the request
+    response = await call_next(request)
+    
+    # Check if response contains a Location header
+    if "location" in response.headers:
+        location = response.headers["location"]
+        # If Location points to our domain but uses HTTP, replace with HTTPS
+        if "ai-mvp-flutter.likeminds.community" in location and location.startswith("http:"):
+            response.headers["location"] = location.replace("http:", "https:")
+    
+    return response
 
 # Try to mount static files directory for SwaggerUI
 try:

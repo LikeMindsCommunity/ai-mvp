@@ -151,7 +151,7 @@ class HomeScreen extends StatelessWidget {
 </file>
 
 <file path="pubspec.yaml">
-likeminds_chat_flutter_core: ^0.17.0
+likeminds_chat_flutter_core: ^1.0.0
 
 # MAKE SURE TO ALWAYS ADD THIS
 dependency_overrides:
