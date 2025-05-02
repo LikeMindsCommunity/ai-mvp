@@ -7,7 +7,7 @@ import json
 import yaml
 from fastapi import FastAPI, WebSocket, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -37,14 +37,39 @@ app.add_middleware(
     allow_origins=["https://ai-mvp-frontend.pages.dev"],  # Specific origin instead of wildcard
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
+    allow_headers=["*"],  # Allow all headers in preflight requests
     expose_headers=["Authorization"],
+    allow_origin_regex=None,  # No regex patterns
+    max_age=600,  # Cache preflight results for 10 minutes
 )
+
+# Add middleware to handle preflight requests without redirecting
+@app.middleware("http") 
+async def preflight_middleware(request: Request, call_next):
+    """Handle preflight OPTIONS requests specially to avoid redirects"""
+    # Special handling for preflight (OPTIONS) requests
+    if request.method == "OPTIONS":
+        # Create a custom response for preflight requests
+        headers = {
+            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",  # 10 minutes
+        }
+        return Response(status_code=200, headers=headers)
+    
+    # For non-OPTIONS requests, continue to the next middleware
+    return await call_next(request)
 
 # Add middleware to redirect HTTP to HTTPS and fix Location headers
 @app.middleware("http")
 async def https_redirect_middleware(request: Request, call_next):
     """Redirect HTTP requests to HTTPS and fix Location headers in responses"""
+    # Skip for preflight requests to avoid conflicting with the preflight middleware
+    if request.method == "OPTIONS":
+        return await call_next(request)
+        
     # Skip for local development
     host = request.headers.get("host", "")
     if "localhost" in host or "127.0.0.1" in host:
@@ -61,7 +86,7 @@ async def https_redirect_middleware(request: Request, call_next):
     # Process the request
     response = await call_next(request)
     
-    # Check if response contains a Location header
+    # Fix Location headers for both normal redirects and GitHub redirects
     if "location" in response.headers:
         location = response.headers["location"]
         # If Location points to our domain but uses HTTP, replace with HTTPS
