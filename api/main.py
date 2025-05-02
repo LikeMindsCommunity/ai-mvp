@@ -31,57 +31,56 @@ app = FastAPI(
     openapi_url=None  # Disable default OpenAPI schema
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://ai-mvp-frontend.pages.dev"],  # Specific origin instead of wildcard
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],  # Allow all headers in preflight requests
-    expose_headers=["Authorization"],
-    allow_origin_regex=None,  # No regex patterns
-    max_age=600,  # Cache preflight results for 10 minutes
-)
-
-# Add middleware to handle preflight requests without redirecting
-@app.middleware("http") 
-async def preflight_middleware(request: Request, call_next):
-    """Handle preflight OPTIONS requests specially to avoid redirects"""
-    # Special handling for preflight (OPTIONS) requests
-    if request.method == "OPTIONS":
-        # Create a custom response for preflight requests
-        headers = {
-            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "600",  # 10 minutes
-        }
-        return Response(status_code=200, headers=headers)
+# Add middleware to add CORS headers to all responses
+@app.middleware("http")
+async def add_cors_headers_middleware(request: Request, call_next):
+    """Add CORS headers to all responses"""
+    # Process the request first
+    response = await call_next(request)
     
-    # For non-OPTIONS requests, continue to the next middleware
-    return await call_next(request)
+    # Add CORS headers to all responses
+    response.headers["Access-Control-Allow-Origin"] = "https://ai-mvp-frontend.pages.dev"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With"
+    
+    # If it's an OPTIONS request, ensure it returns 200
+    if request.method == "OPTIONS":
+        # For preflight requests, return 200 status
+        # Create a new response with the proper status code
+        return Response(
+            status_code=200,
+            headers=dict(response.headers)
+        )
+        
+    return response
 
 # Add middleware to redirect HTTP to HTTPS and fix Location headers
 @app.middleware("http")
 async def https_redirect_middleware(request: Request, call_next):
     """Redirect HTTP requests to HTTPS and fix Location headers in responses"""
-    # Skip for preflight requests to avoid conflicting with the preflight middleware
+    # Skip for preflight requests to avoid conflicting with the CORS middleware
     if request.method == "OPTIONS":
         return await call_next(request)
         
     # Skip for local development
     host = request.headers.get("host", "")
     if "localhost" in host or "127.0.0.1" in host:
-        response = await call_next(request)
-        return response
+        return await call_next(request)
     
     # Use HTTPS for production domains
     if "ai-mvp-flutter.likeminds.community" in host:
         # If not already HTTPS, redirect
         if request.url.scheme != "https" and request.headers.get("x-forwarded-proto") != "https":
+            # Create HTTPS URL
             https_url = request.url.replace(scheme="https")
-            return RedirectResponse(str(https_url), status_code=301)
+            
+            # Create redirect response with CORS headers
+            response = RedirectResponse(str(https_url), status_code=301)
+            response.headers["Access-Control-Allow-Origin"] = "https://ai-mvp-frontend.pages.dev"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            
+            return response
         
     # Process the request
     response = await call_next(request)
