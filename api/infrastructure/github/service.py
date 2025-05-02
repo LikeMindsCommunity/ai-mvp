@@ -97,7 +97,7 @@ async def get_installation_url(user_id: str, redirect_url: Optional[str] = None)
     
     # Add redirect URL if provided
     if redirect_url:
-        url += f"?state={redirect_url}"
+        url += f"?redirect_uri={redirect_url}"
     
     return url
 
