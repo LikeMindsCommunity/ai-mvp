@@ -31,35 +31,50 @@ app = FastAPI(
     openapi_url=None  # Disable default OpenAPI schema
 )
 
-# Add middleware to add CORS headers to all responses
-@app.middleware("http")
-async def add_cors_headers_middleware(request: Request, call_next):
-    """Add CORS headers to all responses"""
-    # Process the request first
-    response = await call_next(request)
-    
-    # Add CORS headers to all responses
-    response.headers["Access-Control-Allow-Origin"] = "https://ai-mvp-frontend.pages.dev"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With"
-    
-    # If it's an OPTIONS request, ensure it returns 200
-    if request.method == "OPTIONS":
-        # For preflight requests, return 200 status
-        # Create a new response with the proper status code
-        return Response(
-            status_code=200,
-            headers=dict(response.headers)
-        )
-        
-    return response
+# Add proper CORS middleware with correct settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://ai-mvp-frontend.pages.dev"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=1728000,
+)
+
+# Add a catch-all exception handler to ensure CORS headers are present even on errors
+@app.exception_handler(Exception)
+async def universal_exception_handler(request: Request, exc: Exception):
+    """Ensure all error responses include CORS headers"""
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+        headers={
+            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
+
+# Add a dedicated OPTIONS route handler for all paths
+@app.options("/{path:path}")
+async def options_handler(request: Request, path: str):
+    """Handle all OPTIONS requests explicitly"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "1728000",
+        }
+    )
 
 # Add middleware to redirect HTTP to HTTPS and fix Location headers
 @app.middleware("http")
 async def https_redirect_middleware(request: Request, call_next):
     """Redirect HTTP requests to HTTPS and fix Location headers in responses"""
-    # Skip for preflight requests to avoid conflicting with the CORS middleware
+    # Skip for OPTIONS requests
     if request.method == "OPTIONS":
         return await call_next(request)
         
