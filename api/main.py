@@ -7,7 +7,7 @@ import json
 import yaml
 from fastapi import FastAPI, WebSocket, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -17,9 +17,6 @@ from api.presentation.users import router as users_router
 from api.presentation.projects import router as projects_router
 from api.presentation.github import router as github_router
 from api.infrastructure.auth import get_current_user
-from api.config import get_settings
-
-settings = get_settings()
 
 # Create FastAPI app with custom OpenAPI URL
 app = FastAPI(
@@ -31,83 +28,15 @@ app = FastAPI(
     openapi_url=None  # Disable default OpenAPI schema
 )
 
-# Add proper CORS middleware with correct settings
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ai-mvp-frontend.pages.dev"],
+    allow_origins=["https://ai-mvp-frontend.pages.dev"],  # Specific origin instead of wildcard
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=1728000,
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    expose_headers=["Authorization"],
 )
-
-# Add a catch-all exception handler to ensure CORS headers are present even on errors
-@app.exception_handler(Exception)
-async def universal_exception_handler(request: Request, exc: Exception):
-    """Ensure all error responses include CORS headers"""
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc)},
-        headers={
-            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
-            "Access-Control-Allow-Credentials": "true",
-        },
-    )
-
-# Add a dedicated OPTIONS route handler for all paths
-@app.options("/{path:path}")
-async def options_handler(request: Request, path: str):
-    """Handle all OPTIONS requests explicitly"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "https://ai-mvp-frontend.pages.dev",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "1728000",
-        }
-    )
-
-# Add middleware to redirect HTTP to HTTPS and fix Location headers
-@app.middleware("http")
-async def https_redirect_middleware(request: Request, call_next):
-    """Redirect HTTP requests to HTTPS and fix Location headers in responses"""
-    # Skip for OPTIONS requests
-    if request.method == "OPTIONS":
-        return await call_next(request)
-        
-    # Skip for local development
-    host = request.headers.get("host", "")
-    if "localhost" in host or "127.0.0.1" in host:
-        return await call_next(request)
-    
-    # Use HTTPS for production domains
-    if "ai-mvp-flutter.likeminds.community" in host:
-        # If not already HTTPS, redirect
-        if request.url.scheme != "https" and request.headers.get("x-forwarded-proto") != "https":
-            # Create HTTPS URL
-            https_url = request.url.replace(scheme="https")
-            
-            # Create redirect response with CORS headers
-            response = RedirectResponse(str(https_url), status_code=301)
-            response.headers["Access-Control-Allow-Origin"] = "https://ai-mvp-frontend.pages.dev"
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            
-            return response
-        
-    # Process the request
-    response = await call_next(request)
-    
-    # Fix Location headers for both normal redirects and GitHub redirects
-    if "location" in response.headers:
-        location = response.headers["location"]
-        # If Location points to our domain but uses HTTP, replace with HTTPS
-        if "ai-mvp-flutter.likeminds.community" in location and location.startswith("http:"):
-            response.headers["location"] = location.replace("http:", "https:")
-    
-    return response
 
 # Try to mount static files directory for SwaggerUI
 try:
