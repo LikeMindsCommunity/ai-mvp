@@ -30,14 +30,40 @@ async def create_project(name: str, description: Optional[str] = None, jwt: str 
         # Explicitly set the auth header with JWT
         client.postgrest.auth(jwt)
         
-        # Create the project
-        data = client.from_('projects').insert({
-            'owner_id': user_id,
-            'name': name,
-            'description': description
-        }).execute()
-        
-        return data
+        # Create the project with explicit timeout and retry handling
+        try:
+            data = client.from_('projects').insert({
+                'owner_id': user_id,
+                'name': name,
+                'description': description
+            }).execute()
+            return data
+        except httpx.HTTPStatusError as e:
+            # Handle specific HTTP status errors
+            status_code = e.response.status_code
+            if status_code == 307:
+                # Handle redirect explicitly by following it once
+                location = e.response.headers.get("Location")
+                if location:
+                    with httpx.Client() as client:
+                        resp = client.post(
+                            location,
+                            json={'owner_id': user_id, 'name': name, 'description': description},
+                            headers={'Authorization': f'Bearer {jwt}'}
+                        )
+                        resp.raise_for_status()
+                        return resp.json()
+                else:
+                    raise ValueError(f"Redirect occurred without a location header: {e}")
+            elif status_code >= 400:
+                # Handle authentication or client errors
+                raise ValueError(f"Server error ({status_code}): {e.response.text}")
+            else:
+                raise ValueError(f"Unexpected HTTP status: {status_code}")
+        except httpx.RequestError as e:
+            # Handle network/connection errors
+            raise ValueError(f"Request error: {str(e)}")
+            
     except httpx.HTTPStatusError as e:
         raise ValueError(f"Project creation error: {str(e)}")
     except Exception as e:

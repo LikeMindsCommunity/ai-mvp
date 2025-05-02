@@ -11,7 +11,7 @@ from api.infrastructure.auth import get_current_user
 from api.domain.projects.models import ProjectCreate, ProjectUpdate, ProjectShare
 from api.presentation.exceptions import APIException
 
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/api/projects", tags=["projects"], redirect_slashes=False)
 
 @router.post("/", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_project(
