@@ -124,7 +124,7 @@ class HomeScreen extends StatelessWidget {
         child: ElevatedButton(
           onPressed: () async {
             // initiate user session with apiKey, uuid and userName
-            // this is required to show the chat. Make sure to use these test credentials in the output.
+            // this is required to show the chat. MAKE SURE TO ALWAYS USE THESE CREDENTIAL FOR OUTPUT.
             LMResponse<void> response =
                 await LMChatCore.instance.showChatWithApiKey(
               apiKey: "83c8f0ed-a9e2-4634-9a2e-d9c7a1e39ff8",
@@ -151,7 +151,7 @@ class HomeScreen extends StatelessWidget {
 </file>
 
 <file path="pubspec.yaml">
-likeminds_chat_flutter_core: ^1.0.0
+likeminds_chat_flutter_core: ^0.17.0 #MAKE SURE TO ALWAYS USE THIS VERSION
 
 # MAKE SURE TO ALWAYS ADD THIS
 dependency_overrides:
