@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flutter Integration Assistant - API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .response-log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        h3 {
+            margin-top: 0;
+        }
+
+        .token-display {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .token-display.expanded {
+            white-space: normal;
+            word-break: break-all;
+        }
+
+        .token-display .tooltip-text {
+            visibility: hidden;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+        }
+
+        .token-display:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .truncate-token {
+            position: relative;
+        }
+
+        .truncate-token .token-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+            display: inline-block;
+        }
+
+        .truncate-token .copy-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .token-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        .token-actions button {
+            font-size: 10px;
+            padding: 3px 8px;
+        }
+
+        .oauth-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Flutter Integration Assistant - API Tester</h1>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" data-tab="auth">Authentication</div>
+            <div class="tab" data-tab="profile">User Profile</div>
+            <div class="tab" data-tab="projects">Projects</div>
+            <div class="tab" data-tab="websocket">WebSocket</div>
+        </div>
+
+        <!-- Authentication Tab -->
+        <div id="auth" class="tab-content active">
+            <h2>Authentication API</h2>
+            <div class="form-group">
+                <label for="authBaseUrl">Base URL:</label>
+                <input type="text" id="authBaseUrl" value="http://localhost:8000" />
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h3>Register</h3>
+                    <div class="form-group">
+                        <label for="register-email">Email:</label>
+                        <input type="email" id="register-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password:</label>
+                        <input type="password" id="register-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-name">Full Name:</label>
+                        <input type="text" id="register-name" required>
+                    </div>
+                    <button id="registerBtn">Register</button>
+
+                    <h3>Login</h3>
+                    <div class="form-group">
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" />
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password:</label>
+                        <input type="password" id="loginPassword" />
+                    </div>
+                    <button id="loginBtn">Login</button>
+
+                    <h3>Logout</h3>
+                    <button id="logoutBtn">Logout</button>
+
+                    <h3>Token Management</h3>
+                    <button id="refreshTokenBtn">Refresh Token</button>
+
+                    <h3>Password Management</h3>
+                    <div class="form-group">
+                        <label for="resetPasswordEmail">Email for password reset:</label>
+                        <input type="email" id="resetPasswordEmail" />
+                    </div>
+                    <button id="resetPasswordBtn">Request Password Reset</button>
+
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password:</label>
+                        <input type="password" id="currentPassword" />
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" />
+                    </div>
+                    <button id="changePasswordBtn">Change Password</button>
+
+                    <h3>Current Token</h3>
+                    <div id="tokenDisplayContainer">
+                        <div id="tokenDisplay" onclick="toggleTokenDisplay(this)" class="token-display">No token
+                            <span class="tooltip-text">Click to expand/collapse</span>
+                        </div>
+                        <div class="token-actions">
+                            <button id="copyTokenBtn" disabled>Copy Token</button>
+                            <button id="clearTokenBtn">Clear Token</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3>Response Log</h3>
+                    <div id="authResponseLog" class="response-log"></div>
+                    <button id="clearAuthLogBtn">Clear Log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Profile Tab -->
+        <div id="profile" class="tab-content">
+            <h2>User Profile API</h2>
+            <div class="form-group">
+                <label for="profileBaseUrl">Base URL:</label>
+                <input type="text" id="profileBaseUrl" value="http://localhost:8000" />
+            </div>
+
+            <div class="form-group">
+                <label>Authentication Status:</label>
+                <div id="profileAuthStatus" class="status-indicator" style="background-color: #f8d7da;">Not
+                    Authenticated</div>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h3>Get Profile</h3>
+                    <button id="getProfileBtn">Get My Profile</button>
+
+                    <h3>Update Profile</h3>
+                    <div class="form-group">
+                        <label for="updateFullName">Full Name:</label>
+                        <input type="text" id="updateFullName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="updateAvatarUrl">Avatar URL:</label>
+                        <input type="text" id="updateAvatarUrl" />
+                    </div>
+                    <div class="form-group">
+                        <label for="updatePreferences">Preferences (JSON):</label>
+                        <textarea id="updatePreferences" rows="4"></textarea>
+                    </div>
+                    <button id="updateProfileBtn">Update Profile</button>
+                </div>
+
+                <div>
+                    <h3>Response Log</h3>
+                    <div id="profileResponseLog" class="response-log"></div>
+                    <button id="clearProfileLogBtn">Clear Log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Tab -->
+        <div id="projects" class="tab-content">
+            <h2>Projects API</h2>
+            <div class="form-group">
+                <label for="projectsBaseUrl">Base URL:</label>
+                <input type="text" id="projectsBaseUrl" value="http://localhost:8000" />
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h3>Create Project</h3>
+                    <div class="form-group">
+                        <label for="createProjectName">Name:</label>
+                        <input type="text" id="createProjectName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="createProjectDescription">Description:</label>
+                        <textarea id="createProjectDescription" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="createProjectSettings">Settings (JSON):</label>
+                        <textarea id="createProjectSettings" rows="3"></textarea>
+                    </div>
+                    <button id="createProjectBtn">Create Project</button>
+
+                    <h3>Get Projects</h3>
+                    <button id="getProjectsBtn">Get All Projects</button>
+
+                    <h3>Get Project</h3>
+                    <div class="form-group">
+                        <label for="getProjectId">Project ID:</label>
+                        <input type="text" id="getProjectId" />
+                    </div>
+                    <button id="getProjectBtn">Get Project</button>
+
+                    <h3>Update Project</h3>
+                    <div class="form-group">
+                        <label for="updateProjectId">Project ID:</label>
+                        <input type="text" id="updateProjectId" />
+                    </div>
+                    <div class="form-group">
+                        <label for="updateProjectName">Name:</label>
+                        <input type="text" id="updateProjectName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="updateProjectDescription">Description:</label>
+                        <textarea id="updateProjectDescription" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="updateProjectSettings">Settings (JSON):</label>
+                        <textarea id="updateProjectSettings" rows="3"></textarea>
+                    </div>
+                    <button id="updateProjectBtn">Update Project</button>
+
+                    <h3>Delete Project</h3>
+                    <div class="form-group">
+                        <label for="deleteProjectId">Project ID:</label>
+                        <input type="text" id="deleteProjectId" />
+                    </div>
+                    <button id="deleteProjectBtn">Delete Project</button>
+
+                    <h3>Share Project</h3>
+                    <div class="form-group">
+                        <label for="shareProjectId">Project ID:</label>
+                        <input type="text" id="shareProjectId" />
+                    </div>
+                    <div class="form-group">
+                        <label for="shareUserEmail">User Email:</label>
+                        <input type="email" id="shareUserEmail" />
+                    </div>
+                    <div class="form-group">
+                        <label for="shareRole">Role:</label>
+                        <select id="shareRole">
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button id="shareProjectBtn">Share Project</button>
+                </div>
+
+                <div>
+                    <h3>Response Log</h3>
+                    <div id="projectsResponseLog" class="response-log"></div>
+                    <button id="clearProjectsLogBtn">Clear Log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- WebSocket Tab -->
+        <div id="websocket" class="tab-content">
+            <h2>WebSocket API</h2>
+            <div class="grid">
+                <div>
+                    <div class="form-group">
+                        <label for="wsBaseUrl">WebSocket URL:</label>
+                        <input type="text" id="wsBaseUrl" value="ws://localhost:8000/api/flutter" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wsToken">Access Token:</label>
+                        <div class="token-display" id="wsTokenDisplay">No token</div>
+                        <input type="hidden" id="wsToken" />
+                        <button id="useStoredTokenBtn">Use Stored Token</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wsProjectId">Project ID:</label>
+                        <input type="text" id="wsProjectId" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Connection Status: <span id="wsStatus" class="status-indicator"
+                                style="background-color: #f8d7da;">Disconnected</span></label>
+                    </div>
+
+                    <button id="wsConnectBtn">Connect</button>
+                    <button id="wsDisconnectBtn" disabled>Disconnect</button>
+
+                    <h3>Send Message</h3>
+                    <div class="form-group">
+                        <label for="wsRequestType">Request Type:</label>
+                        <select id="wsRequestType">
+                            <option value="GenerateCode">Generate Code</option>
+                            <option value="GenerateConversation">Generate Conversation</option>
+                            <option value="FixCode">Fix Code</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wsUserQuery">User Query:</label>
+                        <textarea id="wsUserQuery" rows="3"></textarea>
+                    </div>
+
+                    <div id="wsErrorMessageContainer" class="form-group" style="display: none;">
+                        <label for="wsErrorMessage">Error Message:</label>
+                        <textarea id="wsErrorMessage" rows="3"></textarea>
+                    </div>
+
+                    <button id="wsSendBtn" disabled>Send Message</button>
+                </div>
+
+                <div>
+                    <h3>Response Log</h3>
+                    <div id="wsResponseLog" class="response-log"></div>
+                    <button id="clearWsLogBtn">Clear Log</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            accessToken: localStorage.getItem('accessToken') || null,
+            wsConnection: null
+        };
+
+        // Function to update token display
+        function updateTokenDisplay() {
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            const copyTokenBtn = document.getElementById('copyTokenBtn');
+
+            if (state.accessToken) {
+                // Show truncated token
+                const truncatedToken = state.accessToken.length > 20 ?
+                    state.accessToken.substring(0, 10) + '...' + state.accessToken.substring(state.accessToken.length - 10) :
+                    state.accessToken;
+
+                tokenDisplay.textContent = truncatedToken;
+                copyTokenBtn.disabled = false;
+
+                // Also update the token metadata if refresh token is available
+                const refreshToken = localStorage.getItem('refreshToken');
+                if (refreshToken) {
+                    tokenDisplay.title = `Access Token: ${state.accessToken}\nRefresh Token Available: Yes`;
+                } else {
+                    tokenDisplay.title = `Access Token: ${state.accessToken}\nRefresh Token Available: No`;
+                }
+            } else {
+                tokenDisplay.textContent = 'No token available';
+                tokenDisplay.title = '';
+                copyTokenBtn.disabled = true;
+            }
+        }
+
+        // Update token display on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            updateTokenDisplay();
+            updateAuthIndicators();
+        });
+
+        // Add event listeners for token buttons
+        document.getElementById('copyTokenBtn').addEventListener('click', function () {
+            if (state.accessToken) {
+                navigator.clipboard.writeText(state.accessToken)
+                    .then(() => {
+                        alert('Token copied to clipboard!');
+                    })
+                    .catch(err => {
+                        console.error('Error copying token: ', err);
+                        alert('Failed to copy token');
+                    });
+            }
+        });
+
+        document.getElementById('clearTokenBtn').addEventListener('click', function () {
+            state.accessToken = null;
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken'); // Also clear refresh token
+            updateTokenDisplay();
+            updateAuthIndicators();
+            alert('Tokens cleared!');
+        });
+
+        // Helper function for API requests
+        async function apiRequest(url, method, data, token) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers,
+                    body: data ? JSON.stringify(data) : undefined,
+                    credentials: 'include'  // Include cookies if any
+                });
+
+                // Try to parse as JSON, but handle text response if needed
+                let responseData;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    responseData = await response.json();
+                } else {
+                    responseData = await response.text();
+                    try {
+                        // Try to parse as JSON anyway in case content-type is wrong
+                        responseData = JSON.parse(responseData);
+                    } catch (e) {
+                        // Keep as text if not valid JSON
+                    }
+                }
+
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    success: response.ok,
+                    data: responseData
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // Helper function to append response to log
+        function appendResponse(logId, data, isSuccess = true) {
+            const log = document.getElementById(logId);
+            const responseDiv = document.createElement('div');
+            responseDiv.className = isSuccess ? 'success' : 'error';
+
+            const timestamp = new Date().toLocaleTimeString();
+
+            let contentStr = '';
+
+            if (typeof data === 'string') {
+                contentStr = data;
+            } else {
+                try {
+                    // Format token specially if present
+                    if (data && data.data && data.data.access_token) {
+                        // Truncate the token in the display
+                        const token = data.data.access_token;
+                        const truncatedToken = token.length > 20 ?
+                            token.substring(0, 10) + '...' + token.substring(token.length - 10) : token;
+
+                        // Create a copy without the token for display
+                        const displayData = { ...data };
+                        displayData.data = { ...data.data, access_token: truncatedToken };
+                        contentStr = JSON.stringify(displayData, null, 2);
+
+                        // Add a note about token truncation
+                        contentStr += '\n\n[Token was truncated for display]';
+                    } else {
+                        contentStr = JSON.stringify(data, null, 2);
+                    }
+                } catch (e) {
+                    contentStr = String(data);
+                }
+            }
+
+            responseDiv.textContent = `[${timestamp}] ${contentStr}`;
+            log.appendChild(responseDiv);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function () {
+                // Remove active class from all tabs and contents
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                // Add active class to clicked tab and corresponding content
+                this.classList.add('active');
+                document.getElementById(this.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Authentication tab
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const fullName = document.getElementById('register-name').value;
+
+            if (!email || !password) {
+                appendResponse('authResponseLog', 'Email and password are required', false);
+                return;
+            }
+
+            const userData = {
+                email,
+                password,
+                full_name: fullName || ''
+            };
+
+            const response = await apiRequest(`${baseUrl}/api/auth/register`, 'POST', userData);
+
+            if (response.success && response.data) {
+                if (response.data.email_confirmation_required) {
+                    appendResponse('authResponseLog', 'Registration successful. Please check your email to confirm your account before logging in.', true);
+                } else if (response.data.access_token) {
+                    state.accessToken = response.data.access_token;
+                    localStorage.setItem('accessToken', state.accessToken);
+                    updateTokenDisplay();
+                    updateAuthIndicators();
+                    appendResponse('authResponseLog', 'Registration and login successful!', true);
+                }
+            } else {
+                appendResponse('authResponseLog', response, false);
+            }
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                appendResponse('authResponseLog', 'Email and password are required', false);
+                return;
+            }
+
+            const userData = { email, password };
+
+            const response = await apiRequest(`${baseUrl}/api/auth/login`, 'POST', userData);
+
+            if (response.success && response.data) {
+                // Store the token, checking both possible response formats
+                if (response.data.access_token) {
+                    state.accessToken = response.data.access_token;
+                    localStorage.setItem('accessToken', state.accessToken);
+
+                    // Also store refresh token if available
+                    if (response.data.refresh_token) {
+                        localStorage.setItem('refreshToken', response.data.refresh_token);
+                    }
+
+                    updateTokenDisplay();
+                    updateAuthIndicators();
+                    appendResponse('authResponseLog', { ...response, data: { ...response.data, access_token: "***TRUNCATED***" } }, true);
+                } else {
+                    appendResponse('authResponseLog', 'Login successful but no token received', false);
+                }
+            } else {
+                appendResponse('authResponseLog', response, false);
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+
+            if (!state.accessToken) {
+                appendResponse('authResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            const response = await apiRequest(`${baseUrl}/api/auth/logout`, 'POST', null, state.accessToken);
+
+            if (response.success) {
+                state.accessToken = null;
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken'); // Also clear refresh token
+                updateTokenDisplay();
+                updateAuthIndicators();
+            }
+
+            appendResponse('authResponseLog', response, response.success);
+        });
+
+        document.getElementById('refreshTokenBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+
+            // Get refresh token from localStorage or cookies
+            const refreshToken = localStorage.getItem('refreshToken');
+
+            if (!refreshToken) {
+                appendResponse('authResponseLog', 'No refresh token available', false);
+                return;
+            }
+
+            try {
+                // Use the fetch API directly to ensure proper request format
+                const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ refresh_token: refreshToken })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data) {
+                    // Update tokens in storage
+                    if (data.access_token) {
+                        state.accessToken = data.access_token;
+                        localStorage.setItem('accessToken', state.accessToken);
+
+                        if (data.refresh_token) {
+                            localStorage.setItem('refreshToken', data.refresh_token);
+                        }
+
+                        updateTokenDisplay();
+                        updateAuthIndicators();
+
+                        // Create a sanitized version for display
+                        const sanitizedData = {
+                            ...data,
+                            access_token: "***TRUNCATED***",
+                            refresh_token: "***TRUNCATED***"
+                        };
+
+                        appendResponse('authResponseLog', {
+                            status: response.status,
+                            statusText: response.statusText,
+                            ok: response.ok,
+                            success: true,
+                            data: sanitizedData
+                        }, true);
+                    } else {
+                        appendResponse('authResponseLog', 'Token refresh successful but no token received', false);
+                    }
+                } else {
+                    appendResponse('authResponseLog', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: false,
+                        success: false,
+                        data: data
+                    }, false);
+                }
+            } catch (error) {
+                appendResponse('authResponseLog', {
+                    success: false,
+                    error: error.message
+                }, false);
+            }
+        });
+
+        document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+            const email = document.getElementById('resetPasswordEmail').value;
+
+            if (!email) {
+                appendResponse('authResponseLog', 'Email is required', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/auth/reset-password`,
+                'POST',
+                { email }
+            );
+
+            appendResponse('authResponseLog', response, response.success);
+        });
+
+        document.getElementById('changePasswordBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('authBaseUrl').value;
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+
+            if (!state.accessToken) {
+                appendResponse('authResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!currentPassword || !newPassword) {
+                appendResponse('authResponseLog', 'Current and new passwords are required', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/auth/change-password`,
+                'POST',
+                {
+                    current_password: currentPassword,
+                    new_password: newPassword
+                },
+                state.accessToken
+            );
+
+            appendResponse('authResponseLog', response, response.success);
+        });
+
+        document.getElementById('clearAuthLogBtn').addEventListener('click', () => {
+            document.getElementById('authResponseLog').innerHTML = '';
+        });
+
+        // Profile tab
+        document.getElementById('getProfileBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('profileBaseUrl').value;
+
+            if (!state.accessToken) {
+                appendResponse('profileResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            const response = await apiRequest(`${baseUrl}/api/users/me`, 'GET', null, state.accessToken);
+            appendResponse('profileResponseLog', response, response.success);
+        });
+
+        document.getElementById('updateProfileBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('profileBaseUrl').value;
+            const fullName = document.getElementById('updateFullName').value;
+            const avatarUrl = document.getElementById('updateAvatarUrl').value;
+            const preferencesStr = document.getElementById('updatePreferences').value;
+
+            if (!state.accessToken) {
+                appendResponse('profileResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            const updateData = {};
+            if (fullName) updateData.full_name = fullName;
+            if (avatarUrl) updateData.avatar_url = avatarUrl;
+
+            if (preferencesStr) {
+                try {
+                    updateData.preferences = JSON.parse(preferencesStr);
+                } catch (e) {
+                    appendResponse('profileResponseLog', 'Invalid JSON in preferences', false);
+                    return;
+                }
+            }
+
+            if (Object.keys(updateData).length === 0) {
+                appendResponse('profileResponseLog', 'No data to update', false);
+                return;
+            }
+
+            const response = await apiRequest(`${baseUrl}/api/users/me`, 'PUT', updateData, state.accessToken);
+            appendResponse('profileResponseLog', response, response.success);
+        });
+
+        document.getElementById('clearProfileLogBtn').addEventListener('click', () => {
+            document.getElementById('profileResponseLog').innerHTML = '';
+        });
+
+        // Projects tab
+        document.getElementById('createProjectBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('projectsBaseUrl').value;
+            const name = document.getElementById('createProjectName').value;
+            const description = document.getElementById('createProjectDescription').value;
+            const settingsStr = document.getElementById('createProjectSettings').value;
+
+            if (!state.accessToken) {
+                appendResponse('projectsResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!name) {
+                appendResponse('projectsResponseLog', 'Project name is required', false);
+                return;
+            }
+
+            const projectData = { name };
+            if (description) projectData.description = description;
+
+            if (settingsStr) {
+                try {
+                    projectData.settings = JSON.parse(settingsStr);
+                } catch (e) {
+                    appendResponse('projectsResponseLog', 'Invalid JSON in settings', false);
+                    return;
+                }
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/projects`,
+                'POST',
+                projectData,
+                state.accessToken
+            );
+
+            appendResponse('projectsResponseLog', response, response.success);
+        });
+
+        document.getElementById('getProjectsBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('projectsBaseUrl').value;
+
+            if (!state.accessToken) {
+                appendResponse('projectsResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/projects`,
+                'GET',
+                null,
+                state.accessToken
+            );
+
+            appendResponse('projectsResponseLog', response, response.success);
+        });
+
+        document.getElementById('getProjectBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('projectsBaseUrl').value;
+            const projectId = document.getElementById('getProjectId').value;
+
+            if (!state.accessToken) {
+                appendResponse('projectsResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!projectId) {
+                appendResponse('projectsResponseLog', 'Project ID is required', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/projects/${projectId}`,
+                'GET',
+                null,
+                state.accessToken
+            );
+
+            appendResponse('projectsResponseLog', response, response.success);
+        });
+
+        document.getElementById('updateProjectBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('projectsBaseUrl').value;
+            const projectId = document.getElementById('updateProjectId').value;
+            const name = document.getElementById('updateProjectName').value;
+            const description = document.getElementById('updateProjectDescription').value;
+            const settingsStr = document.getElementById('updateProjectSettings').value;
+
+            if (!state.accessToken) {
+                appendResponse('projectsResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!projectId) {
+                appendResponse('projectsResponseLog', 'Project ID is required', false);
+                return;
+            }
+
+            const updateData = {};
+            if (name) updateData.name = name;
+            if (description) updateData.description = description;
+
+            if (settingsStr) {
+                try {
+                    updateData.settings = JSON.parse(settingsStr);
+                } catch (e) {
+                    appendResponse('projectsResponseLog', 'Invalid JSON in settings', false);
+                    return;
+                }
+            }
+
+            if (Object.keys(updateData).length === 0) {
+                appendResponse('projectsResponseLog', 'No data to update', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/projects/${projectId}`,
+                'PUT',
+                updateData,
+                state.accessToken
+            );
+
+            appendResponse('projectsResponseLog', response, response.success);
+        });
+
+        document.getElementById('deleteProjectBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('projectsBaseUrl').value;
+            const projectId = document.getElementById('deleteProjectId').value;
+
+            if (!state.accessToken) {
+                appendResponse('projectsResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!projectId) {
+                appendResponse('projectsResponseLog', 'Project ID is required', false);
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/projects/${projectId}`,
+                'DELETE',
+                null,
+                state.accessToken
+            );
+
+            appendResponse('projectsResponseLog', response, response.success);
+        });
+
+        document.getElementById('shareProjectBtn').addEventListener('click', async () => {
+            const baseUrl = document.getElementById('projectsBaseUrl').value;
+            const projectId = document.getElementById('shareProjectId').value;
+            const userEmail = document.getElementById('shareUserEmail').value;
+            const role = document.getElementById('shareRole').value;
+
+            if (!state.accessToken) {
+                appendResponse('projectsResponseLog', 'Not logged in', false);
+                return;
+            }
+
+            if (!projectId || !userEmail) {
+                appendResponse('projectsResponseLog', 'Project ID and user email are required', false);
+                return;
+            }
+
+            const response = await apiRequest(
+                `${baseUrl}/api/projects/${projectId}/share`,
+                'POST',
+                { user_email: userEmail, role },
+                state.accessToken
+            );
+
+            appendResponse('projectsResponseLog', response, response.success);
+        });
+
+        document.getElementById('clearProjectsLogBtn').addEventListener('click', () => {
+            document.getElementById('projectsResponseLog').innerHTML = '';
+        });
+
+        // WebSocket tab
+        document.getElementById('wsRequestType').addEventListener('change', () => {
+            const requestType = document.getElementById('wsRequestType').value;
+            const errorContainer = document.getElementById('wsErrorMessageContainer');
+
+            if (requestType === 'FixCode') {
+                errorContainer.style.display = 'block';
+            } else {
+                errorContainer.style.display = 'none';
+            }
+        });
+
+        document.getElementById('useStoredTokenBtn').addEventListener('click', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (accessToken) {
+                document.getElementById('wsToken').value = accessToken;
+                const tokenDisplay = document.getElementById('wsTokenDisplay');
+
+                if (accessToken.length > 20) {
+                    const shortToken = accessToken.substring(0, 10) + '...' +
+                        accessToken.substring(accessToken.length - 10);
+                    tokenDisplay.textContent = shortToken;
+                } else {
+                    tokenDisplay.textContent = accessToken;
+                }
+
+                tokenDisplay.title = accessToken; // Add full token as title for hover
+            } else {
+                document.getElementById('wsTokenDisplay').textContent = 'No token stored';
+            }
+        });
+
+        document.getElementById('wsConnectBtn').addEventListener('click', () => {
+            const url = document.getElementById('wsBaseUrl').value;
+            let token = document.getElementById('wsToken').value;
+            const projectId = document.getElementById('wsProjectId').value;
+
+            // If no token in input field, try to use the token from state
+            if (!token && state.accessToken) {
+                token = state.accessToken;
+                document.getElementById('wsToken').value = token;
+                const tokenDisplay = document.getElementById('wsTokenDisplay');
+
+                if (token.length > 20) {
+                    const shortToken = token.substring(0, 10) + '...' +
+                        token.substring(token.length - 10);
+                    tokenDisplay.textContent = shortToken;
+                } else {
+                    tokenDisplay.textContent = token;
+                }
+            }
+
+            if (!token) {
+                appendResponse('wsResponseLog', 'Error: Access token is required', true);
+                return;
+            }
+
+            let fullUrl = url;
+            if (token || projectId) {
+                fullUrl += '?';
+                if (token) {
+                    fullUrl += `token=${encodeURIComponent(token)}`;
+                }
+                if (projectId) {
+                    fullUrl += token ? `&project_id=${encodeURIComponent(projectId)}` : `project_id=${encodeURIComponent(projectId)}`;
+                }
+            }
+
+            try {
+                state.wsConnection = new WebSocket(fullUrl);
+
+                state.wsConnection.onopen = () => {
+                    appendResponse('wsResponseLog', 'Connection opened', true);
+                    document.getElementById('wsStatus').textContent = 'Connected';
+                    document.getElementById('wsStatus').style.backgroundColor = '#d4edda';
+                    document.getElementById('wsConnectBtn').disabled = true;
+                    document.getElementById('wsDisconnectBtn').disabled = false;
+                    document.getElementById('wsSendBtn').disabled = false;
+                };
+
+                state.wsConnection.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        appendResponse('wsResponseLog', data, false);
+                    } catch (error) {
+                        appendResponse('wsResponseLog', event.data, false);
+                    }
+                };
+
+                state.wsConnection.onerror = (error) => {
+                    appendResponse('wsResponseLog', 'WebSocket error: ' + error.message, true);
+                };
+
+                state.wsConnection.onclose = () => {
+                    appendResponse('wsResponseLog', 'Connection closed', false);
+                    document.getElementById('wsConnectBtn').disabled = false;
+                    document.getElementById('wsDisconnectBtn').disabled = true;
+                    document.getElementById('wsSendBtn').disabled = true;
+                };
+            } catch (error) {
+                appendResponse('wsResponseLog', 'Error creating WebSocket: ' + error.message, false);
+            }
+        });
+
+        document.getElementById('wsDisconnectBtn').addEventListener('click', () => {
+            if (state.wsConnection) {
+                state.wsConnection.close();
+            }
+        });
+
+        document.getElementById('wsSendBtn').addEventListener('click', () => {
+            if (!state.wsConnection) {
+                appendResponse('wsResponseLog', 'Not connected', false);
+                return;
+            }
+
+            const requestType = document.getElementById('wsRequestType').value;
+            const userQuery = document.getElementById('wsUserQuery').value;
+
+            if (!userQuery) {
+                appendResponse('wsResponseLog', 'Query is required', false);
+                return;
+            }
+
+            const message = {
+                type: requestType,
+                user_query: userQuery
+            };
+
+            if (requestType === 'FixCode') {
+                const errorMessage = document.getElementById('wsErrorMessage').value;
+                if (!errorMessage) {
+                    appendResponse('wsResponseLog', 'Error message is required for FixCode', false);
+                    return;
+                }
+                message.error_message = errorMessage;
+            }
+
+            state.wsConnection.send(JSON.stringify(message));
+            appendResponse('wsResponseLog', `Sent: ${JSON.stringify(message)}`);
+        });
+
+        document.getElementById('clearWsLogBtn').addEventListener('click', () => {
+            document.getElementById('wsResponseLog').innerHTML = '';
+        });
+
+        function toggleTokenDisplay(element) {
+            element.classList.toggle('expanded');
+        }
+
+        // Update authentication indicators when token changes
+        function updateAuthIndicators() {
+            const hasToken = state.accessToken !== null;
+
+            // Update profile authentication status
+            const profileAuthStatus = document.getElementById('profileAuthStatus');
+            if (hasToken) {
+                profileAuthStatus.textContent = 'Authenticated';
+                profileAuthStatus.style.backgroundColor = '#d4edda';
+            } else {
+                profileAuthStatus.textContent = 'Not Authenticated';
+                profileAuthStatus.style.backgroundColor = '#f8d7da';
+            }
+        }
+    </script>
+</body>
+
+</html>

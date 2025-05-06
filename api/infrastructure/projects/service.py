@@ -1,0 +1,309 @@
+from typing import Dict, Any, Optional
+from api.infrastructure.database import get_supabase_client
+import httpx
+
+async def create_project(name: str, description: Optional[str] = None, jwt: str = None) -> Dict[str, Any]:
+    """
+    Create a new project.
+    
+    Args:
+        name: Project name
+        description: Project description (optional)
+        jwt: Supabase JWT token
+        
+    Returns:
+        Dict containing project data
+        
+    Raises:
+        ValueError: If project creation fails
+    """
+    client = get_supabase_client()
+    try:
+        # Validate token and get user
+        user_response = client.auth.get_user(jwt)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+            
+        # Get user ID from the authenticated user
+        user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Create the project with explicit timeout and retry handling
+        try:
+            data = client.from_('projects').insert({
+                'owner_id': user_id,
+                'name': name,
+                'description': description
+            }).execute()
+            return data
+        except httpx.HTTPStatusError as e:
+            # Handle specific HTTP status errors
+            status_code = e.response.status_code
+            if status_code == 307:
+                # Handle redirect explicitly by following it once
+                location = e.response.headers.get("Location")
+                if location:
+                    with httpx.Client() as client:
+                        resp = client.post(
+                            location,
+                            json={'owner_id': user_id, 'name': name, 'description': description},
+                            headers={'Authorization': f'Bearer {jwt}'}
+                        )
+                        resp.raise_for_status()
+                        return resp.json()
+                else:
+                    raise ValueError(f"Redirect occurred without a location header: {e}")
+            elif status_code >= 400:
+                # Handle authentication or client errors
+                raise ValueError(f"Server error ({status_code}): {e.response.text}")
+            else:
+                raise ValueError(f"Unexpected HTTP status: {status_code}")
+        except httpx.RequestError as e:
+            # Handle network/connection errors
+            raise ValueError(f"Request error: {str(e)}")
+            
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Project creation error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Project creation failed: {str(e)}")
+
+async def get_projects(jwt: str) -> Dict[str, Any]:
+    """
+    Get all projects for the authenticated user.
+    This includes:
+    - Projects owned by the user
+    - Projects where the user is a member
+    
+    Args:
+        jwt: Supabase JWT token
+        
+    Returns:
+        Dict containing projects data
+        
+    Raises:
+        ValueError: If project retrieval fails
+    """
+    client = get_supabase_client()
+    try:
+        # Validate token and get user
+        user_response = client.auth.get_user(jwt)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+            
+        # Get user ID from the authenticated user
+        user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Get all projects the user has access to (RLS will handle access control)
+        result = client.from_('projects').select('*').execute()
+        
+        # Add is_owner flag to each project
+        if result.data:
+            for project in result.data:
+                project['is_owner'] = project['owner_id'] == user_id
+        
+        return result
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Project retrieval error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Project retrieval failed: {str(e)}")
+
+async def get_project(project_id: str, jwt: str) -> Dict[str, Any]:
+    """
+    Get a project by ID with member details.
+    
+    Args:
+        project_id: Project ID
+        jwt: Supabase JWT token
+        
+    Returns:
+        Dict containing project data with member details or None if not found/no access
+        
+    Raises:
+        ValueError: If project retrieval fails
+    """
+    client = get_supabase_client()
+    try:
+        # Validate token and get user
+        user_response = client.auth.get_user(jwt)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+            
+        # Get user ID from the authenticated user
+        user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Get the project
+        project_response = client.from_('projects').select('*').eq('id', project_id).single().execute()
+        if not project_response.data:
+            return None
+            
+        project_response.data['is_owner'] = project_response.data['owner_id'] == user_id
+        return project_response
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Project retrieval error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Project retrieval failed: {str(e)}")
+
+async def update_project(project_id: str, project_data: Dict[str, Any], jwt: str) -> Dict[str, Any]:
+    """
+    Update a project.
+    
+    Args:
+        project_id: Project ID
+        project_data: Project data to update
+        jwt: Supabase JWT token
+        
+    Returns:
+        Dict containing updated project data or None if not found/no access
+        
+    Raises:
+        ValueError: If project update fails
+    """
+    client = get_supabase_client()
+    try:
+        # Validate token and get user
+        user_response = client.auth.get_user(jwt)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+            
+        # Get user ID from the authenticated user
+        user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Check if user is owner
+        owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
+        if not owner_check.data:
+            return None
+        
+        # Update the project
+        result = client.from_('projects').update(project_data).eq('id', project_id).execute()
+        return result
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Project update error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Project update failed: {str(e)}")
+
+async def delete_project(project_id: str, jwt: str) -> Dict[str, Any]:
+    """
+    Delete a project.
+    
+    Args:
+        project_id: Project ID
+        jwt: Supabase JWT token
+        
+    Returns:
+        Dict containing deletion result or None if not found/no access
+        
+    Raises:
+        ValueError: If project deletion fails
+    """
+    client = get_supabase_client()
+    try:
+        # Validate token and get user
+        user_response = client.auth.get_user(jwt)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+            
+        # Get user ID from the authenticated user
+        user_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Check if user is owner
+        owner_check = client.from_('projects').select('id').eq('id', project_id).eq('owner_id', user_id).execute()
+        if not owner_check.data:
+            return None
+        
+        # Delete the project
+        result = client.from_('projects').delete().eq('id', project_id).execute()
+        return result
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Project deletion error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Project deletion failed: {str(e)}")
+
+async def share_project(project_id: str, user_email: str, role: str, jwt: str) -> Dict[str, Any]:
+    """
+    Share a project with another user.
+    
+    Args:
+        project_id: Project ID
+        user_email: Email of user to share with
+        role: Role to assign (viewer, editor, admin)
+        jwt: Supabase JWT token
+        
+    Returns:
+        Dict containing sharing result or None if not found/no access
+        
+    Raises:
+        ValueError: If project sharing fails
+    """
+    client = get_supabase_client()
+    try:
+        # Validate token and get user
+        user_response = client.auth.get_user(jwt)
+        if not user_response or not user_response.user:
+            raise ValueError("Invalid authentication token")
+            
+        # Get user ID from the authenticated user
+        owner_id = user_response.user.id
+        
+        # Explicitly set the auth header with JWT
+        client.postgrest.auth(jwt)
+        
+        # Check if current user is owner
+        project_response = client.from_('projects').select('*').eq('id', project_id).execute()
+        if not project_response.data or len(project_response.data) == 0:
+            return None
+            
+        project = project_response.data[0]
+        if project['owner_id'] != owner_id:
+            return None
+        
+        # Get user ID from email
+        user_response = client.from_('user_profiles').select('id').eq('email', user_email).execute()
+        if not user_response.data or len(user_response.data) == 0:
+            raise ValueError(f"User with email {user_email} not found")
+        
+        target_user_id = user_response.data[0]['id']
+        
+        # Don't allow sharing with self
+        if target_user_id == owner_id:
+            raise ValueError("Cannot share project with yourself")
+        
+        # Check if already shared
+        existing_response = client.from_('project_members').select('*').eq('project_id', project_id).eq('user_id', target_user_id).execute()
+        
+        try:
+            if existing_response.data and len(existing_response.data) > 0:
+                # Update existing share
+                result = client.from_('project_members').update({
+                    'role': role,
+                    'updated_at': 'now()'
+                }).eq('project_id', project_id).eq('user_id', target_user_id).execute()
+            else:
+                # Add new share
+                result = client.from_('project_members').insert({
+                    'project_id': project_id,
+                    'user_id': target_user_id,
+                    'role': role,
+                    'created_by': owner_id
+                }).execute()
+            return result
+        except Exception as e:
+            raise ValueError(f"Failed to update project members: {str(e)}")
+            
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Project sharing error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Project sharing failed: {str(e)}") 

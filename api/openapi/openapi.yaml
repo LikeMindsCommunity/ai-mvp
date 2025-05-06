@@ -1,0 +1,246 @@
+openapi: 3.0.3
+info:
+  title: Flutter Integration Assistant API
+  description: |
+    API for generating Flutter code integrations with LikeMinds SDK.
+
+    This API provides WebSocket endpoints for generating and fixing Flutter code based on natural language queries.
+  version: 1.0.0
+  contact:
+    name: Flutter Integration Assistant Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: "http://98.70.88.101:8000"
+    description: Production server
+  - url: "http://localhost:8000"
+    description: Local development server
+
+tags:
+  - name: Flutter
+    description: Flutter code generation endpoints
+  - name: System
+    description: System-related endpoints
+
+paths:
+  /:
+    get:
+      summary: API health check
+      description: Returns basic information about the API status
+      operationId: getApiStatus
+      tags:
+        - System
+      responses:
+        "200":
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: online
+                  message:
+                    type: string
+                    example: Flutter Integration Assistant API is running
+                  websocket_endpoint:
+                    type: string
+                    example: /api/flutter
+
+  /docs:
+    get:
+      summary: API Documentation
+      description: Swagger UI documentation for the API
+      operationId: getApiDocs
+      tags:
+        - System
+      responses:
+        "200":
+          description: API documentation HTML
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /openapi.json:
+    get:
+      summary: OpenAPI Specification
+      description: Returns the OpenAPI specification in JSON format
+      operationId: getOpenApiSpec
+      tags:
+        - System
+      responses:
+        "200":
+          description: OpenAPI specification
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    WebSocketMessage:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: Type of message
+          enum:
+            - GenerateCode
+            - FixCode
+
+    GenerateCodeRequest:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketMessage"
+        - type: object
+          required:
+            - user_query
+          properties:
+            type:
+              type: string
+              enum:
+                - GenerateCode
+            user_query:
+              type: string
+              description: Natural language query for code generation
+              example: Create a Flutter chat screen with LikeMinds SDK
+
+    FixCodeRequest:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketMessage"
+        - type: object
+          required:
+            - user_query
+            - error_message
+          properties:
+            type:
+              type: string
+              enum:
+                - FixCode
+            user_query:
+              type: string
+              description: Original query used for code generation
+              example: Create a Flutter chat screen with LikeMinds SDK
+            error_message:
+              type: string
+              description: Error message from Flutter analysis
+              example: "Error: The method 'initializeLikeMinds' isn't defined for the class 'ChatScreen'"
+
+    WebSocketResponse:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+        - type
+        - value
+      properties:
+        type:
+          type: string
+          description: Type of response
+          enum:
+            - Text
+            - Error
+            - Success
+            - AnalysisError
+            - Result
+        value:
+          oneOf:
+            - type: string
+            - type: object
+          description: Response data, can be a string message or a JSON object
+
+    TextResponse:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketResponse"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - Text
+            value:
+              type: string
+              description: Informational text message
+              example: Generating Flutter code based on your request...
+
+    ErrorResponse:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketResponse"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - Error
+            value:
+              type: string
+              description: Error message
+              example: Failed to generate code
+
+    SuccessResponse:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketResponse"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - Success
+            value:
+              type: string
+              description: Success message
+              example: Integration completed successfully!
+
+    AnalysisErrorResponse:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketResponse"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - AnalysisError
+            value:
+              type: string
+              description: Flutter analysis error message
+              example: "Error: The method 'initializeLikeMinds' isn't defined for the class 'ChatScreen'"
+
+    ResultResponse:
+      allOf:
+        - $ref: "#/components/schemas/WebSocketResponse"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - Result
+            value:
+              type: object
+              description: Final result of the operation
+              properties:
+                success:
+                  type: boolean
+                  description: Whether the operation was successful
+                web_url:
+                  type: string
+                  description: URL to access the Flutter web application
+                  example: http://localhost:8080
+                code_path:
+                  type: string
+                  description: Path to the generated code file
+                  example: output/flutter_code_1.dart
+                error:
+                  type: string
+                  description: Error message if the operation failed
+                analysis_error:
+                  type: string
+                  description: Flutter analysis error message
+                needs_fix:
+                  type: boolean
+                  description: Whether the code needs to be fixed
