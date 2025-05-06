@@ -31,7 +31,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ai-mvp-frontend.pages.dev"],  # Specific origin instead of wildcard
+    allow_origins=["https://ai-mvp-frontend.pages.dev", "http://localhost:3000", "http://localhost:8080"],  # Specific origin instead of wildcard
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Content-Type", "Authorization", "Accept"],
