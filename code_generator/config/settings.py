@@ -44,7 +44,7 @@ class Settings:
         if not self.gemini_model_name:
             raise ValueError("GEMINI_MODEL_NAME not found in environment variables or .env file")
         
-        if self.gemini_model_name not in ["gemini-2.5-pro-preview-03-25", "gemini-2.5-pro-exp-03-25"]:
+        if self.gemini_model_name not in ["gemini-2.5-pro-preview-03-25", "gemini-2.5-pro-exp-03-25", "gemini-2.5-flash-preview-04-17"]:
             raise ValueError("GEMINI_MODEL_NAME must be one of: gemini-2.5-pro-preview-03-25, gemini-2.5-pro-exp-03-25")
         
         # Validate project configuration

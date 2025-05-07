@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     git \
+    iputils-ping \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Android SDK
@@ -25,6 +27,12 @@ RUN yes | sdkmanager --licenses \
     && sdkmanager "platform-tools" \
     && sdkmanager "platforms;android-35" \
     && sdkmanager "build-tools;35.0.0"
+
+# Download latest platform-tools (adb)
+RUN wget https://dl.google.com/android/repository/platform-tools-latest-linux.zip && \
+    unzip platform-tools-latest-linux.zip && \
+    mv platform-tools /opt/platform-tools && \
+    ln -s /opt/platform-tools/adb /usr/bin/adb
 
 # Define build argument for project name and directory
 ARG PROJECT_NAME

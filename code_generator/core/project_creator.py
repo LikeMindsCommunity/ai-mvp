@@ -6,6 +6,7 @@ import os
 import subprocess
 import shutil
 from pathlib import Path
+import textwrap
 from typing import Dict, List, Optional, Callable
 from code_generator.config import Settings
 from .constants import BUILD_CONFIG_FILES
@@ -172,7 +173,107 @@ class ProjectCreator:
                 target_file = os.path.join(target_dir, file)
                 shutil.copy2(source_file, target_file)
                 print(f"Copied resource file: {rel_file_path}")
+    def install_app_on_remote_emulator(
+        self,
+        apk_path: str,
+        package_name: str,
+        remote_device_ip: str = "98.70.40.83",
+        remote_device_port: str = "5555",
+        on_chunk: Optional[Callable[[Dict], None]] = None,
+    ) -> tuple[bool, str]:
+        """
+        Runs the original Bash installer inside a *single* Docker container.
 
+        Returns:
+            (success, stderr_if_any)
+        """
+        apk_abspath = os.path.abspath(apk_path)
+        apk_dir, apk_file = os.path.split(apk_abspath)
+
+        # The original Bash logic, untouched except for:
+        #  • waiting handled with `sleep 2`
+        #  • variables read from the environment
+        installer_script = textwrap.dedent(
+            """
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            echo "Starting ADB server…"
+            adb start-server
+
+            echo "Checking connection to $REMOTE_DEVICE_IP:$REMOTE_DEVICE_PORT"
+            if adb devices | grep -q "$REMOTE_DEVICE_IP:$REMOTE_DEVICE_PORT"; then
+                echo "Device already connected."
+            else
+                adb connect "$REMOTE_DEVICE_IP:$REMOTE_DEVICE_PORT"
+            fi
+
+            sleep 2
+            echo "Connected devices:"
+            adb devices
+
+            if [[ -n "$APK_PATH" ]]; then
+                echo "Installing $APK_PATH"
+                adb install -r "$APK_PATH"
+            else
+                echo "No APK specified, skipping install"
+            fi
+
+            if [[ -n "$PACKAGE_NAME" ]]; then
+                echo "Launching $PACKAGE_NAME"
+                adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1
+            else
+                echo "No package to launch, done."
+            fi
+            """
+        )
+
+        docker_cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "--network", "host",               # So the container can reach 98.70.40.83
+            "-v", f"{apk_dir}:/workspace/apk:ro",
+            "-e", f"REMOTE_DEVICE_IP={remote_device_ip}",
+            "-e", f"REMOTE_DEVICE_PORT={remote_device_port}",
+            "-e", f"APK_PATH=/workspace/apk/{apk_file}",
+            "-e", f"PACKAGE_NAME={package_name}",
+            "-t", "likeminds-feed-builder",
+            "bash", "-s",                      # read script from STDIN
+        ]
+
+        try:
+            proc = subprocess.run(
+                docker_cmd,
+                input=installer_script,
+                text=True,
+                capture_output=True,
+                check=False,                   # we’ll inspect returncode ourselves
+            )
+            if proc.returncode != 0:
+                # Bubble up full stderr so you can debug quickly
+                if on_chunk:
+                    on_chunk({"type": "Error", "value": proc.stderr})
+                return False, proc.stderr
+
+            if on_chunk:
+                on_chunk(
+                    {"type": "Result", "value": "APK installed and app launched successfully."}
+                )
+            return True, ""
+
+        except FileNotFoundError as nf:
+            # `docker` or the APK path missing on host
+            err_msg = f"Host setup problem: {nf}"
+            if on_chunk:
+                on_chunk({"type": "Error", "value": err_msg})
+            return False, err_msg
+
+        except Exception as e:
+            if on_chunk:
+                on_chunk({"type": "Error", "value": str(e)})
+            return False, str(e)
+        
     def create_project(self, project_data: Dict, on_chunk: Optional[Callable[[Dict], None]] = None) -> tuple[bool, str]:
         """
         Create a complete Android project from the generated data.
@@ -265,8 +366,15 @@ class ProjectCreator:
             build_success, error_message = self._build_docker_image(project_dir)
             if not build_success:
                 return False, error_message
-            
+
+            # Install APK on remote emulator
+            apk_path = os.path.join(project_dir, "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+            package_name = project_data.get("application_id", "")
+            install_success, install_error = self._install_app_on_remote_emulator(apk_path, package_name, on_chunk)
+            if not install_success:
+                return False, install_error
+
             return True, ""
             
         except Exception as e:
-            return False, str(e) 
+            return False, str(e)

@@ -193,6 +193,8 @@ class CodeGenerator:
         15. Use Theme.Material3.Light.NoActionBar as the parent theme for the app
         16. For drawables, ONLY generate XML files (vector drawables, shape drawables, etc.). DO NOT generate any WebP, PNG, or other image format files.
         17. All drawables must be created using XML definitions (vector, shape, layer-list, etc.)
+        18. Generate default launcher icons (`ic_launcher` and `ic_launcher_round`) in the `mipmap` directories with appropriate XML vector drawable definitions.
+        19. Validate all generated resources and ensure they are properly referenced in the manifest and code.
 
         Documentation Reference:
         {documentation}

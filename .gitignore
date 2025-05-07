@@ -23,6 +23,7 @@ MANIFEST
 
 # Virtual Environment
 venv/
+.venv/
 env/
 ENV/
 
@@ -39,3 +40,7 @@ logs/
 # Environment variables
 .env
 
+#flutter related 
+outputs/
+output/
+integration/
