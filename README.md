@@ -286,9 +286,7 @@ The API sends multiple responses during the generation process:
 ```json
 {
     "type": "Result",
-    "value": {
-        "success": boolean  // Whether the project was generated successfully
-    }
+    "value": "string" // APK streamning URL
 }
 ```
 
