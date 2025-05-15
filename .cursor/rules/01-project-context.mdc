@@ -1,0 +1,31 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Project Context
+
+This project is an AI-powered **LikeMinds Flutter Integration Assistant** that helps developers integrate LikeMinds Chat and Feed SDKs into Flutter applications.
+
+## System Overview
+
+The overall system is described in [docs/plans/ed.md](mdc:docs/plans/ed.md) with a clean architecture pattern:
+- `api/` - Main backend application (FastAPI)
+- `flutter_generator/` - Python utilities for Flutter/Dart code handling
+- `integration/` - Template Flutter project
+- `output/` - Generated artifacts
+- `agent_system/` - New module implementing the multi-agent architecture
+
+## Current Architecture Summary
+
+[docs/plans/summary.md](mdc:docs/plans/summary.md) describes the current architecture:
+- **api/domain/**: Pydantic models and interfaces
+- **api/infrastructure/**: Service logic
+- **api/presentation/**: FastAPI route handlers
+- Authentication: Stateless JWT-based, using Supabase Auth
+
+## The Agent System
+
+The `agent_system` module will be the new intelligent core that replaces the existing `flutter_generator` module with a robust, performant, and modular multi-agent system based on the Agno framework.
+
+The system must maintain compatibility with the existing API layer, particularly the WebSocket interface in `api/presentation/websocket_handler.py`.

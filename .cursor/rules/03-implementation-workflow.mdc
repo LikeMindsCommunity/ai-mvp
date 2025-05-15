@@ -1,0 +1,44 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Implementation Workflow
+
+The implementation is broken down into phases and tasks in [docs/plans/multi-agent-tasks.md](mdc:docs/plans/multi-agent-tasks.md).
+
+## Task Guidelines
+
+1. **Focus on Single Tasks**: Only work on the specific task mentioned by the user. Do not implement multiple tasks at once or get ahead of the sequence.
+
+2. **Follow the Phase Sequence**: Tasks are organized in phases (0-6). Later phases depend on earlier ones, so follow the sequence.
+
+3. **Respect Task Scope**:
+   - Small (S) tasks: Focus on a single function or configuration
+   - Medium (M) tasks: Implement a complete feature or component
+   - Large (L) tasks: Implement complex subsystems
+   - Extra Large (XL) tasks: Implement full pipelines or major components
+
+4. **Maintain Incremental Progress**:
+   - Ensure each task is fully functional before moving to the next
+   - Write clean, well-documented code that follows the project's patterns
+   - Include appropriate error handling
+
+## Key Phase Objectives
+
+- **Phase 0**: Setup & Familiarization with Agno
+- **Phase 1**: Core Service Bridge & Orchestrator Skeleton
+- **Phase 2**: Implementing Core Agents (Research, Analysis, Generator)
+- **Phase 3**: Implementing Execution Agents (Integration, Testing)
+- **Phase 4**: Rounding out Functionality (Documentation, Settings)
+- **Phase 5**: Robustness, Performance, Final Integration
+- **Phase 6**: Testing & Documentation (ongoing)
+
+## Task Implementation Approach
+
+1. Understand the task requirements from the task description
+2. Review relevant existing code and documentation
+3. Plan your implementation (classes, functions, interfaces)
+4. Implement the minimal viable solution for the specific task
+5. Add appropriate error handling and tests
+6. Document your implementation

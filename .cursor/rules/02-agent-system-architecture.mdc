@@ -1,0 +1,65 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Agent System Architecture
+
+The multi-agent system is defined in [docs/plans/multi-agent-arch.md](mdc:docs/plans/multi-agent-arch.md) and [docs/plans/multi-agent-ed.md](mdc:docs/plans/multi-agent-ed.md).
+
+## Core Components
+
+The system consists of specialized agents coordinated by a central Orchestrator:
+
+1. **Orchestrator Agent** (`agent_system/orchestrator/`): Central coordinator of specialized agents
+   - Manages task lifecycle
+   - Sequences calls to specialized agents
+   - Passes data between agents
+   - Handles errors and decides on retries/fallbacks
+   - Streams status updates and results to response queue
+
+2. **Research Agent** (`agent_system/research_agent/`): Understands user requests and formulates high-level plans
+   - Parses user query
+   - Performs high-level analysis of user's codebase
+   - Maps to high-level SDK features
+
+3. **Analysis Agent** (`agent_system/analysis_agent/`): Performs deep technical analysis and produces PRD
+   - Uses RAG on SDK docs/examples
+   - Analyzes user's codebase
+   - Identifies integration points, configurations, dependencies
+
+4. **Generator Agent** (`agent_system/generator_agent/`): Generates Flutter/Dart code according to the PRD
+   - Implements specifications from PRD
+   - Creates new files and modifications for existing files
+
+5. **Integration Agent** (`agent_system/integration_agent/`): Applies generated code and runs Flutter app
+   - Writes/updates files in project environment
+   - Manages dependencies
+   - Runs Flutter commands
+
+6. **Testing Agent** (`agent_system/testing_agent/`): Performs automated testing and analysis
+   - Runs `flutter analyze`
+   - Verifies preview URL
+   - Performs code quality audits
+
+7. **Documentation Agent** (`agent_system/documentation_agent/`): Generates documentation
+   - Creates inline code comments
+   - Produces solution summary documents
+
+8. **Settings Agent** (`agent_system/settings_agent/`): Manages configurations
+   - Stores and retrieves preferences
+   - Provides settings to other agents
+
+## Technology Stack
+
+- **Agno Framework**: For defining and running agentic components
+- **LLMs**: Google Gemini via Python SDK
+- **RAG**: Vector database (ChromaDB or pgvector)
+- **Storage**: Supabase for auth, project data, agent task state
+- **Tools**: Flutter CLI, Git CLI
+
+## Communication Flow
+
+- The `api/presentation/websocket_handler.py` calls methods on `AgnoAgenticFlutterServiceImpl`
+- The service acts as a facade, translating API requests into tasks for the Orchestrator
+- It uses an `asyncio.Queue` per request to bridge agent outputs back to the WebSocket's `on_chunk` callback

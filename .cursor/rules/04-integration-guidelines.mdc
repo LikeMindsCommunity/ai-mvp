@@ -1,0 +1,47 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Integration Guidelines
+
+When implementing the agent system, maintain compatibility with the existing architecture.
+
+## API Integration
+
+- The `agent_system` replaces `flutter_generator` but must maintain the same interfaces expected by the API layer.
+- Create an `AgnoAgenticFlutterServiceImpl` that implements the existing service interfaces.
+- Use `asyncio.Queue` to bridge between agent output and WebSocket streaming.
+
+## Code Organization Principles
+
+1. **Clean Architecture**: Maintain the same separation of concerns:
+   - Domain models
+   - Service interfaces
+   - Infrastructure implementations
+   - API endpoints (presentation)
+
+2. **Consistent Error Handling**:
+   - Follow existing error patterns in the codebase
+   - Use structured error responses consistent with the API layer
+
+3. **Authentication Integration**:
+   - Respect existing JWT-based authentication via Supabase
+   - Ensure agent system has access to authenticated user context when needed
+
+4. **Project Scoping**:
+   - All agent operations should be scoped to a specific project_id
+   - Maintain isolation between different users' projects
+
+## Data Storage & State Management
+
+- Use Supabase for persistent state tracking
+- Follow existing patterns for file organization in output directories
+- Use structured formats for agent artifacts (Plan Document, PRD, etc.)
+- Ensure proper cleanup of resources
+
+## Agno Framework Guidelines
+
+- Use Agno for defining agent tasks and applications
+- Follow Agno's best practices for task definition and execution
+- Consider Agno's deployment features for scaling individual agents when appropriate
