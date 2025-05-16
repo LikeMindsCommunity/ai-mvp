@@ -64,7 +64,13 @@ class ProjectScaffolder(Agent):
     def act(self, context, user_input, session_data):
         project_name = session_data.get('project_name') or Prompt.ask("Enter a name for your JS project", default="my-js-app")
         session_data['project_name'] = project_name
-        project_dir = os.path.abspath(project_name)
+        
+        # Create generated_projects directory if it doesn't exist
+        generated_projects_dir = "generated_projects"
+        if not os.path.exists(generated_projects_dir):
+            os.makedirs(generated_projects_dir)
+        
+        project_dir = os.path.abspath(os.path.join(generated_projects_dir, project_name))
         
         if not os.path.exists(project_dir):
             os.makedirs(project_dir)
