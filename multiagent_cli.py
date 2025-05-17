@@ -236,17 +236,32 @@ class CodeExplainer(Agent):
         if not project_dir:
             return session_data
 
-        # Read all project files
+        # Read all files in the project directory
         files_content = {}
-        for file in ['main.js', 'index.html', 'package.json']:
-            file_path = os.path.join(project_dir, file)
-            if os.path.exists(file_path):
-                with open(file_path, 'r') as f:
-                    files_content[file] = f.read()
+        try:
+            for root, _, files in os.walk(project_dir):
+                for file in files:
+                    # Skip node_modules and other common directories/files
+                    if any(skip in root for skip in ['node_modules', '.git', '.vscode']):
+                        continue
+                    
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, project_dir)
+                    
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            files_content[relative_path] = content
+                    except Exception as e:
+                        console.print(f"[yellow]Warning: Could not read {relative_path}: {str(e)}[/yellow]")
+
+        except Exception as e:
+            console.print(f"[red]Error reading project files: {str(e)}[/red]")
+            return session_data
 
         # Generate README content using LLM
         client = get_gemini_client()
-        prompt = f"""Generate a comprehensive README.md for a JavaScript project with authentication (if authentication is needed). Include:
+        prompt = f"""Generate a comprehensive README.md for a JavaScript project. Include:
 1. Project overview
 2. Features
 3. Setup instructions
@@ -259,58 +274,192 @@ Project files content:
 
 Return only the README.md content in markdown format without any additional text or explanations."""
         
-        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        readme_content = response.text
+        try:
+            response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+            readme_content = response.text
 
-        # Write README.md
-        readme_path = os.path.join(project_dir, "README.md")
-        with open(readme_path, 'w') as f:
-            f.write(readme_content)
+            # Write README.md
+            readme_path = os.path.join(project_dir, "README.md")
+            with open(readme_path, 'w') as f:
+                f.write(readme_content)
 
-        console.print(f"[green]README.md generated with project documentation[/green]")
+            console.print(f"[green]README.md generated with project documentation[/green]")
+        except Exception as e:
+            console.print(f"[red]Error generating README: {str(e)}[/red]")
+
         return session_data
 
 # Test Agent
 class TestAgent(Agent):
     def __init__(self):
-        super().__init__("TestAgent", "Generates and runs tests, fixes errors.")
+        super().__init__("TestAgent", "Validates and fixes compilation errors in project files.")
+        self.ensure_validation_tools()
+
+    def ensure_validation_tools(self):
+        """Ensure all required validation tools are installed."""
+        tools = {
+            'htmlhint': 'npm install -g htmlhint',
+            'stylelint': 'npm install -g stylelint stylelint-config-standard'
+        }
+        
+        for tool, install_cmd in tools.items():
+            try:
+                # Check if tool is installed
+                result = subprocess.run(["which", tool], capture_output=True, text=True)
+                if result.returncode != 0:
+                    console.print(f"[yellow]Installing {tool}...[/yellow]")
+                    install_result = subprocess.run(install_cmd.split(), capture_output=True, text=True)
+                    if install_result.returncode == 0:
+                        console.print(f"[green]Successfully installed {tool}[/green]")
+                    else:
+                        console.print(f"[red]Failed to install {tool}: {install_result.stderr}[/red]")
+            except Exception as e:
+                console.print(f"[red]Error checking/installing {tool}: {str(e)}[/red]")
+
+    def validate_js_file(self, file_path):
+        """Validate JavaScript file syntax using Node.js."""
+        try:
+            result = subprocess.run(["node", "--check", file_path], capture_output=True, text=True, timeout=10)
+            return result.returncode == 0, result.stderr if result.returncode != 0 else None
+        except Exception as e:
+            return False, str(e)
+
+    def validate_html_file(self, file_path):
+        """Validate HTML file using htmlhint."""
+        try:
+            result = subprocess.run(["htmlhint", file_path], capture_output=True, text=True, timeout=10)
+            return result.returncode == 0, result.stderr if result.returncode != 0 else None
+        except Exception as e:
+            return False, str(e)
+
+    def validate_css_file(self, file_path):
+        """Validate CSS file using stylelint."""
+        try:
+            result = subprocess.run(["stylelint", file_path], capture_output=True, text=True, timeout=10)
+            return result.returncode == 0, result.stderr if result.returncode != 0 else None
+        except Exception as e:
+            return False, str(e)
+
+    def fix_file_content(self, file_path, error_message, file_content):
+        """Use Gemini to fix file content based on error message."""
+        try:
+            client = get_gemini_client()
+            file_type = os.path.splitext(file_path)[1].lower()
+            
+            prompt = f"""Fix the following {file_type} code that has compilation errors. Return only the fixed code without any explanations.
+
+Error message:
+{error_message}
+
+Code to fix:
+{file_content}"""
+
+            response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+            fixed_content = response.text.strip()
+            
+            return fixed_content
+        except Exception as e:
+            console.print(f"[red]Error fixing {file_path}: {str(e)}[/red]")
+            return None
 
     def act(self, context, user_input, session_data):
         project_dir = session_data.get('project_dir')
         if not project_dir:
+            console.print("[red]No project directory found in session data[/red]")
             return session_data
 
-        # Test 1: Check if required files exist
-        required_files = ['main.js', 'index.html', 'package.json']
-        missing_files = [f for f in required_files if not os.path.exists(os.path.join(project_dir, f))]
-        if missing_files:
-            console.print(f"[red]Missing required files: {', '.join(missing_files)}[/red]")
-            session_data['test_result'] = 'failed'
-            return session_data
+        # Track validation results
+        validation_results = []
+        files_fixed = []
 
-        # Test 2: Validate JavaScript syntax
         try:
-            result = subprocess.run(["node", "--check", "main.js"], cwd=project_dir, capture_output=True, text=True, timeout=10)
-            if result.returncode != 0:
-                console.print(f"[red]JavaScript syntax error in main.js:[/red]\n{result.stderr}")
-                session_data['test_result'] = 'failed'
-                # Attempt to fix syntax errors
-                client = get_gemini_client()
-                with open(os.path.join(project_dir, "main.js"), "r") as f:
-                    code = f.read()
-                prompt = f"The following JavaScript code has syntax errors. Please fix them and return only the corrected code without any explanations:\n\n{code}"
-                response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-                fixed_code = response.text
-                with open(os.path.join(project_dir, "main.js"), "w") as f:
-                    f.write(fixed_code)
-                console.print(f"[yellow]Fixed syntax errors in main.js. Re-running tests...[/yellow]")
-                return self.act(context, user_input, session_data)
-            else:
-                console.print(f"[green]JavaScript syntax validation passed![/green]")
-                session_data['test_result'] = 'passed'
+            # Walk through all files in the project directory
+            for root, _, files in os.walk(project_dir):
+                # Skip node_modules and other common directories
+                if any(skip in root for skip in ['node_modules', '.git', '.vscode']):
+                    continue
+
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, project_dir)
+                    file_ext = os.path.splitext(file)[1].lower()
+
+                    # Skip non-code files
+                    if file_ext not in ['.js', '.html', '.css']:
+                        continue
+
+                    console.print(f"[cyan]Validating {relative_path}...[/cyan]")
+                    
+                    # Validate based on file type
+                    is_valid = False
+                    error_message = None
+                    
+                    if file_ext == '.js':
+                        is_valid, error_message = self.validate_js_file(file_path)
+                    elif file_ext == '.html':
+                        is_valid, error_message = self.validate_html_file(file_path)
+                    elif file_ext == '.css':
+                        is_valid, error_message = self.validate_css_file(file_path)
+
+                    if not is_valid:
+                        console.print(f"[yellow]Found errors in {relative_path}[/yellow]")
+                        console.print(f"[yellow]Error: {error_message}[/yellow]")
+                        
+                        # Read file content
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                file_content = f.read()
+                            
+                            # Get fixed content
+                            fixed_content = self.fix_file_content(file_path, error_message, file_content)
+                            
+                            if fixed_content:
+                                # Write the fixed content
+                                with open(file_path, 'w', encoding='utf-8') as f:
+                                    f.write(fixed_content)
+                                
+                                # Re-validate the file
+                                is_valid = False
+                                if file_ext == '.js':
+                                    is_valid, _ = self.validate_js_file(file_path)
+                                elif file_ext == '.html':
+                                    is_valid, _ = self.validate_html_file(file_path)
+                                elif file_ext == '.css':
+                                    is_valid, _ = self.validate_css_file(file_path)
+                                
+                                if is_valid:
+                                    console.print(f"[green]Fixed {relative_path}[/green]")
+                                    files_fixed.append(relative_path)
+                                else:
+                                    console.print(f"[red]Fix attempt failed for {relative_path}[/red]")
+                                    # Revert to original content if fix didn't work
+                                    with open(file_path, 'w', encoding='utf-8') as f:
+                                        f.write(file_content)
+                        except Exception as e:
+                            console.print(f"[red]Error processing {relative_path}: {str(e)}[/red]")
+                    
+                    validation_results.append((relative_path, is_valid))
+
         except Exception as e:
-            console.print(f"[red]Error checking JavaScript syntax: {e}[/red]")
+            console.print(f"[red]Error during validation: {str(e)}[/red]")
             session_data['test_result'] = 'failed'
+            return session_data
+
+        # Update session data with test results
+        all_passed = all(is_valid for _, is_valid in validation_results)
+        session_data['test_result'] = 'passed' if all_passed else 'failed'
+        session_data['validation_results'] = validation_results
+        session_data['files_fixed'] = files_fixed
+
+        # Print summary
+        if all_passed:
+            console.print("[bold green]✓ All files passed validation![/bold green]")
+        else:
+            console.print("[bold yellow]⚠ Some files had issues:[/bold yellow]")
+            for file_path, is_valid in validation_results:
+                status = "✓" if is_valid else "✗"
+                color = "green" if is_valid else "red"
+                console.print(f"[{color}]{status} {file_path}[/{color}]")
 
         return session_data
 
