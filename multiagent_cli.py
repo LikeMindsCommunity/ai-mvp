@@ -12,7 +12,9 @@ import requests
 SESSION_DIR = ".multiagent_cli_sessions"
 GEMINI_API_KEY = "AIzaSyAe4CWfuUbYWbOk0UY0DfKn8H5DRkPfpMM"
 GEMINI_MODEL = "gemini-2.5-pro-preview-05-06"
-HAWCX_DOCS_URL = "https://docs.hawcx.com/llms-full.txt"
+DOCS_URLS = {
+    'hawcx': "https://docs.hawcx.com/llms-full.txt"
+}
 
 console = Console()
 
@@ -97,16 +99,26 @@ class FeatureImplementer(Agent):
         auth_keywords = ['auth', 'login', 'sign in', 'signin', 'authentication', 'passwordless']
         needs_auth = any(keyword in requirements.lower() for keyword in auth_keywords)
 
-        # Get Hawcx docs and API key if authentication is needed
-        hawcx_docs = None
-        hawcx_api_key = None
+        # Get docs URL and API key if authentication is needed
+        docs_url = None
+        api_key = None
         if needs_auth:
-            hawcx_api_key = session_data.get('hawcx_api_key') or Prompt.ask("Enter your Hawcx API Key")
-            session_data['hawcx_api_key'] = hawcx_api_key
-            hawcx_docs = session_data.get('hawcx_docs')
-            if not hawcx_docs:
-                hawcx_docs = fetch_hawcx_docs()
-                session_data['hawcx_docs'] = hawcx_docs
+            # Get or prompt for API key
+            api_key = session_data.get('api_key') or Prompt.ask("Enter your API Key")
+            session_data['api_key'] = api_key
+            
+            # Get or prompt for docs URL
+            docs_url = session_data.get('docs_url')
+            if not docs_url:
+                docs_url = DOCS_URLS.get('hawcx')  # Default to Hawcx docs if none specified
+                session_data['docs_url'] = docs_url
+
+            # Fetch docs if URL is available
+            docs_content = None
+            if docs_url:
+                docs_content = fetch_docs(docs_url)
+                if not docs_content:
+                    console.print("[yellow]Warning: Could not fetch documentation. Proceeding without it.[/yellow]")
 
         # Common requirements for both cases
         common_requirements = """
@@ -162,14 +174,14 @@ Example format:
 
         # Generate the prompt based on whether authentication is needed
         if needs_auth:
-            prompt = f"""Generate a complete JavaScript web application that includes both the requested features and Hawcx passwordless authentication. Return a JSON array of files as specified in the requirements.
+            prompt = f"""Generate a complete JavaScript web application that includes both the requested requirements and authentication (using the API key and documentation). Return a JSON array of files as specified in the requirements.
 
 Requirements: {requirements}
 
-Hawcx docs:
-{hawcx_docs}
+Documentation:
+{docs_content if docs_content else 'No documentation available'}
 
-API Key: {hawcx_api_key}
+API Key: {api_key}
 
 {common_requirements}"""
         else:
@@ -205,7 +217,7 @@ Requirements: {requirements}
                 console.print(f"[green]Generated {filename}[/green]")
             
             if needs_auth:
-                console.print(f"[green]Features implemented with Hawcx authentication[/green]")
+                console.print(f"[green]Features implemented with authentication[/green]")
             else:
                 console.print(f"[cyan]Features implemented[/cyan]")
                 
@@ -234,13 +246,13 @@ class CodeExplainer(Agent):
 
         # Generate README content using LLM
         client = get_gemini_client()
-        prompt = f"""Generate a comprehensive README.md for a JavaScript project with Hawcx authentication. Include:
+        prompt = f"""Generate a comprehensive README.md for a JavaScript project with authentication (if authentication is needed). Include:
 1. Project overview
 2. Features
 3. Setup instructions
 4. How to run the project
 5. Code structure explanation
-6. Authentication flow explanation
+6. Authentication flow explanation (if authentication is needed)
 
 Project files content:
 {json.dumps(files_content, indent=2)}
@@ -306,10 +318,15 @@ class TestAgent(Agent):
 def get_gemini_client():
     return genai.Client(api_key=GEMINI_API_KEY)
 
-def fetch_hawcx_docs():
-    response = requests.get(HAWCX_DOCS_URL)
-    response.raise_for_status()
-    return response.text
+def fetch_docs(docs_url):
+    """Generic method to fetch documentation from a URL."""
+    try:
+        response = requests.get(docs_url)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        console.print(f"[red]Error fetching documentation: {str(e)}[/red]")
+        return None
 
 # Main CLI
 @click.command()
